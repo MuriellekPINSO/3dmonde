@@ -1,0 +1,239 @@
+{
+  "models": [
+    {
+      "name": "amazone",
+      "size": [
+        0.6591413215725452,
+        1.9017419815063477,
+        0.9649452859439234
+      ],
+      "center": [
+        0.0019035041332244873,
+        -0.0011439919471740723,
+        0.01421499252319336
+      ],
+      "triangles": 25358,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "name": "palais-congres",
+      "size": [
+        1.8988710045814514,
+        0.366480307412125,
+        1.564843096307655
+      ],
+      "center": [
+        -0.0013885200023651123,
+        -0.0009245052933692932,
+        0.010427981615066528
+      ],
+      "triangles": 59880,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "normalMap",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 2048,
+          "height": 2048
+        }
+      ]
+    },
+    {
+      "name": "etoile-rouge",
+      "size": [
+        1.8960467652561908,
+        1.6509609273727366,
+        1.9030160307884216
+      ],
+      "center": [
+        -0.003928005695343018,
+        -0.0018324851989746094,
+        -0.0007790029048919678
+      ],
+      "triangles": 101966,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "normalMap",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 2048,
+          "height": 2048
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 2048,
+          "height": 2048
+        }
+      ]
+    },
+    {
+      "name": "joggeuse-bleue",
+      "size": [
+        0.604595288288227,
+        1.9025039672851562,
+        0.4912590736777766
+      ],
+      "center": [
+        -0.0017099976539611816,
+        -0.0008400082588195801,
+        0.003908000886440277
+      ],
+      "triangles": 45830,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "name": "joggeuse-bordeaux",
+      "size": [
+        0.786037966914146,
+        1.9026450514793396,
+        0.3695313305342118
+      ],
+      "center": [
+        -0.0005605071783065796,
+        -0.0008575022220611572,
+        0.0032990053296089172
+      ],
+      "triangles": 23800,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "name": "zemidjans",
+      "size": [
+        1.8988290429115295,
+        0.7617452854723367,
+        1.3600731723115818
+      ],
+      "center": [
+        0.00025150179862976074,
+        -0.008597508072853088,
+        -0.005056977272033691
+      ],
+      "triangles": 58912,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    }
+  ],
+  "console": [
+    "[vite] connecting...",
+    "[vite] connected.",
+    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+    "modèle statue-amazone : posé — échelle 12.620",
+    "modèle palais-congres : posé — échelle 21.065",
+    "modèle joggeuse-bordeaux : posé — échelle 0.883",
+    "modèle zemidjans : posé — échelle 6.846",
+    "modèle joggeuse-bleue : posé — échelle 0.904"
+  ]
+}

@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+dist/
+.env*
+playwright-report/
+test-results/
+# Modeles Meshy bruts : 485 Mo, sources de public/modeles/
+3d/glb/
+3d/*.download/

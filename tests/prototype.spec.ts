@@ -1,0 +1,27 @@
+import {test,expect} from '@playwright/test';
+test('Corniche : marche, guide, discussion et achat confirmé',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');
+  await page.getByRole('button',{name:'Commencer la balade'}).click();
+  await expect(page.locator('canvas')).toBeVisible();
+  await page.keyboard.down('z');
+  await expect(page.locator('#interaction')).toHaveText('E · Rencontrer le guide',{timeout:20000});
+  await page.keyboard.up('z');
+  await page.keyboard.press('e');await expect(page.getByRole('heading',{name:'Au fil de la Corniche'})).toBeVisible();
+  await page.getByRole('button',{name:'Fermer',exact:true}).click();
+  await page.keyboard.down('z');
+  await expect(page.locator('#interaction')).toHaveText('E · Discuter avec Aïcha',{timeout:20000});
+  await page.keyboard.up('z');
+  await page.keyboard.press('e');await expect(page.getByRole('heading',{name:'Une pause chez Aïcha'})).toBeVisible();
+  await page.getByLabel('Ton message').fill('Je veux acheter de l’eau');await page.getByRole('button',{name:'Envoyer',exact:true}).click();
+  await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');
+  await page.getByRole('button',{name:'Eau fraîche 200 FCFA'}).click();await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');
+  await page.getByRole('button',{name:'Confirmer l’achat'}).click();await expect(page.locator('#wallet')).toHaveText('1 300 FCFA');
+  await expect(page.getByRole('button',{name:'Sac · 1'})).toBeVisible();
+  await page.getByRole('button',{name:'Fermer',exact:true}).click();
+  await page.getByRole('button',{name:'Sac · 1'}).click();await expect(page.locator('#panel-body')).toContainText('Eau fraîche');
+  await page.keyboard.press('Escape');
+  await page.screenshot({path:'docs/prototype-desktop.png'});
+  expect(errors).toEqual([]);
+});
+test('Accueil sur petit écran',async({page})=>{await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(page.getByRole('button',{name:'Commencer la balade'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);});
