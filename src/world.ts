@@ -68,7 +68,19 @@ export class Monde {
   }
 
   constructor(host:HTMLElement){
-    this.scene.background=new T.Color('#c9e4df');this.scene.fog=new T.Fog('#c9e4df',60,190);
+    const ciel=document.createElement('canvas');ciel.width=1024;ciel.height=512;
+    const pinceau=ciel.getContext('2d')!,degrade=pinceau.createLinearGradient(0,0,0,ciel.height);
+    degrade.addColorStop(0,'#82bac8');degrade.addColorStop(.62,'#c8e1df');degrade.addColorStop(1,'#e7dfc6');
+    pinceau.fillStyle=degrade;pinceau.fillRect(0,0,ciel.width,ciel.height);
+    pinceau.fillStyle='#fffdf3';pinceau.globalAlpha=.2;
+    for(const [x,y,s] of [[120,125,1],[410,82,.75],[735,145,1.15],[930,65,.68]] as const){
+      for(const [dx,dy,r] of [[-55,8,.72],[0,0,1],[58,10,.65]] as const){
+        pinceau.beginPath();pinceau.ellipse(x+dx*s,y+dy*s,68*r*s,18*r*s,0,0,Math.PI*2);pinceau.fill();
+      }
+    }
+    pinceau.globalAlpha=1;
+    const textureCiel=new T.CanvasTexture(ciel);textureCiel.colorSpace=T.SRGBColorSpace;
+    this.scene.background=textureCiel;this.scene.fog=new T.Fog('#d1dfd5',75,215);
     this.renderer=new T.WebGLRenderer({antialias:true});this.renderer.setSize(innerWidth,innerHeight);
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
     host.append(this.renderer.domElement);this.renderer.domElement.setAttribute('aria-label','Balade 3D dans quatre zones de Cotonou');

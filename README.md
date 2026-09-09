@@ -130,6 +130,10 @@ motos, conducteurs et passagers avant leur remise en route. Une moto ou une voit
 un personnage déclenche aussi un accident : le personnage tombe, le véhicule s'immobilise et
 tous deux reprennent leur route après quelques secondes.
 
+Le sol et la chaussée continuent au-delà des limites jouables afin que les véhicules ne flottent
+jamais en bout de carte. Des volumes d'immeubles lointains, des nuages légers et un ciel en
+dégradé ferment la perspective lorsque la caméra regarde hors des quatre zones détaillées.
+
 Les quinze fichiers actifs optimisés tiennent en environ 15,7 MiB. Le détail de la chaîne, le tableau des modèles et la raison
 pour laquelle celui de l’Étoile Rouge a été écarté sont dans [docs/MESHY.md](docs/MESHY.md).
 

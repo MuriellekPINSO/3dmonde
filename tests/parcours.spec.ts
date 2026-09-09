@@ -32,6 +32,11 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('circulation-2').rotation.z);}),{timeout:10000}).toBeGreaterThan(.5);
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('vehicule-joueur-zemidjan').rotation.z);})).toBeGreaterThan(.5);
  await page.keyboard.up('z');await page.screenshot({path:'docs/audit/collision-zemidjans.png'});await page.waitForTimeout(2800);
+ // Une voiture autonome s'arrête également lorsqu'elle percute un passant.
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('passant-6')?.getObjectByName('corps-personnage');}),{timeout:30000}).toBe(true);
+ await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur'),v=s.getObjectByName('circulation-5'),p=s.getObjectByName('passant-6');j.position.set(0,.15,-370);v.position.set(23,0,-370);p.position.set(23,.15,-370);});
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('passant-6').getObjectByName('corps-personnage').rotation.x);})).toBeGreaterThan(.5);
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('circulation-5').rotation.z);})).toBeGreaterThan(.05);
  // La moto renverse aussi un piéton, s'arrête et déclenche le message d'accident.
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('passant-0')?.getObjectByName('corps-personnage');}),{timeout:30000}).toBe(true);
  await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur'),p=s.getObjectByName('passant-0');s.children.filter((o:any)=>/^circulation-|^zem-supplementaire-/.test(o.name)).forEach((o:any)=>o.position.x=50);j.position.set(0,.15,-60);p.position.set(0,.15,-61.2);});

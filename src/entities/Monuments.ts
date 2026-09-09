@@ -16,16 +16,49 @@ const CREME_CONGRES = '#ece5d6';
 
 /** Sol continu de la promenade, chaussée, accotements et rives. */
 export function boulevard(b: Batisseur) {
-  const longueur = 436, centre = -193;
-  b.sol(28, longueur, b.tex('sable', 14, 218, '#cfc6ab'), -22, centre, -.05);        // rive ouest
-  b.sol(30, longueur, b.tex('sable', 15, 218, '#c9c2a8'), 36, centre, -.05);         // rive est
-  b.sol(16.4, longueur, b.tex('paves', 8, 216), .1, centre);                          // trottoir
-  b.sol(3, longueur, b.tex('gazon', 1.5, 145), 9.7, centre, -.02);                   // accotement planté
-  b.sol(10, longueur, b.tex('asphalte', 1, 54), 16, centre, -.03);                   // chaussée
+  // Le décor visible dépasse largement les limites jouables (-407 à 25). La
+  // circulation peut ainsi faire demi-tour hors champ sans rouler dans le vide.
+  const longueur = 620, centre = -190;
+  b.sol(28, longueur, b.tex('sable', 14, 310, '#cfc6ab'), -22, centre, -.05).name='sol-lointain-ouest';
+  b.sol(30, longueur, b.tex('sable', 15, 310, '#c9c2a8'), 36, centre, -.05).name='sol-lointain-est';
+  b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
+  b.sol(3, longueur, b.tex('gazon', 1.5, 205), 9.7, centre, -.02).name='accotement-continu';
+  b.sol(10, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
   for (const x of [-8.2, 8.35]) b.boite(.35, .24, longueur, '#e7e1d2', x, .12, centre).castShadow = false;
   // Le tronçon de la Corniche reçoit ses lampadaires solaires spécifiques dans Rues.ts.
   for (let z = -102; z > -400; z -= 34) b.lampadaireDouble(10.6, z);
   for (let z = -118; z > -400; z -= 34) b.lampadaireSimple(11.4, z, 1);
+
+  horizonUrbain(b);
+}
+
+/** Volumes lointains qui ferment la carte sans alourdir les zones de visite. */
+function horizonUrbain(b: Batisseur) {
+  const couleurs=['#c9bda8','#b7c2bb','#d2aa87','#aab8b5','#d5cbb7'];
+  // Deux rangées restent derrière les façades détaillées. Leur silhouette est
+  // visible lorsque le joueur regarde de côté, à la place d'un grand fond vide.
+  for(let i=0;i<19;i++){
+    const z=66-i*30+(i%2?4:-3),x=72;
+    const h=5+(i*7%11),w=13+(i%3)*4,d=18+(i%4)*3;
+    const immeuble=b.boite(w,h,d,couleurs[(i+2)%couleurs.length],x,h/2,z);
+    immeuble.castShadow=false;
+    const bande=b.boite(w+.08,.75,d*.78,'#51696a',x-(w/2+.05),Math.min(h-1.2,3.1),z);
+    bande.castShadow=false;
+  }
+  // Les deux extrémités ferment la perspective au-delà des demi-tours du trafic.
+  for(const z of [82,-474])for(let x=30;x<=70;x+=20){
+    const h=5+Math.abs(Math.round(x/10))%8;
+    const fond=b.boite(16,h,13,couleurs[Math.abs(Math.round(x/20))%couleurs.length],x,h/2,z);
+    fond.castShadow=false;
+  }
+  // Nuages très légers : ils donnent de la profondeur au ciel sans masquer les monuments.
+  const nuage=b.mat('#fffaf0',{transparent:.36,face2:true});
+  for(const [x,y,z,s] of [[-34,39,-34,7],[48,46,-118,9],[-52,43,-222,8],[55,40,-330,7],[-28,48,-430,10]] as const){
+    const g=new T.Group();g.position.set(x,y,z);b.racine.add(g);
+    for(const [dx,dy,e] of [[-1.2,0,.8],[0,.35,1],[1.35,.05,.72]] as const){
+      const m=b.sphere(1,nuage,dx*s*.18,dy*s*.12,0,g);m.scale.set(s*.42,s*.13,s*.2);m.castShadow=false;m.receiveShadow=false;
+    }
+  }
 }
 
 /** Corniche Est d’Akpakpa : plage ouverte, promenades, jeunes palmiers et piste de mise en forme. */

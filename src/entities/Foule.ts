@@ -231,6 +231,13 @@ export class Foule {
     for (let n: T.Object3D | null = objet; n; n = n.parent) if (n === this.scene) return true;
     return false;
   }
+  /** Ignore les conducteurs déjà intégrés aux modèles de véhicules. */
+  private dansUnVehicule(objet: T.Object3D) {
+    for (let n: T.Object3D | null = objet.parent; n; n = n.parent) {
+      if (/^(circulation-|zem-supplementaire-|vehicule-joueur-|moto-borne)/.test(n.name)) return true;
+    }
+    return false;
+  }
   /**
    * Copie légère du corps choisi par le joueur, utilisée comme passager du
    * zémidjan. Le GLB n'est pas riggé : une légère inclinaison donne une pose
@@ -293,7 +300,7 @@ export class Foule {
     let cible: Habitant | undefined, distance = Infinity;
     const monde = new T.Vector3();
     for (const h of this.habitants) {
-      if (h === this.joueur || h.chute !== undefined || !this.dansLaScene(h.personnage.objet)) continue;
+      if (h === this.joueur || h.chute !== undefined || !this.dansLaScene(h.personnage.objet) || this.dansUnVehicule(h.personnage.objet)) continue;
       h.personnage.objet.getWorldPosition(monde);
       const d = Math.hypot(monde.x - position.x, monde.z - position.z);
       if (d <= portee && d < distance) { cible = h; distance = d; }
