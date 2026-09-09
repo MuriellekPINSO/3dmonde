@@ -26,6 +26,7 @@ const POSES: Pose[] = [
 ];
 
 type Frame = {paused:boolean;running:boolean;transport:'zemidjan'|'voiture'|null;speed:number};
+type TransitionTransport={type:'zemidjan'|'voiture';sens:'montee'|'descente';temps:number;duree:number};
 export class Monde {
   readonly scene = new T.Scene();
   readonly camera = new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,260);
@@ -41,12 +42,18 @@ export class Monde {
   private readonly vie: VieUrbaine;
   private passagerMoto?: T.Group;
   private accident=0;
+  private transitionTransport?:TransitionTransport;
   onAccident?:(type:'vehicule'|'personnage')=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
   private pitch = -.3;
   readonly axesManette = {x: 0, z: 0};
   get player(){return this.joueur.objet;}
+  get angleCamera(){return this.yaw;}
+  get intensiteCommande(){
+    const clavier=this.keys.has('z')||this.keys.has('w')||this.keys.has('s')||this.keys.has('arrowup')||this.keys.has('arrowdown');
+    return Math.min(1,Math.max(clavier?1:0,Math.hypot(this.axesManette.x,this.axesManette.z)));
+  }
 
   /** Oriente la caméra avec le joystick droit, en radians par seconde. */
   regarderManette(x:number,y:number,dt:number){
@@ -59,7 +66,7 @@ export class Monde {
    * Sans ce déplacement, un joueur placé près du poteau pouvait démarrer dans
    * son volume de collision et rester bloqué malgré le statut « en véhicule ».
    */
-  engagerTransportSurVoie() {
+  engagerTransportSurVoie(type:'zemidjan'|'voiture') {
     this.keys.clear();
     this.axesManette.x = this.axesManette.z = 0;
     this.player.position.x = 14;
@@ -67,6 +74,13 @@ export class Monde {
     this.player.position.z = this.rues.placeLibreSurVoie(this.player.position.z);
     this.player.rotation.y = Math.PI;
     this.yaw = 0;
+    this.transitionTransport={type,sens:'montee',temps:0,duree:.95};
+  }
+
+  /** Conserve le véhicule à l'écran pendant que le joueur en descend. */
+  commencerDescente(type:'zemidjan'|'voiture'){
+    this.keys.clear();this.axesManette.x=this.axesManette.z=0;
+    this.transitionTransport={type,sens:'descente',temps:0,duree:.8};
   }
 
   constructor(host:HTMLElement){
@@ -176,9 +190,16 @@ export class Monde {
     const target=new T.Vector3(),desired=new T.Vector3(),regard=new T.Vector3();let last=0;
     this.renderer.setAnimationLoop(time=>{
       const dt=Math.min((time-last)/1000||0,.1);last=time;const state=update(dt);
-      const avant=this.player.position.clone(),enAccident=this.accident>0;
+      let transition=this.transitionTransport;
+      if(transition&&!state.paused){
+        transition.temps=Math.min(transition.duree,transition.temps+dt);
+        if(transition.temps>=transition.duree){
+          this.foule.finaliserTransitionTransport(transition.sens==='montee');this.transitionTransport=undefined;transition=undefined;
+        }
+      }
+      const avant=this.player.position.clone(),enAccident=this.accident>0,enTransition=!!transition;
       const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z)];
-      const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident,obstacles,!!state.transport,this.axesManette);
+      const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident||enTransition,obstacles,!!state.transport,this.axesManette);
       this.rues.actualiser(dt,state.paused,this.player.position.z);
       if(state.transport&&!enAccident&&mouvement.moving){
         const chocVehicule=this.rues.percuterProche(this.player.position,mouvement.bloque?3:1.65);
@@ -199,15 +220,21 @@ export class Monde {
         if(choc&&this.rues.accidenterVehicule(vehicule.objet)&&choc.position.distanceTo(this.player.position)<28)this.onAccident?.('personnage');
       }
       if(this.accident>0)this.accident=Math.max(0,this.accident-dt);
-      if(!state.paused){this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);}
+      if(!state.paused){
+        this.foule.reagirAuJoueur(this.player.position,!!state.transport,mouvement.moving);
+        this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);
+      }
       // Les deux modèles détaillés embarquent leur propre conducteur : le personnage
       // en boîtes s'effacerait sinon derrière lui, ou se superposerait au pilote.
-      this.player.visible=!state.transport;
+      const transportVisuel=state.transport??(transition?.sens==='descente'?transition.type:null);
+      const progression=transition?transition.temps/transition.duree:0;
+      if(transition)this.foule.animerTransitionTransport(transition.type,transition.sens,progression);
+      this.player.visible=!state.transport||enTransition;
       const angle=state.transport==='voiture'?.14:1.28;
       const chute=this.accident>0?angle*Math.min(1,(2.7-this.accident)/.24)*Math.min(1,this.accident/.55):0;
-      for(const [id,g] of Object.entries(this.vehicules)){g.visible=id===state.transport;if(g.visible){g.position.copy(this.player.position);g.rotation.y=this.player.rotation.y;g.rotation.z=chute;}}
+      for(const [id,g] of Object.entries(this.vehicules)){g.visible=id===transportVisuel;if(g.visible){g.position.copy(this.player.position);g.rotation.y=this.player.rotation.y;g.rotation.z=chute;}}
       if(this.passagerMoto){
-        const embarque=state.transport==='zemidjan';this.passagerMoto.visible=embarque;
+        const embarque=transportVisuel==='zemidjan'&&(!transition||(transition.sens==='montee'?progression>.58:progression<.42));this.passagerMoto.visible=embarque;
         if(embarque){
           const direction=new T.Vector3(Math.sin(this.player.rotation.y),0,Math.cos(this.player.rotation.y));
           this.passagerMoto.position.copy(this.player.position).addScaledVector(direction,-.62);

@@ -25,6 +25,12 @@ test('les personnages variés rejoignent la scène', async ({page}) => {
     const scene=scenes?.find(s=>s.getObjectByName('joueur'));
     return scene?.getObjectByName('vendeuse-aicha')?.getObjectByName('modele-vendeuse')!=null;
   }),{timeout:30000}).toBe(true);
+  // À pied, un passant proche se tourne vers le joueur et le salue.
+  await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur'),p=s.getObjectByName('passant-0');j.position.set(p.position.x,.15,p.position.z+1.8);});
+  await page.keyboard.down('z');
+  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('passant-0').userData.reactionPNJ;})).toBe('salut');
+  await page.keyboard.up('z');
+  await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));s.getObjectByName('joueur').position.set(0,.15,12);});
   await page.keyboard.down('z');
   await expect(page.locator('#interaction')).toHaveText('E · Discuter avec Aïcha', {timeout: 150000});
   await page.keyboard.up('z');

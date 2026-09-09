@@ -1,49 +1,89 @@
-/** Ambiance synthétique discrète, sans enregistrement externe et activée sur demande. */
+export type Ecoute3D={x:number;z:number;yaw:number;mode:'zemidjan'|'voiture'|null;intensite:number};
+
+/** Ambiance synthétique spatialisée, activée par le joueur et sans fichier distant. */
 export class Ambiance {
   private contexte?:AudioContext;
   private sortie?:GainNode;
   private vent?:GainNode;
   private vagues?:GainNode;
+  private trafic?:GainNode;
+  private marche?:GainNode;
   private moteur?:OscillatorNode;
-  private moteurVolume?:GainNode;
+  private pannerVagues?:PannerNode;
+  private pannerTrafic?:PannerNode;
+  private pannerMarche?:PannerNode;
   private active=false;
+
   constructor(private readonly bouton:HTMLButtonElement){
-    bouton.onclick=async()=>{
-      if(!('AudioContext' in window)){bouton.textContent='Ambiance indisponible';bouton.disabled=true;return;}
-      try{
-        if(!this.contexte)this.creer();
-        await this.contexte!.resume();this.active=!this.active;
-        bouton.textContent=`Ambiance : ${this.active?'activée':'coupée'}`;
-        bouton.setAttribute('aria-pressed',String(this.active));
-        if(!this.active)this.sortie!.gain.setTargetAtTime(0,this.contexte!.currentTime,.1);
-      }catch{bouton.textContent='Son indisponible';}
-    };
+    bouton.textContent='Ambiance 3D : coupée';
+    bouton.onclick=()=>this.basculer();
     addEventListener('blur',()=>{if(this.contexte)this.sortie?.gain.setTargetAtTime(0,this.contexte.currentTime,.04);});
   }
+
+  private async basculer(){
+    if(!('AudioContext' in window)){this.bouton.textContent='Ambiance indisponible';this.bouton.disabled=true;return;}
+    try{
+      if(!this.contexte)this.creer();
+      await this.contexte!.resume();this.active=!this.active;
+      this.bouton.textContent=`Ambiance 3D : ${this.active?'activée':'coupée'}`;
+      this.bouton.setAttribute('aria-pressed',String(this.active));
+      if(!this.active)this.sortie!.gain.setTargetAtTime(0,this.contexte!.currentTime,.1);
+    }catch{this.bouton.textContent='Son indisponible';}
+  }
+
+  private creerPanner(ctx:AudioContext,x:number,z:number,portee:number){
+    const panner=ctx.createPanner();panner.panningModel='HRTF';panner.distanceModel='inverse';
+    panner.refDistance=5;panner.maxDistance=portee;panner.rolloffFactor=1.25;
+    this.positionner(panner,x,1,z);return panner;
+  }
+
   private creer(){
     const ctx=new AudioContext();this.contexte=ctx;
     const master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);this.sortie=master;
     const buffer=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate),samples=buffer.getChannelData(0);
     for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*.3;
     const bruit=ctx.createBufferSource();bruit.buffer=buffer;bruit.loop=true;
-    const filtre=ctx.createBiquadFilter();filtre.type='lowpass';filtre.frequency.value=650;
-    const vent=ctx.createGain();vent.gain.value=.3;bruit.connect(filtre).connect(vent).connect(master);bruit.start();this.vent=vent;
-    // Une seconde branche du bruit forme le ressac, avec une enveloppe lente qui
-    // gonfle et retombe comme les rouleaux visibles près de la Corniche.
+
+    const filtreVent=ctx.createBiquadFilter();filtreVent.type='lowpass';filtreVent.frequency.value=650;
+    const vent=ctx.createGain();vent.gain.value=.2;bruit.connect(filtreVent).connect(vent).connect(master);this.vent=vent;
+
     const filtreVagues=ctx.createBiquadFilter();filtreVagues.type='bandpass';filtreVagues.frequency.value=430;filtreVagues.Q.value=.55;
-    const vagues=ctx.createGain();vagues.gain.value=0;bruit.connect(filtreVagues).connect(vagues).connect(master);this.vagues=vagues;
+    const vagues=ctx.createGain();vagues.gain.value=0;this.pannerVagues=this.creerPanner(ctx,-38,-35,115);
+    bruit.connect(filtreVagues).connect(vagues).connect(this.pannerVagues).connect(master);this.vagues=vagues;
+
+    const filtreMarche=ctx.createBiquadFilter();filtreMarche.type='bandpass';filtreMarche.frequency.value=980;filtreMarche.Q.value=.8;
+    const marche=ctx.createGain();marche.gain.value=.06;this.pannerMarche=this.creerPanner(ctx,3,-188,85);
+    bruit.connect(filtreMarche).connect(marche).connect(this.pannerMarche).connect(master);this.marche=marche;
+
     const moteur=ctx.createOscillator();moteur.type='triangle';moteur.frequency.value=66;
-    const volume=ctx.createGain();volume.gain.value=.012;moteur.connect(volume).connect(master);moteur.start();this.moteur=moteur;this.moteurVolume=volume;
+    const trafic=ctx.createGain();trafic.gain.value=.012;this.pannerTrafic=this.creerPanner(ctx,16,-18,95);
+    moteur.connect(trafic).connect(this.pannerTrafic).connect(master);moteur.start();this.moteur=moteur;this.trafic=trafic;
+    bruit.start();
   }
-  actualiser(z:number,paused:boolean,enVehicule:boolean){
+
+  private positionner(panner:PannerNode,x:number,y:number,z:number){
+    if(panner.positionX){panner.positionX.value=x;panner.positionY.value=y;panner.positionZ.value=z;}
+    else panner.setPosition(x,y,z);
+  }
+
+  actualiser(ecoute:Ecoute3D,paused:boolean){
     if(!this.contexte||!this.active)return;
-    const ctx=this.contexte,t=ctx.currentTime,corniche=z>-90;
+    const ctx=this.contexte,t=ctx.currentTime,corniche=ecoute.z>-90;
     const muet=paused||document.hidden||!document.hasFocus();
-    this.sortie!.gain.setTargetAtTime(muet?0:.55,t,.15);
-    this.vent!.gain.setTargetAtTime(corniche?.27+.07*Math.sin(t*.5):.11,t,.5);
-    const ressac=.22+.12*Math.sin(t*.72)+.05*Math.sin(t*1.41);
-    this.vagues!.gain.setTargetAtTime(corniche?ressac:.008,t,.28);
-    this.moteur!.frequency.setTargetAtTime((enVehicule?85:58)+Math.sin(t*.6)*12,t,.1);
-    this.moteurVolume!.gain.setTargetAtTime(enVehicule?.025:corniche?.006:.016,t,.3);
+    this.sortie!.gain.setTargetAtTime(muet?0:.58,t,.15);
+    this.vent!.gain.setTargetAtTime(corniche?.22+.06*Math.sin(t*.5):.09,t,.5);
+    const ressac=.24+.11*Math.sin(t*.72)+.05*Math.sin(t*1.41);
+    this.vagues!.gain.setTargetAtTime(corniche?ressac:.012,t,.28);
+    const procheMarche=Math.abs(ecoute.z+188)<75;
+    this.marche!.gain.setTargetAtTime(procheMarche?.055+.018*Math.sin(t*1.7):.006,t,.4);
+    const regime=ecoute.mode==='voiture'?112:ecoute.mode==='zemidjan'?138:66;
+    this.moteur!.frequency.setTargetAtTime(regime+ecoute.intensite*35+Math.sin(t*.6)*9,t,.08);
+    this.trafic!.gain.setTargetAtTime(ecoute.mode?.027:.014,t,.25);
+    this.positionner(this.pannerTrafic!,ecoute.mode?ecoute.x:16,1,ecoute.mode?ecoute.z:ecoute.z-18);
+
+    const listener=ctx.listener,fx=-Math.sin(ecoute.yaw),fz=-Math.cos(ecoute.yaw);
+    if(listener.positionX){listener.positionX.value=ecoute.x;listener.positionY.value=1.6;listener.positionZ.value=ecoute.z;
+      listener.forwardX.value=fx;listener.forwardY.value=0;listener.forwardZ.value=fz;listener.upX.value=0;listener.upY.value=1;listener.upZ.value=0;}
+    else{listener.setPosition(ecoute.x,1.6,ecoute.z);listener.setOrientation(fx,0,fz,0,1,0);}
   }
 }

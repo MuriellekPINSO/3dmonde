@@ -139,6 +139,11 @@ véhicules, palmes, drapeaux et nuages sensibles au vent. Le rendu utilise une c
 cinéma. La caméra élargit progressivement son champ avec la vitesse, accompagne les pas et réagit
 aux collisions, sans ajouter de post-traitement lourd pour les ordinateurs moins puissants.
 
+Les feux de l'axe institutionnel suivent maintenant un cycle rouge, orange et vert, et les véhicules
+s'arrêtent avant le passage piéton lorsque le feu est rouge. Les passants saluent le joueur à pied,
+s'écartent avec crainte devant un véhicule proche et réagissent aux accidents. Monter ou descendre
+d'un zémidjan ou d'une voiture déclenche une transition visible avant de rendre les commandes.
+
 Les quinze fichiers actifs optimisés tiennent en environ 15,7 MiB. Le détail de la chaîne, le tableau des modèles et la raison
 pour laquelle celui de l’Étoile Rouge a été écarté sont dans [docs/MESHY.md](docs/MESHY.md).
 
@@ -150,7 +155,7 @@ visible, sans interrompre le jeu.
 
 - Compilation TypeScript et production Vite réussies.
 - Neuf tests de logique réussis : commerce, portefeuille partagé, transport, progression, jogging, manette et placement des modèles après rotation.
-- Les tests Playwright couvrent la marche vers le guide et la vendeuse, l’achat et l’inventaire, l’accueil à 390 pixels, le chargement des neuf modèles de décor et de véhicules, les personnages articulés, les cinq nouveaux zémidjans, les cinq guides, le paiement et la conduite des deux transports, la manette DualSense simulée et les nouveaux repères photographiés.
+- Les sept tests Playwright couvrent la marche vers le guide et la vendeuse, l’achat et l’inventaire, l’accueil à 390 pixels, le chargement des modèles, les personnages articulés et leurs réactions, les cinq nouveaux zémidjans, les cinq guides, le paiement et la conduite des deux transports, les transitions d'embarquement, les feux tricolores, la manette DualSense simulée et les nouveaux repères photographiés.
 - Capture de la scène contrôlée visuellement : `docs/prototype-desktop.png`.
 - Les cinq lieux ont été contrôlés visuellement en comparant des vues rendues aux photographies de référence, à hauteur d’yeux du joueur et en vue rapprochée. La page d’aperçu utilisée pour ces rendus était temporaire et n’est pas conservée dans le dépôt.
 - Les modèles Meshy ont été rendus avant et après optimisation, puis contrôlés en place dans la scène. C’est ce contrôle qui a conduit à écarter celui de l’Étoile Rouge et à orienter le zémidjan détaillé sur sa voie.
@@ -165,10 +170,15 @@ Dernier contrôle des modèles : [audit détaillé et aperçu](docs/AUDIT-MODELE
 
 Les abords comportent désormais des devantures variées, enseignes fictives, auvents, petits étals, kiosques, balcons, terrasses et deux percées latérales. Vingt véhicules décoratifs, dont le zémidjan détaillé, et sept passants suivent des trajectoires animées. Les personnages construits en code ont des volumes arrondis et des tenues variées ; cela ne remplace pas le travail d'animation des futurs personnages Meshy.
 
-Le bouton **Ambiance** active un fond sonore synthétique de souffle et de moteurs, sans clé API ni fichier sonore distant. Il est désactivé par défaut, et s'atténue pendant un dialogue ou lorsque la page perd le focus. La caméra initiale est moins plongeante et le panneau latéral laisse davantage de place au décor. Le carnet complet reste accessible avec **Parcours**.
+Le bouton **Ambiance 3D** active un mixage spatial HRTF sans clé API ni fichier sonore distant. La mer,
+la circulation et l'activité du marché viennent de leur position dans la scène ; le moteur suit le
+véhicule du joueur et change de hauteur avec l'accélération. Le son est désactivé par défaut à cause
+des règles de lecture automatique des navigateurs, puis s'atténue pendant un dialogue ou lorsque la
+page perd le focus. La caméra initiale est moins plongeante et le panneau latéral laisse davantage de
+place au décor. Le carnet complet reste accessible avec **Parcours**.
 
-Il s'agit d'une évocation stylisée : les rues restent linéaires et les noms des commerces sont fictifs. Voir les [références de cette passe](docs/REFERENCES.md). Les animations de circulation n'ajoutent pas de simulation routière ni de collisions avec les véhicules décoratifs.
+Il s'agit d'une évocation stylisée : les rues restent linéaires et les noms des commerces sont fictifs. Voir les [références de cette passe](docs/REFERENCES.md).
 
-Validation de cette passe : compilation et neuf tests de logique réussis ; les tests navigateur vérifient notamment que la circulation s'arrête pendant les dialogues, que la commande d'ambiance fonctionne et que le zémidjan détaillé avance sur sa voie. Le test vérifie la commande sonore, pas sa qualité d'écoute. Captures : [vue initiale](docs/audit/rues-corniche.png), [commerces](docs/audit/rues-akpakpa.png), [abords de l'Étoile Rouge](docs/audit/rues-etoile.png).
+Validation de cette passe : compilation et neuf tests de logique réussis ; les tests navigateur vérifient notamment l'arrêt au feu rouge, la réaction des PNJ, la transition de montée, la commande d'ambiance 3D et le déplacement du zémidjan détaillé. Le test vérifie la commande sonore, pas sa qualité d'écoute. Captures : [vue initiale](docs/audit/rues-corniche.png), [commerces](docs/audit/rues-akpakpa.png), [abords de l'Étoile Rouge](docs/audit/rues-etoile.png), [montée sur le zémidjan](docs/audit/animation-montee-zemidjan.png).
 
 Une vidéo de 53 secondes de la Corniche Est a ensuite corrigé le premier secteur : sa rue est plus ouverte et moins commerçante, avec lampadaires solaires, murs de propriétés, bâtiments en retrait, passages piétons, panneaux et accotements sableux. Cette vidéo concerne la Corniche Est et ne constitue pas un passage par les cinq lieux. Les observations détaillées sont consignées dans [les références](docs/REFERENCES.md).

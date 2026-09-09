@@ -30,6 +30,10 @@ type Habitant = {
   /** Renversé : durée écoulée depuis la chute, et place où il est tombé. */
   chute?: number;
   placeChute?: T.Vector3;
+  reaction?: 'salut'|'peur';
+  reactionTemps?: number;
+  reactionCooldown?: number;
+  reactionCible?: T.Vector3;
 };
 
 /** Teinte et saturation d’une couleur, pour reconnaître les habits dans l’atlas. */
@@ -207,7 +211,7 @@ export class Foule {
       const course = this.clipCourse ? mixeur.clipAction(this.clipCourse) : undefined;
       course?.play(); if (course) course.weight = 0;
       const habitant:Habitant={personnage, corps, mixeur, marche, course, bouge: false,
-        precedent: personnage.objet.position.clone()};
+        reposY:corps.position.y,precedent: personnage.objet.position.clone()};
       this.habitants.push(habitant);
       if (personnage.objet.name === 'joueur') this.joueur = habitant;
       habilles++;
@@ -255,6 +259,21 @@ export class Foule {
     const passager=new T.Group();passager.name='passager-joueur-moto';passager.add(corps);passager.visible=false;
     return passager;
   }
+  /** Fait entrer ou sortir visuellement le corps du joueur par le côté du véhicule. */
+  animerTransitionTransport(type:'zemidjan'|'voiture',sens:'montee'|'descente',progression:number){
+    const h=this.joueur;if(!h)return false;
+    const q=sens==='montee'?progression:1-progression,ease=q*q*(3-2*q),decalage=type==='voiture'?1.45:1.05;
+    h.corps.visible=true;h.corps.position.x=-decalage*(1-ease);h.corps.position.z=(1-ease)*.18;
+    h.corps.position.y=(h.reposY??0)+Math.sin(ease*Math.PI)*(type==='voiture'?.28:.4);
+    h.corps.rotation.x=-ease*(type==='zemidjan'?.22:.08);h.corps.rotation.z=-Math.sin(ease*Math.PI)*.1;
+    h.personnage.objet.userData.transitionTransport={type,sens,progression};
+    return true;
+  }
+  finaliserTransitionTransport(enTransport:boolean){
+    const h=this.joueur;if(!h)return;
+    h.corps.position.set(0,h.reposY??0,0);h.corps.rotation.set(0,0,0);h.corps.visible=!enTransport;
+    delete h.personnage.objet.userData.transitionTransport;
+  }
   /**
    * Anime chaque personnage d’après sa vitesse observée : marche, course au-delà
    * de six mètres par seconde, et pose retenue à l’arrêt.
@@ -263,10 +282,25 @@ export class Foule {
     if (!dt) return;
     this.images++;
     for (const h of this.habitants) {
+      h.reactionCooldown=Math.max(0,(h.reactionCooldown??0)-dt);
       const position = h.personnage.objet.position;
       const vitesse = position.distanceTo(h.precedent) / dt;
       h.precedent.copy(position);
       if (h.chute !== undefined) { this.tenirChute(h, dt); continue; }
+      if(h.reaction&&h.reactionTemps!==undefined){
+        h.reactionTemps-=dt;
+        const cible=h.reactionCible,monde=h.personnage.objet.getWorldPosition(new T.Vector3());
+        if(cible){
+          const angle=Math.atan2(cible.x-monde.x,cible.z-monde.z)-h.personnage.objet.rotation.y;
+          h.corps.rotation.y=T.MathUtils.lerp(h.corps.rotation.y,angle,1-Math.exp(-dt*7));
+        }
+        const geste=Math.sin((2.4-h.reactionTemps)*9);
+        h.corps.rotation.z=(h.reaction==='peur'?.11:.055)*geste;
+        h.corps.rotation.x=h.reaction==='salut'?-.08*Math.max(0,geste):0;
+        h.mixeur.update(dt*.2);
+        if(h.reactionTemps<=0){h.reaction=undefined;h.reactionTemps=undefined;h.reactionCible=undefined;h.reactionCooldown=2.5;h.personnage.objet.userData.reactionPNJ=undefined;h.corps.rotation.set(0,0,0);}
+        continue;
+      }
       if (vitesse > .05) h.bouge = true;
       if (h.fige) {
         // Faute de squelette, un léger balancement et une inclinaison évitent
@@ -291,6 +325,28 @@ export class Foule {
     // et le joueur est de toute façon exclu de l'échange.
     if (!this.varie && this.images > 20 && this.silhouettes.length) this.varierLesCorps();
   }
+  /** Les personnes proches regardent, saluent ou s'écartent visuellement. */
+  reagirAuJoueur(position:T.Vector3,enVehicule:boolean,enMouvement:boolean){
+    if(!enMouvement)return;
+    const monde=new T.Vector3(),rayon=enVehicule?5:2.8;
+    for(const h of this.habitants){
+      if(h===this.joueur||h.chute!==undefined||h.reaction||(h.reactionCooldown??0)>0||this.dansUnVehicule(h.personnage.objet))continue;
+      h.personnage.objet.getWorldPosition(monde);
+      if(Math.hypot(monde.x-position.x,monde.z-position.z)>rayon)continue;
+      h.reaction=enVehicule?'peur':'salut';h.reactionTemps=enVehicule?2.4:1.8;h.reactionCible=position.clone();
+      h.personnage.objet.userData.reactionPNJ=h.reaction;
+    }
+  }
+  /** Les témoins proches se tournent vers le lieu d'un accident. */
+  signalerAccident(position:T.Vector3){
+    const monde=new T.Vector3();
+    for(const h of this.habitants){
+      if(h===this.joueur||h.chute!==undefined||this.dansUnVehicule(h.personnage.objet))continue;
+      h.personnage.objet.getWorldPosition(monde);
+      if(Math.hypot(monde.x-position.x,monde.z-position.z)>10)continue;
+      h.reaction='peur';h.reactionTemps=2.8;h.reactionCible=position.clone();h.personnage.objet.userData.reactionPNJ='peur';
+    }
+  }
   /**
    * Renverse le personnage le plus proche d'un véhicule. Les positions sont
    * calculées dans le monde, car plusieurs vendeuses vivent dans un groupe de
@@ -310,6 +366,7 @@ export class Foule {
     cible.placeChute = cible.personnage.objet.position.clone();
     cible.mixeur.stopAllAction();
     cible.personnage.objet.getWorldPosition(monde);
+    this.signalerAccident(monde);
     return {position: monde.clone(), nom: cible.personnage.objet.name || 'personnage'};
   }
   /** Bascule le corps au sol, le laisse à terre, puis le remet debout. */

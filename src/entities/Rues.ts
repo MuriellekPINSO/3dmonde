@@ -18,6 +18,8 @@ const commerces = [
 type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture';accident?:number;chuteDirection?:number};
 export class Rues {
   private readonly mouvements:Passage[]=[];
+  private readonly feux:{groupe:T.Group;rouge:T.MeshStandardMaterial;orange:T.MeshStandardMaterial;vert:T.MeshStandardMaterial}[]=[];
+  private etatFeu:'rouge'|'orange'|'vert'='rouge';
   /** Objets immobiles mais denses, masqués au-delà de leur portée. */
   private readonly statiques:{objet:T.Object3D;portee:number}[]=[];
   private temps=0;
@@ -203,14 +205,30 @@ export class Rues {
       this.b.cyl(.09,.14,6.8,7,'#454b49',0,3.4,0,g);
       const bras=this.b.boite(3.2,.11,.11,'#454b49',sens*1.55,6.6,0,g);bras.rotation.z=sens*-.04;
       const boitier=this.b.boite(.42,1.25,.38,'#252a29',sens*3.05,6.05,0,g);
-      for(const [y,couleur] of [[6.43,'#c93d34'],[6.05,'#d5a931'],[5.67,'#3c8952']] as const)
-        this.b.sphere(.105,couleur,sens*3.05,y,-.21,g).scale.z=.35;
+      const lampes=[] as T.MeshStandardMaterial[];
+      const definitions=[[6.43,'#c93d34','rouge'],[6.05,'#d5a931','orange'],[5.67,'#3c8952','vert']] as const;
+      for(const [index,[y,couleur,nom]] of definitions.entries()){
+        const lampe=this.b.sphere(.105,couleur,sens*3.05,y,-.21,g);lampe.scale.z=.35;lampe.name=`feu-${nom}`;
+        const materiau=(lampe.material as T.MeshStandardMaterial).clone();materiau.color.set(couleur);materiau.emissive.set(couleur);
+        lampe.material=materiau;lampes[index]=materiau;
+      }
+      this.feux.push({groupe:g,rouge:lampes[0],orange:lampes[1],vert:lampes[2]});
       return boitier;
     };
     feu(10.5,-99,1);feu(21.5,-103,-1);
     for(const z of [-99,-103])for(let x=11.5;x<21;x+=1.25)
       this.b.boite(.72,.035,2.6,'#eeeade',x,.035,z).castShadow=false;
     for(const x of [12.1,19.9])this.b.boite(.16,.035,5.5,'#eeeade',x,.035,-94).castShadow=false;
+  }
+  private actualiserFeux(){
+    const cycle=this.temps%16;
+    this.etatFeu=cycle<5?'rouge':cycle<7?'orange':'vert';
+    for(const feu of this.feux){
+      feu.groupe.userData.etat=this.etatFeu;
+      feu.rouge.emissiveIntensity=this.etatFeu==='rouge'?4:.08;
+      feu.orange.emissiveIntensity=this.etatFeu==='orange'?4:.08;
+      feu.vert.emissiveIntensity=this.etatFeu==='vert'?4:.08;
+    }
   }
   private lampadaireSolaire(x:number,z:number,sens:number){
     const g=new T.Group();g.position.set(x,0,z);this.b.scene.add(g);
@@ -301,9 +319,9 @@ export class Rues {
    * quelque distance que ce soit.
    * Le gabarit pointe le nord ; les véhicules de la voie pointent le sud à rotation nulle.
    */
-  private poserModele(vehicule:T.Object3D,gabarit:T.Object3D){
+  private poserModele(vehicule:T.Object3D,gabarit:T.Object3D,rotationModele=Math.PI){
     vehicule.clear();
-    const modele=gabarit.clone();modele.rotation.y=Math.PI;modele.name='vehicule-modele';
+    const modele=gabarit.clone();modele.rotation.y=rotationModele;modele.name='vehicule-modele';
     vehicule.add(modele);
   }
   /**
@@ -356,7 +374,9 @@ export class Rues {
       groupe.name=`zem-supplementaire-${i+1}`;
       groupe.position.set(sens>0?18.3:13.6,0,departs[i]??4-i*88);
       groupe.rotation.y=sens>0?0:Math.PI;
-      this.poserModele(groupe,gabarit);
+      // zem.glb regarde déjà vers l'avant dans son fichier, contrairement au
+      // premier kekenon qui exige un demi-tour dans son gabarit.
+      this.poserModele(groupe,gabarit,0);
       this.b.scene.add(groupe);
       this.mouvements.push({objet:groupe,debut:-421,fin:43,vitesse:7.4+i*.22,sens,phase:40+i,type:'zem-nouveau',portee:105});
     }
@@ -409,7 +429,7 @@ export class Rues {
     });
   }
   actualiser(dt:number,paused:boolean,zJoueur:number){
-    if(paused)return;this.temps+=dt;
+    if(paused)return;this.temps+=dt;this.actualiserFeux();
     for(const s of this.statiques)s.objet.visible=Math.abs(s.objet.position.z-zJoueur)<s.portee;
     const vehicules=this.mouvements.filter(p=>!p.personne);
     for(const p of this.mouvements){
@@ -432,7 +452,10 @@ export class Rues {
           // sécurité se libère au lieu de traverser celui qui le précède.
           const occupe=vehicules.some(autre=>autre!==p&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.3
             &&Math.abs(autre.objet.position.z-prochain)<3.3);
-          if(!occupe)p.objet.position.z=prochain;
+          const stop=p.sens>0?-105.2:-96.8;
+          const franchit=p.sens>0?p.objet.position.z<stop&&prochain>=stop:p.objet.position.z>stop&&prochain<=stop;
+          const bloqueFeu=this.etatFeu!=='vert'&&franchit;
+          if(!occupe&&!bloqueFeu)p.objet.position.z=prochain;
         }
       }
       // Les passages éloignés ne participent ni au rendu ni aux ombres.

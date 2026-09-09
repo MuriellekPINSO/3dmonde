@@ -199,14 +199,14 @@ export class Jeu {
       $('confirm-ride').onclick=()=>{
         if(!this.partie.monter(transport)){this.manette.vibrer('erreur');$('ride-confirmation').textContent='Solde insuffisant ou véhicule déjà actif. Tu peux continuer à pied.';return;}
         this.manette.vibrer('montee');
-        this.sport.arreter();this.monde.engagerTransportSurVoie();this.synchroniser();this.panel.close();this.notifier(`${transport.nom} engagé sur la voie : avance avec Z, ↑ ou le joystick gauche. F ou ○ pour descendre.`);
+        this.sport.arreter();this.monde.engagerTransportSurVoie(transport.id);this.synchroniser();this.panel.close();this.notifier(`${transport.nom} engagé sur la voie : avance avec Z, ↑ ou le joystick gauche. F ou ○ pour descendre.`);
       };
     });
   }
   private descendre(){
     if(!this.partie.transport||this.panel.open||this.accueil.open)return;
     this.manette.vibrer('descente');
-    this.partie.descendre();this.monde.keys.clear();this.notifier('Tu continues à pied. Une nouvelle montée nécessitera un nouveau paiement.');
+    this.monde.commencerDescente(this.partie.transport.id);this.partie.descendre();this.monde.keys.clear();this.notifier('Tu continues à pied. Une nouvelle montée nécessitera un nouveau paiement.');
   }
   private interagir(){
     if(this.panel.open||this.accueil.open||!this.proche)return;
@@ -226,7 +226,7 @@ export class Jeu {
   private actualiser(dt:number){
     this.commandesManette(dt);
     const p=this.monde.player.position,paused=this.panel.open||this.accueil.open||document.hidden;
-    this.ambiance.actualiser(p.z,paused,!!this.partie.transport);
+    this.ambiance.actualiser({x:p.x,z:p.z,yaw:this.monde.angleCamera,mode:this.partie.transport?.id??null,intensite:this.monde.intensiteCommande},paused);
     const zone=zoneActuelle(p.z);
     if(zone.id!==this.zoneId){this.zoneId=zone.id;$('zone-title').textContent=zone.nom;$('zone-description').textContent=zone.sousTitre;$('zone-kicker').textContent=`BÉNIN / ${zone.id==='corniche'?'AKPAKPA':'COTONOU'}`;this.synchroniser();}
     const guide=guides.find(g=>g.estProche(p.x,p.z));
