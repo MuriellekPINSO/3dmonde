@@ -150,3 +150,70 @@ Les résultats d'images identifiés comme Lomé ou Abidjan ont été écartés. 
 Éléments construits : boutiques en volumes avec ouvertures et auvents, balcons, pagnes présentés, fruits, kiosques de transfert, terrasses, trottoir commercial, caniveaux couverts, passages latéraux pavés, câbles et arbres. La Marina reste dégagée. Des véhicules circulent dans les deux sens sur le boulevard et des passants parcourent de petits trajets. Le trafic est décoratif ; il ne simule ni les priorités ni des collisions routières.
 
 L'ambiance sonore est synthétisée localement (souffle et moteurs), activée à la demande et coupée pendant les dialogues. Elle ne contient pas d'enregistrement authentique de Cotonou, de paroles inventées en langue locale ni de musique commerciale.
+
+## Vidéo de la Corniche Est — correction du décor
+
+Vidéo fournie par l'utilisateur : [La Corniche-Est de Cotonou ouverte à la circulation](https://www.youtube.com/shorts/zJSHcx5b22w), publiée par Couessi Hounnouve. La vidéo dure environ 53 secondes. Elle montre le trajet routier de la Corniche Est ; elle ne montre pas successivement l'Esplanade de l'Amazone, le Palais de la Marina, le Palais des Congrès et l'Étoile Rouge.
+
+La durée entière a été contrôlée avec 27 images espacées de deux secondes. Les principaux repères sont :
+
+- vers 1 s : chaussée neuve et très dégagée, marquage blanc discontinu, grands lampadaires solaires et horizon bas ;
+- vers 10–19 s : long bâtiment clair à baies verticales et symbole religieux, mur bas, trottoir étroit, immeubles modernes en retrait et panneau de stationnement ;
+- vers 29 s : intersection courbe, passage piéton, grand panneau publicitaire, quelques motos et un véhicule collectif en attente ;
+- vers 38 s : longue perspective de chaussée, faible circulation, rangées de lampadaires solaires, murs de propriétés et cocotiers ;
+- vers 48 s : accotement sableux, jeunes arbres, mur d'enceinte et bâtiments bas.
+
+Conséquence dans le jeu : les commerces denses placés auparavant tout le long de la Corniche ont été retirés de ce tronçon. Ils restent dans les secteurs urbains après l'Esplanade et autour de l'Étoile Rouge. La Corniche reçoit désormais des lampadaires solaires, des murs et portails, des bâtiments en retrait, des traversées piétonnes, des panneaux sans marque et une zone d'accotement sableux. L'édifice religieux est une silhouette stylisée servant au contexte urbain ; son identité et ses dimensions ne sont pas affirmées.
+
+Les images extraites pour l'analyse n'ont pas été ajoutées au projet. Seules les observations ont servi à reconstruire des volumes et matières originaux.
+
+## Vidéo aérienne du Monument de l’Amazone — correction du parvis
+
+Vidéo fournie par l'utilisateur : [La statue de l'Amazone à Cotonou](https://www.tiktok.com/@kent_frames1/video/7536555267815640326), publiée par BIG KENT (`@kent_frames1`). La vidéo dure environ 35 secondes. Sa durée entière a été contrôlée avec 19 images espacées de deux secondes.
+
+La prise de vue tourne autour du monument et montre sa face, ses profils, son dos et plusieurs vues plongeantes. Elle permet d'observer :
+
+- la statue placée sur un socle rocheux et un emmarchement bas ;
+- des massifs de feuillage et de fleurs rouges autour du pied, avec l'accès frontal dégagé ;
+- un vaste parvis pavé, découpé par de larges bandes claires qui dessinent des axes et des diagonales ;
+- une grande pelouse rectangulaire derrière le parvis ;
+- des lampadaires, corbeilles ou bollards sombres et des visiteurs répartis sur l'esplanade ;
+- les voies et bâtiments urbains à l'horizon ainsi qu'une partie de la zone portuaire.
+
+La vidéo documente très bien la silhouette et l'organisation générale de l'esplanade. Elle ne constitue toutefois pas un relevé métrique du site et ne montre pas tout le périmètre au niveau du sol ni le Palais de la Marina en détail. Les distances, angles et dimensions restent donc adaptés à la carte compacte du jeu.
+
+Conséquence dans le jeu : le parvis uniforme est remplacé par une surface pavée plus vaste avec des bandes géométriques, une pelouse arrière, une allée axiale, des massifs fleuris au pied du monument et du petit mobilier sombre. Aucune image de la vidéo n'est intégrée au jeu.
+
+## Visite gratuite de Cotonou — détails au niveau du sol
+
+Vidéo fournie par l'utilisateur : [Explore Benin Republic: Affordable Travel Tips](https://www.tiktok.com/@the_vowella/video/7581531430157569302), publiée par `@the_vowella`. La vidéo dure environ 62 secondes. Sa durée entière a été contrôlée avec 32 images espacées de deux secondes.
+
+Pour le Monument de l'Amazone, les vues de jour et de nuit montrent le parvis depuis le sol, les pavés clairs et gris, le socle haut en pierre noire, l'inscription dorée et les projecteurs. Ces éléments complètent les vues aériennes de la vidéo précédente.
+
+Les autres séquences présentent une grande fresque, le Marché des Arts, une plage d'Akpakpa, des espaces arborés, un supermarché et le monument Bio Guéra. Ces sites servent de références d'ambiance, mais ils ne sont pas ajoutés aux cinq lieux du MVP.
+
+Conséquence dans le jeu : le dallage de l'esplanade reçoit une zone centrale grise et le socle de l'Amazone adopte des degrés en pierre sombre avec un repère doré sur la face d'arrivée.
+
+## Repérage photographique sur place — 9 septembre 2026
+
+Le dossier local `public/espace` contient **66 photos et 24 vidéos** prises par l'équipe du projet entre la Corniche, le boulevard de la Marina, l'Esplanade de l'Amazone, la Cité ministérielle et le Palais des Congrès. Les 66 photos ont été contrôlées sous forme d'aperçus orientés. Pour ne pas réduire les vidéos à leur première image, **170 images de contrôle**, espacées de deux secondes, ont été extraites sur toute leur durée cumulée.
+
+Séries et repères observés :
+
+- `IMG_6191–6219` : plage ouverte de la Corniche, chemin sombre au bord de l'eau, large bande sableuse, jeunes palmiers, trottoir clair, chaussée très dégagée, passages piétons et lampadaires solaires ;
+- `IMG_6220–6239` : arrivée dans le secteur institutionnel, pelouses, haies basses fleuries, arbres jeunes, cheminements pavés, feux tricolores, guérites et vues lointaines de l'Amazone ;
+- `IMG_6240–6258` : grand boulevard, Esplanade et statue sous plusieurs angles, pelouse et dallage géométrique, façades de la Cité ministérielle, Palais des Congrès, grille, parking et rangs de motos ;
+- `IMG_9331–9346` : seconde série de la Corniche puis longue fresque consacrée à l'histoire et aux activités du port, observée sur toute sa longueur depuis la chaussée ;
+- `IMG_9364–9371` : jardins, voies larges, façades horizontales de la Cité ministérielle, carrefours, signalisation et abords de l'Amazone.
+
+Corrections réalisées à partir de ce repérage :
+
+- retrait du muret continu, des bancs et des paillotes qui ne figurent pas sur la portion photographiée de la Corniche ;
+- ajout du chemin côtier pavé, de sa double bordure, de l'enrochement, des jeunes palmiers et d'une teinte d'océan plus proche des prises de vue ;
+- élargissement du boulevard dans le secteur institutionnel avec trois voies suggérées, marquages, passages piétons, trottoir extérieur et feux tricolores ;
+- reconstruction originale de la fresque au canvas, avec figures, bateaux et grues stylisés : aucune photo n'est utilisée comme texture ;
+- ajout de la Cité ministérielle avec ses ailes en pierre claire, ses bandeaux vitrés, ses grandes casquettes, sa clôture et ses jardins ;
+- densification des haies fleuries et du mobilier autour de l'Esplanade ;
+- ajout du parking, de la grille, des marquages et de véhicules stationnés devant le Palais des Congrès.
+
+Ces médias sont des sources de travail et contiennent 520 Mo de données originales. Ils restent ignorés par Git et sont exclus de la compilation de production ; seuls les décors reconstruits et les modèles 3D optimisés sont publiés.

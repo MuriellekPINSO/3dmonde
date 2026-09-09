@@ -221,19 +221,99 @@
           "height": 1024
         }
       ]
+    },
+    {
+      "name": "zem",
+      "size": [
+        1.2361583033905228,
+        1.9014739990234375,
+        1.5481864320794179
+      ],
+      "center": [
+        0.0047730207443237305,
+        -0.0007529854774475098,
+        -0.0021004974842071533
+      ],
+      "triangles": 154553,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
+    },
+    {
+      "name": "vendeuse",
+      "size": [
+        1.3860452328995199,
+        1.9029809832572937,
+        1.2921941855365089
+      ],
+      "center": [
+        -0.0014874935150146484,
+        -0.0010404884815216064,
+        0.0015484988689422607
+      ],
+      "triangles": 155380,
+      "animations": 0,
+      "textures": [
+        {
+          "slot": "map",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "normalMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "metalnessMap",
+          "width": 1024,
+          "height": 1024
+        },
+        {
+          "slot": "roughnessMap",
+          "width": 1024,
+          "height": 1024
+        }
+      ]
     }
   ],
   "console": [
     "[vite] connecting...",
     "[vite] connected.",
-    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
-    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
-    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
-    "[.WebGL-0x11c004ca800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+    "personnages articulés : 62 habillés, 3126 triangles le modèle, marche et course, 4 silhouettes debout",
+    "nouveaux zémidjans : 5 ajoutés à la circulation",
+    "zémidjans détaillés : 20 sur la voie et aux bornes, plus celui du joueur",
+    "voitures détaillées : 3 sur la voie, plus celle du joueur",
     "modèle statue-amazone : posé — échelle 12.620",
-    "modèle palais-congres : posé — échelle 21.065",
+    "modèle joggeuse-bleue : posé — échelle 0.904",
     "modèle joggeuse-bordeaux : posé — échelle 0.883",
     "modèle zemidjans : posé — échelle 6.846",
-    "modèle joggeuse-bleue : posé — échelle 0.904"
+    "modèle zem-supplementaires : posé — échelle 1.078",
+    "modèle kekenon-circulation : posé — échelle 1.292",
+    "modèle peugeot-circulation : posé — échelle 2.435",
+    "modèle voitures-garees : posé — échelle 5.279",
+    "modèle palais-congres : posé — échelle 21.065",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "silhouettes debout posées : 47 immobiles variées, 15 en mouvement gardent la marche"
   ]
 }

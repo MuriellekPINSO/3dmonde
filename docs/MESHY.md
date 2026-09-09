@@ -1,7 +1,7 @@
 # Modèles Meshy à fournir
 
-**Première livraison intégrée.** Six modèles Meshy ont été fournis et cinq sont en place dans le
-jeu : la statue de l’Amazone, le Palais des Congrès, un rang de zémidjans et deux passantes.
+**Livraisons intégrées.** Seize fichiers GLB optimisés sont disponibles et quinze sont chargés dans le
+jeu : la statue de l’Amazone, le Palais des Congrès, un rang de zémidjans, deux passantes, deux zémidjans détaillés, un SUV, un groupe de voitures stationnées, deux variantes animées, trois silhouettes humaines supplémentaires et la vendeuse assise des boutiques.
 Le jeu charge donc bien des GLB ; voir « Livraison reçue » ci-dessous pour l’état de chacun et la
 chaîne d’optimisation appliquée. Les décors non couverts par un modèle restent construits en code.
 
@@ -30,6 +30,37 @@ remplace ensuite son ensemble, et un fichier absent laisse simplement la version
 | Blue Confidence | `joggeuse-bleue.glb` | 45 830 | 554 Ko | en place, passante près de la piste |
 | Burgundy Confidence | `joggeuse-bordeaux.glb` | 23 800 | 348 Ko | en place, passante près de la piste |
 | Liberty Among the Trees | `etoile-rouge.glb` | 101 966 | 1,9 Mo | **écarté** |
+| Kekenon (zémidjan seul) | `kekenon.glb` | 151 316 | 2,2 Mo | remplace les 20 zémidjans construits, et celui du joueur |
+| Peugeot SUV | `peugeot.glb` | 264 546 | 2,8 Mo | remplace les 3 voitures de la circulation, et celle du joueur |
+| Voitures (groupe de 4) | `voitures.glb` | 137 586 | 1,8 Mo | stationnement statique derrière le panneau « P » de la Corniche |
+
+Ces trois véhicules sont arrivés dans une seconde livraison. Deux points appris :
+
+- **Le plancher de simplification est topologique, pas réglable.** Ces maillages, issus de
+  photogrammétrie, sont morcelés par leur atlas de textures : le simplificateur refuse de
+  descendre sous 45 % environ, quelle que soit la tolérance d'erreur. Le kekenon plafonne à
+  151 000 triangles, le Peugeot à 264 000. Tester la version brute de 138 Mo du kekenon a donné
+  334 000 triangles, soit *pire* que la version pré-optimisée de 4 Mo.
+- **Aucun repli en boîtes.** Un double niveau de détail avait d'abord été mis en place — modèle
+  détaillé de près, véhicule construit au loin — mais les boîtes restaient visibles à l'écran et
+  ce n'était pas acceptable dès lors que de vrais modèles existent. Les véhicules construits sont
+  donc retirés, pas masqués : les 23 zémidjans et voitures sont des modèles détaillés à toute
+  distance. Seule subsiste une occultation à 90 m, où le brouillard les a déjà effacés.
+  Coût mesuré : 1 508 appels de dessin et 1 190 000 triangles par image. Si cela devait peser sur
+  une machine modeste, le levier est de réduire le nombre de véhicules en circulation — ils sont
+  dix-neuf, espacés de 22 m — et non de revenir aux boîtes.
+
+`voitures.glb` réunit quatre voitures dans un maillage unique et indivisible, séparées par
+plusieurs mètres : elles ne peuvent pas rouler comme un véhicule, elles glisseraient en bloc sur
+les deux voies. D'où leur emploi en stationnement.
+
+## Zémidjan mobile reçu — 9 septembre 2026
+
+Le fichier `3d/kekenon.glb` représente une moto rouge conduite par un zémidjan en chemise jaune et casque noir. L'original pesait 132 Mo, comptait 3 121 968 triangles et utilisait trois textures jusqu'à 4 096 × 4 096. La copie `public/modeles/kekenon.glb` pèse 2,2 MiB après compression Meshopt, quantification, décimation et conversion des textures en WebP 1 024 × 1 024. Elle conserve 151 316 triangles et sert de gabarit détaillé aux zémidjans de circulation, aux bornes et au véhicule du joueur.
+
+Le modèle ne contient ni squelette ni animation. Il avance réellement le long de la chaussée et revient au début de son trajet lorsqu'il atteint la fin de la carte, mais les roues ne tournent pas indépendamment puisque la moto et le conducteur forment un seul maillage.
+
+La livraison supplémentaire `3d/zem.glb`, avec conducteur et passagère, est passée de 95 Mo et 3 091 886 triangles à `public/modeles/zem.glb`, 1,7 Mo et 154 553 triangles. Cinq copies roulent dans l’axe des deux voies. `3d/vendeuse.glb` est passée de 93 Mo et 3 107 642 triangles à `public/modeles/vendeuse.glb`, 1,4 Mo et 155 380 triangles. Sa pose assise est placée derrière les comptoirs ; le modèle n’a ni squelette ni animation. Sur la moto pilotable, le corps choisi par le joueur est cloné comme passager derrière le conducteur. Les volumes de collision empêchent les véhicules de se traverser ; lors d’un choc, les modèles complets basculent sur le côté puis se relèvent. Les personnages sont également détectés : une moto ou une voiture qui les heurte s'arrête, déclenche leur chute puis attend la fin de l'accident.
 
 `etoile-rouge.glb` a été écarté après contrôle visuel : le modèle est un diorama posé sur une
 butte de terre rouge, planté d’arbres sans feuilles, qui écrase la place et contredit les

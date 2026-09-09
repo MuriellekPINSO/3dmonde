@@ -19,7 +19,7 @@ const stats=await page.evaluate(async()=>{
  const {GLTFLoader}=await import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js');
  const {MeshoptDecoder}=await import('/node_modules/three/examples/jsm/libs/meshopt_decoder.module.js');
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),results=[];
- for(const name of ['amazone','palais-congres','etoile-rouge','joggeuse-bleue','joggeuse-bordeaux','zemidjans']){
+ for(const name of ['amazone','palais-congres','etoile-rouge','joggeuse-bleue','joggeuse-bordeaux','zemidjans','zem','vendeuse']){
   const gltf=await loader.loadAsync('/modeles/'+name+'.glb');const object=gltf.scene;
   const box=new T.Box3().setFromObject(object),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());
   const scene=new T.Scene();scene.background=new T.Color('#e1e6df');scene.add(object,new T.HemisphereLight('#ffffff','#646f5c',2.8));

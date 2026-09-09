@@ -2,6 +2,7 @@ import { placerModele } from './Placement';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { Batisseur } from './Batisseur';
+import type { Object3D } from 'three';
 
 /**
  * Chargement des modèles GLB détaillés. La scène construite en code s’affiche
@@ -24,6 +25,8 @@ export type Pose = {
   base?: number;
   /** Rotation autour de l’axe vertical, en radians. */
   rotation?: number;
+  /** Branche le modèle chargé à un système d’animation ou de gameplay. */
+  apresPose?: (objet: Object3D) => void;
 };
 
 /**
@@ -44,6 +47,7 @@ export async function chargerModeles(b: Batisseur, poses: Pose[], base = '/model
       objet.name = `modele:${pose.groupe}`;
       b.scene.add(objet);
       if (remplace && !pose.ajout) remplace.visible = false;
+      pose.apresPose?.(objet);
       journal.push({groupe: pose.groupe, etat: 'posé', detail: `échelle ${echelle.toFixed(3)}`});
     } catch (erreur) {
       const message = erreur instanceof Error ? erreur.message : String(erreur);

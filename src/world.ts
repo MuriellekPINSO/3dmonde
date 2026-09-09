@@ -2,8 +2,10 @@ import * as T from 'three';
 import { Rues } from './entities/Rues';
 import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
-import { boulevard, corniche, esplanadeAmazone, palaisMarina, palaisCongres, etoileRouge, figures, vehicule } from './entities/Monuments';
+import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, etoileRouge, figures, vehicule } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
+import { Foule } from './entities/Foule';
+import { MerAnimee } from './entities/MerAnimee';
 
 /**
  * Modèles détaillés posés sur la scène. Chacun remplace son ensemble construit
@@ -33,10 +35,37 @@ export class Monde {
   private readonly soleil = new T.DirectionalLight('#ffe4b5',2.2);
   private readonly vehicules: Record<'zemidjan'|'voiture',T.Group>;
   private readonly rues: Rues;
+  private readonly foule = new Foule(this.scene);
+  private readonly mer: MerAnimee;
+  private passagerMoto?: T.Group;
+  private accident=0;
+  onAccident?:(type:'vehicule'|'personnage')=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
   private pitch = -.3;
+  readonly axesManette = {x: 0, z: 0};
   get player(){return this.joueur.objet;}
+
+  /** Oriente la caméra avec le joystick droit, en radians par seconde. */
+  regarderManette(x:number,y:number,dt:number){
+    this.yaw-=x*2.35*dt;
+    this.pitch=T.MathUtils.clamp(this.pitch-y*1.9*dt,-.95,.95);
+  }
+
+  /**
+   * Quitte la borne à la montée et engage le véhicule sur la voie de droite.
+   * Sans ce déplacement, un joueur placé près du poteau pouvait démarrer dans
+   * son volume de collision et rester bloqué malgré le statut « en véhicule ».
+   */
+  engagerTransportSurVoie() {
+    this.keys.clear();
+    this.axesManette.x = this.axesManette.z = 0;
+    this.player.position.x = 14;
+    this.player.position.y = .15;
+    this.player.position.z = this.rues.placeLibreSurVoie(this.player.position.z);
+    this.player.rotation.y = Math.PI;
+    this.yaw = 0;
+  }
 
   constructor(host:HTMLElement){
     this.scene.background=new T.Color('#c9e4df');this.scene.fog=new T.Fog('#c9e4df',60,190);
@@ -49,11 +78,39 @@ export class Monde {
     this.scene.add(this.soleil,this.soleil.target);
 
     const batisseur=new Batisseur(this.scene,this.obstacles);
-    boulevard(batisseur);corniche(batisseur);esplanadeAmazone(batisseur);
+    boulevard(batisseur);this.mer=corniche(batisseur);esplanadeAmazone(batisseur);citeMinisterielle(batisseur);
     palaisMarina(batisseur);palaisCongres(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
     // La scène construite s’affiche tout de suite ; les modèles la remplacent dès qu’ils arrivent.
-    chargerModeles(batisseur,POSES).then(journal=>{
+    const poses:Pose[]=[...POSES,{
+      groupe:'kekenon-circulation',fichier:'kekenon.glb',x:13.6,z:18,
+      hauteur:2.05,base:.03,rotation:-Math.PI/2,ajout:true,
+      apresPose:objet=>this.adopterZemidjanDetaille(objet),
+    },{
+      // SUV détaillé : circulation et voiture du joueur.
+      groupe:'peugeot-circulation',fichier:'peugeot.glb',x:18.3,z:18,
+      hauteur:1.68,base:.03,rotation:-Math.PI/2,ajout:true,
+      apresPose:objet=>this.adopterVoitureDetaillee(objet),
+    },{
+      // Quatre voitures d'un seul maillage : elles ne peuvent pas rouler séparément,
+      // mais font un stationnement crédible derrière le panneau « P » de la Corniche.
+      groupe:'voitures-garees',fichier:'voitures.glb',x:32.5,z:6,
+      largeur:10,base:.02,ajout:true,
+    },{
+      // Second modèle fourni : cinq copies supplémentaires roulent sur les deux voies.
+      groupe:'zem-supplementaires',fichier:'zem.glb',x:14,z:4,
+      hauteur:2.05,base:.03,rotation:0,ajout:true,
+      apresPose:objet=>console.info(`nouveaux zémidjans : ${this.rues.ajouterZemidjans(objet,5)} ajoutés à la circulation`),
+    }];
+    // Personnages articulés : ils remplacent toutes les silhouettes construites.
+    this.foule.charger().then(async info=>{
+      const habilles=this.foule.habiller();
+      const passager=this.foule.creerPassagerMoto();
+      if(passager){this.passagerMoto=passager;this.scene.add(passager);}
+      console.info(`personnages articulés : ${habilles} habillés, ${info.triangles} triangles le modèle`
+        +`${info.course?', marche et course':', marche seule'}, ${info.silhouettes} silhouettes debout`);
+    }).catch(e=>console.warn('personnages articulés indisponibles : '+(e instanceof Error?e.message:e)));
+    chargerModeles(batisseur,poses).then(journal=>{
       for(const entree of journal){
         const texte=`modèle ${entree.groupe} : ${entree.etat}${entree.detail?' — '+entree.detail:''}`;
         if(entree.etat==='échec')console.warn(texte);else console.info(texte);
@@ -61,6 +118,7 @@ export class Monde {
     });
     this.scene.add(this.player);
     this.vehicules={zemidjan:vehicule(batisseur,'zemidjan'),voiture:vehicule(batisseur,'voiture')};
+    this.vehicules.zemidjan.name='vehicule-joueur-zemidjan';this.vehicules.voiture.name='vehicule-joueur-voiture';
     Object.values(this.vehicules).forEach(g=>{g.visible=false;this.scene.add(g);});
 
     this.camera.position.set(0,9,25);
@@ -77,14 +135,68 @@ export class Monde {
     canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('pointercancel',()=>drag=false);
     addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);});
   }
+  /**
+   * Fait passer tous les zémidjans au modèle détaillé : ceux de la circulation,
+   * ceux garés aux bornes, et celui que conduit le joueur.
+   */
+  private adopterZemidjanDetaille(objet:T.Object3D){
+    const {gabarit,remplaces}=this.rues.remplacerZemidjans(objet);
+    // Le véhicule du joueur suit la même convention d’orientation que la circulation.
+    const monture=this.vehicules.zemidjan;
+    monture.clear();
+    const copie=gabarit.clone();copie.rotation.y=Math.PI;monture.add(copie);
+    console.info(`zémidjans détaillés : ${remplaces} sur la voie et aux bornes, plus celui du joueur`);
+  }
+  /** Fait passer les voitures de la circulation, et celle du joueur, au SUV détaillé. */
+  private adopterVoitureDetaillee(objet:T.Object3D){
+    const {gabarit,remplaces}=this.rues.remplacerVoitures(objet);
+    const monture=this.vehicules.voiture;
+    monture.clear();
+    const copie=gabarit.clone();copie.rotation.y=Math.PI;monture.add(copie);
+    console.info(`voitures détaillées : ${remplaces} sur la voie, plus celle du joueur`);
+  }
   start(update:(dt:number)=>Frame){
     const target=new T.Vector3(),desired=new T.Vector3(),regard=new T.Vector3();let last=0;
     this.renderer.setAnimationLoop(time=>{
-      const dt=Math.min((time-last)/1000||0,.05);last=time;const state=update(dt);
-      this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused,this.obstacles,!!state.transport);
+      const dt=Math.min((time-last)/1000||0,.1);last=time;const state=update(dt);
+      const avant=this.player.position.clone(),enAccident=this.accident>0;
+      const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z)];
+      const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident,obstacles,!!state.transport,this.axesManette);
       this.rues.actualiser(dt,state.paused,this.player.position.z);
-      this.player.visible=state.transport!=='voiture';
-      for(const [id,g] of Object.entries(this.vehicules)){g.visible=id===state.transport;if(g.visible){g.position.copy(this.player.position);g.rotation.y=this.player.rotation.y;}}
+      if(state.transport&&!enAccident&&mouvement.moving){
+        const chocVehicule=this.rues.percuterProche(this.player.position,mouvement.bloque?3:1.65);
+        const chocPersonnage=chocVehicule?null:this.foule.percuterProche(this.player.position,state.transport==='voiture'?1.8:1.45);
+        const collision=chocVehicule??chocPersonnage?.position;
+        if(collision){
+          this.player.position.copy(avant);
+          const recul=new T.Vector2(avant.x-collision.x,avant.z-collision.z);
+          if(recul.lengthSq()>.001){recul.normalize().multiplyScalar(chocPersonnage?2.1:3.5);this.player.position.set(collision.x+recul.x,.15,collision.z+recul.y);}
+          this.accident=2.7;this.keys.clear();this.axesManette.x=this.axesManette.z=0;
+          this.onAccident?.(chocPersonnage?'personnage':'vehicule');
+        }
+      }
+      // La circulation autonome obéit à la même règle : si un piéton se trouve
+      // sur sa trajectoire, il tombe et le véhicule impliqué s'immobilise.
+      if(!state.paused)for(const vehicule of this.rues.vehiculesPourCollisions(this.player.position.z)){
+        const choc=this.foule.percuterProche(vehicule.objet.position,vehicule.type==='voiture'?1.8:1.4);
+        if(choc&&this.rues.accidenterVehicule(vehicule.objet)&&choc.position.distanceTo(this.player.position)<28)this.onAccident?.('personnage');
+      }
+      if(this.accident>0)this.accident=Math.max(0,this.accident-dt);
+      if(!state.paused){this.foule.actualiser(dt);this.mer.actualiser(dt);}
+      // Les deux modèles détaillés embarquent leur propre conducteur : le personnage
+      // en boîtes s'effacerait sinon derrière lui, ou se superposerait au pilote.
+      this.player.visible=!state.transport;
+      const angle=state.transport==='voiture'?.14:1.28;
+      const chute=this.accident>0?angle*Math.min(1,(2.7-this.accident)/.24)*Math.min(1,this.accident/.55):0;
+      for(const [id,g] of Object.entries(this.vehicules)){g.visible=id===state.transport;if(g.visible){g.position.copy(this.player.position);g.rotation.y=this.player.rotation.y;g.rotation.z=chute;}}
+      if(this.passagerMoto){
+        const embarque=state.transport==='zemidjan';this.passagerMoto.visible=embarque;
+        if(embarque){
+          const direction=new T.Vector3(Math.sin(this.player.rotation.y),0,Math.cos(this.player.rotation.y));
+          this.passagerMoto.position.copy(this.player.position).addScaledVector(direction,-.62);
+          this.passagerMoto.position.y+=.27;this.passagerMoto.rotation.y=this.player.rotation.y;this.passagerMoto.rotation.z=chute;
+        }
+      }
       this.soleil.position.set(this.player.position.x-25,45,this.player.position.z+22);this.soleil.target.position.copy(this.player.position);
       target.copy(this.player.position);target.y+=1.3;
       // La caméra s’abaisse à mesure que le joueur lève les yeux, pour dégager le ciel

@@ -4,6 +4,7 @@ import { products } from './game';
 import { Partie, SportJogging, Vendeuse, Zemidjan, Voiture, type Transport } from './core/Partie';
 import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from './content/zones';
 import { DialogueVocal } from './ui/DialogueVocal';
+import { Manette, type LectureManette } from './input/Manette';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
 
@@ -17,6 +18,8 @@ export class Jeu {
   private ambiance!:Ambiance;
   private proche:Interaction=null;
   private toastTimer=0;
+  private readonly manette=new Manette();
+  private manetteId='';
   private dernierFocus:HTMLElement|null=null;
   private zoneId='';
   private get panel(){return $<HTMLDialogElement>('panel');}
@@ -29,20 +32,26 @@ export class Jeu {
     }
     this.voix=new DialogueVocal($<HTMLButtonElement>('sound'));
     this.ambiance=new Ambiance($<HTMLButtonElement>('ambiance'));
+    this.monde.onAccident=type=>{
+      this.manette.vibrer('collision');
+      this.notifier(type==='personnage'
+        ?'Accident ! Un personnage a été percuté. Le véhicule s’arrête pendant qu’il se relève.'
+        :'Collision ! Les motos et leurs passagers sont tombés. Reprends la route après le choc.');
+    };
     this.commandes();this.monde.start(dt=>this.actualiser(dt));
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
-    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Parcours · 0/5</button><button id="bag">Sac · 0</button><span id="wallet">1 500 FCFA</span></div></header>
+    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Parcours · 0/5</button><button id="bag">Sac · 0</button><span id="wallet">1 500 FCFA</span></div></header>
     <aside class="location"><p class="eyebrow" id="zone-kicker">BÉNIN / AKPAKPA</p><h1 id="zone-title">La Corniche</h1><p id="zone-description">Au bord de l’eau, Cotonou s’éveille.</p><div class="rule"></div><p class="eyebrow">VOTRE CARNET DE BALADE</p><ol>${zones.map(z=>`<li id="task-${z.id}">${z.nom}${z.id==='amazone'?' & Présidence':''}</li>`).join('')}</ol><p class="note" id="next-objective">Rencontrer le guide de la Corniche.</p><p class="note" id="side-quests">Jogging : à essayer · Aïcha : à rencontrer</p></aside>
     <button id="ambiance" aria-pressed="false">Ambiance : coupée</button>
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
-    <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F</button></div>
+    <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
-    <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder autour et vers le haut</div><div><kbd>E</kbd> Interagir <span>·</span> <kbd>Espace</kbd> Jogging <span>·</span> <kbd>F</kbd> Descendre</div></footer>
+    <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
-    <dialog id="welcome"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Une ville.<br>Mille rencontres.</h2><p>De la Corniche à l’Étoile Rouge, découvre cinq lieux à pied, en zémidjan ou en voiture. Discute avec Aïcha et fais une pause sportive.</p><p class="note">Quatre zones stylisées · distances raccourcies<br>Modèles provisoires · progression pendant cette session.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></dialog>
+    <dialog id="welcome"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Une ville.<br>Mille rencontres.</h2><p>De la Corniche à l’Étoile Rouge, découvre cinq lieux à pied, en zémidjan ou en voiture. Discute avec Aïcha et fais une pause sportive.</p><p class="note">Clavier, écran tactile ou manette compatible · quatre zones stylisées · distances raccourcies.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
   }
   private notifier(text:string){
@@ -63,7 +72,9 @@ export class Jeu {
   }
   private commandes(){
     $('close').onclick=()=>this.panel.close();
-    this.panel.addEventListener('close',()=>{this.voix.arreter();this.monde.keys.clear();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
+    // `close` est émis de façon différée par le navigateur. Effacer les touches ici
+    // pouvait supprimer un mouvement pressé juste après la fermeture du guide.
+    this.panel.addEventListener('close',()=>{this.voix.arreter();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
     $('begin').onclick=()=>this.accueil.close();this.accueil.addEventListener('cancel',e=>e.preventDefault());
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
@@ -74,12 +85,69 @@ export class Jeu {
       if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();
     });
     addEventListener('keyup',e=>this.monde.keys.delete(e.key.toLowerCase()));
-    const pause=()=>{this.monde.keys.clear();this.voix.arreter();};addEventListener('blur',pause);
+    addEventListener('gamepadconnected',e=>this.manette.connecter(e.gamepad));
+    addEventListener('gamepaddisconnected',e=>{
+      this.manette.deconnecter(e.gamepad);this.manetteId='';
+      this.monde.axesManette.x=this.monde.axesManette.z=0;
+      $('controller-status').hidden=true;
+    });
+    const pause=()=>{this.monde.keys.clear();this.voix.arreter();this.manette.arreterVibrations();};addEventListener('blur',pause);
     document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
     document.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(b=>{
       b.onpointerdown=e=>{this.monde.keys.add(b.dataset.key!);b.setPointerCapture(e.pointerId);};
       b.onpointerup=b.onpointercancel=()=>this.monde.keys.delete(b.dataset.key!);
     });
+  }
+  private elementsManette(dialogue:HTMLDialogElement){
+    return Array.from(dialogue.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled)'))
+      .filter(element=>element.getClientRects().length>0);
+  }
+  private naviguerManette(direction:number){
+    const dialogue=this.accueil.open?this.accueil:this.panel.open?this.panel:null;if(!dialogue)return;
+    const elements=this.elementsManette(dialogue);if(!elements.length)return;
+    const index=elements.indexOf(document.activeElement as HTMLElement);
+    elements[(index+direction+elements.length)%elements.length].focus();
+  }
+  private activerManette(){
+    if(this.accueil.open){$<HTMLButtonElement>('begin').click();return;}
+    if(!this.panel.open){this.interagir();return;}
+    const actif=document.activeElement as HTMLElement;
+    if(actif&&this.panel.contains(actif)&&(actif instanceof HTMLButtonElement||actif instanceof HTMLAnchorElement))actif.click();
+    else this.naviguerManette(1);
+  }
+  private commandesManette(dt:number){
+    const lecture:LectureManette|null=this.manette.lire();
+    if(!lecture){this.monde.axesManette.x=this.monde.axesManette.z=0;return;}
+    if(lecture.id!==this.manetteId){
+      this.manetteId=lecture.id;
+      $('controller-status').hidden=false;
+      $('controller-status').textContent=this.manette.vibrationsDisponibles?'🎮 MANETTE · VIBRATION':'🎮 MANETTE · SANS HAPTIQUE';
+      $('controller-status').title=this.manette.vibrationsDisponibles
+        ?'Le navigateur expose le moteur de vibration de la manette.'
+        :'Le navigateur ou la connexion actuelle n’expose pas le moteur de vibration.';
+      this.manette.vibrer('succes');
+      if(!this.accueil.open)this.notifier(this.manette.vibrationsDisponibles
+        ?'Manette connectée · vibrations actives · ✕ interagir · □ jogging · ○ retour.'
+        :'Manette connectée · vibrations indisponibles dans ce navigateur.');
+    }
+    if(this.accueil.open||this.panel.open){
+      this.monde.axesManette.x=this.monde.axesManette.z=0;
+      if(lecture.appuye(12)||lecture.appuye(14)){this.manette.vibrer('selection');this.naviguerManette(-1);}
+      if(lecture.appuye(13)||lecture.appuye(15)){this.manette.vibrer('selection');this.naviguerManette(1);}
+      if(lecture.appuye(0)){this.manette.vibrer('interaction');this.activerManette();}
+      if(lecture.appuye(1)&&this.panel.open){this.manette.vibrer('selection');this.panel.close();}
+      return;
+    }
+    this.monde.axesManette.x=lecture.deplacementX;this.monde.axesManette.z=lecture.deplacementZ;
+    this.monde.regarderManette(lecture.regardX,lecture.regardY,dt);
+    const amplitude=Math.min(1,Math.hypot(lecture.deplacementX,lecture.deplacementZ));
+    const roulement=this.partie.transport?.id??(this.sport.actif?'course':'marche');
+    this.manette.roulement(amplitude,roulement);
+    if(lecture.appuye(0))this.interagir();
+    if(lecture.appuye(1))this.descendre();
+    if(lecture.appuye(2))this.basculerSport();
+    if(lecture.appuye(3))this.ouvrirSac();
+    if(lecture.appuye(9))this.ouvrirParcours();
   }
   private ouvrirSac(){
     this.ouvrir('Ton sac','OBJETS ACHETÉS','');const list=document.createElement('ul');
@@ -117,7 +185,7 @@ export class Jeu {
     $('panel-body').querySelectorAll<HTMLButtonElement>('[data-product]').forEach(button=>button.onclick=()=>{
       const p=products.find(p=>p.id===button.dataset.product)!;
       $('confirmation').innerHTML=`<p>Confirmer : ${p.name} · ${p.price} FCFA ?</p><button id="confirm-buy" class="primary">Confirmer l’achat</button> <button id="cancel-buy">Annuler</button>`;
-      $('confirm-buy').onclick=()=>{const result=this.vendeuse.acheter(this.partie,p.id);$('confirmation').replaceChildren();this.synchroniser();this.bulle(this.vendeuse.nom,result);};
+      $('confirm-buy').onclick=()=>{const solde=this.partie.balance;const result=this.vendeuse.acheter(this.partie,p.id);this.manette.vibrer(this.partie.balance<solde?'succes':'erreur');$('confirmation').replaceChildren();this.synchroniser();this.bulle(this.vendeuse.nom,result);};
       $('cancel-buy').onclick=()=>$('confirmation').replaceChildren();
     });
     this.voix.brancherMicro($<HTMLButtonElement>('mic'),$('mic-status'),$<HTMLInputElement>('message'));
@@ -129,17 +197,20 @@ export class Jeu {
       $('ride-confirmation').innerHTML=`<p>Confirmer ${transport.nom} pour ${transport.tarif} FCFA ?</p><button id="confirm-ride" class="primary">Confirmer et monter</button> <button id="cancel-ride">Annuler</button>`;
       $('cancel-ride').onclick=()=>$('ride-confirmation').replaceChildren();
       $('confirm-ride').onclick=()=>{
-        if(!this.partie.monter(transport)){$('ride-confirmation').textContent='Solde insuffisant ou véhicule déjà actif. Tu peux continuer à pied.';return;}
-        this.sport.arreter();this.synchroniser();this.panel.close();this.notifier(`${transport.nom} : utilise les flèches pour rouler et F pour descendre.`);
+        if(!this.partie.monter(transport)){this.manette.vibrer('erreur');$('ride-confirmation').textContent='Solde insuffisant ou véhicule déjà actif. Tu peux continuer à pied.';return;}
+        this.manette.vibrer('montee');
+        this.sport.arreter();this.monde.engagerTransportSurVoie();this.synchroniser();this.panel.close();this.notifier(`${transport.nom} engagé sur la voie : avance avec Z, ↑ ou le joystick gauche. F ou ○ pour descendre.`);
       };
     });
   }
   private descendre(){
     if(!this.partie.transport||this.panel.open||this.accueil.open)return;
+    this.manette.vibrer('descente');
     this.partie.descendre();this.monde.keys.clear();this.notifier('Tu continues à pied. Une nouvelle montée nécessitera un nouveau paiement.');
   }
   private interagir(){
     if(this.panel.open||this.accueil.open||!this.proche)return;
+    this.manette.vibrer('interaction');
     if(this.partie.transport){this.notifier('Descends avec F pour rencontrer les personnages ou faire du sport.');return;}
     if(this.proche.type==='guide')this.afficherGuide(this.proche.guide);
     else if(this.proche.type==='vendeuse')this.parlerVendeuse();
@@ -147,12 +218,13 @@ export class Jeu {
     else this.basculerSport();
   }
   private basculerSport(){
-    if(this.sport.actif){this.sport.arreter();this.notifier('Jogging arrêté. Reviens au départ pour réessayer.');return;}
+    if(this.sport.actif){this.manette.vibrer('selection');this.sport.arreter();this.notifier('Jogging arrêté. Reviens au départ pour réessayer.');return;}
     const p=this.monde.player.position;
-    if(this.sport.demarrer(p.x,p.z,!!this.partie.transport))this.notifier('Suis la bande terracotta jusqu’à la ligne d’arrivée.');
-    else this.notifier('À pied, rejoins le départ du jogging sur la bande terracotta de la Corniche.');
+    if(this.sport.demarrer(p.x,p.z,!!this.partie.transport)){this.manette.vibrer('succes');this.notifier('Suis la bande terracotta jusqu’à la ligne d’arrivée.');}
+    else{this.manette.vibrer('erreur');this.notifier('À pied, rejoins le départ du jogging sur la bande terracotta de la Corniche.');}
   }
   private actualiser(dt:number){
+    this.commandesManette(dt);
     const p=this.monde.player.position,paused=this.panel.open||this.accueil.open||document.hidden;
     this.ambiance.actualiser(p.z,paused,!!this.partie.transport);
     const zone=zoneActuelle(p.z);
@@ -165,8 +237,8 @@ export class Jeu {
     $('interaction').onclick=this.partie.transport?()=>this.descendre():()=>this.interagir();
     if(!paused){
       const result=this.sport.avancer(p.x,p.z,dt);
-      if(result==='sortie')this.notifier('Reste sur la bande terracotta. Reviens au départ pour réessayer.');
-      if(result==='arrivee'){this.synchroniser();this.notifier(`Bravo ! Jogging terminé en ${Math.round(this.sport.temps)} secondes.`);}
+      if(result==='sortie'){this.manette.vibrer('erreur');this.notifier('Reste sur la bande terracotta. Reviens au départ pour réessayer.');}
+      if(result==='arrivee'){this.manette.vibrer('succes');this.synchroniser();this.notifier(`Bravo ! Jogging terminé en ${Math.round(this.sport.temps)} secondes.`);}
     }
     $('sport').hidden=!this.sport.actif;$<HTMLProgressElement>('progress').value=this.sport.distance;
     $('sport-label').textContent=`Jogging · ${Math.floor(this.sport.distance)} / 50 m`;

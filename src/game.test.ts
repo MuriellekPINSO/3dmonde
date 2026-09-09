@@ -9,6 +9,7 @@ import {Partie,Zemidjan,Voiture,Vendeuse,SportJogging} from './core/Partie.ts';
 import {guides,lieux,zoneActuelle} from './content/zones.ts';
 import * as T from 'three';
 import {placerModele} from './entities/Placement.ts';
+import {zoneMorte} from './input/Manette.ts';
 test('transport : paiement unique, descente, solde insuffisant',()=>{
  const p=new Partie();assert.equal(p.monter(new Zemidjan()),true);assert.equal(p.balance,1300);
  assert.equal(p.monter(new Voiture()),false);assert.equal(p.balance,1300);p.descendre();
@@ -36,4 +37,9 @@ test('placement GLB : origine décentrée, échelle interne et rotation conserv�
  const box=new T.Box3().setFromObject(objet),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());
  assert.ok(Math.abs(center.x+19)<1e-8);assert.ok(Math.abs(center.z+123)<1e-8);assert.ok(Math.abs(box.min.y-2)<1e-8);assert.ok(Math.abs(size.y-24)<1e-8);
  assert.equal(root.scale.x,2);assert.throws(()=>placerModele(new T.Group(),{x:0,z:0}));
+});
+test('manette : zone morte et amplitude analogique',()=>{
+ assert.equal(zoneMorte(.1),0);assert.equal(zoneMorte(-.16),0);
+ assert.equal(zoneMorte(1),1);assert.equal(zoneMorte(-1),-1);
+ assert.ok(zoneMorte(.5)>.35&&zoneMorte(.5)<.45);
 });

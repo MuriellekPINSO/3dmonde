@@ -2,6 +2,7 @@ import * as T from 'three';
 import { Batisseur, varie } from './Batisseur';
 import { Personnage } from './Joueur';
 import { guides, etals, stations } from '../content/zones';
+import { MerAnimee } from './MerAnimee';
 
 /**
  * Reprise en 3D des cinq lieux de la balade d’après les photographies
@@ -22,72 +23,133 @@ export function boulevard(b: Batisseur) {
   b.sol(3, longueur, b.tex('gazon', 1.5, 145), 9.7, centre, -.02);                   // accotement planté
   b.sol(10, longueur, b.tex('asphalte', 1, 54), 16, centre, -.03);                   // chaussée
   for (const x of [-8.2, 8.35]) b.boite(.35, .24, longueur, '#e7e1d2', x, .12, centre).castShadow = false;
-  for (let z = 14; z > -400; z -= 34) b.lampadaireDouble(10.6, z);
-  for (let z = -2; z > -400; z -= 34) b.lampadaireSimple(11.4, z, 1);
+  // Le tronçon de la Corniche reçoit ses lampadaires solaires spécifiques dans Rues.ts.
+  for (let z = -102; z > -400; z -= 34) b.lampadaireDouble(10.6, z);
+  for (let z = -118; z > -400; z -= 34) b.lampadaireSimple(11.4, z, 1);
 }
 
-/** Corniche Est d’Akpakpa : plage, cocotiers, muret, paillotes et piste de mise en forme. */
+/** Corniche Est d’Akpakpa : plage ouverte, promenades, jeunes palmiers et piste de mise en forme. */
 export function corniche(b: Batisseur) {
   const centre = -37, longueur = 136;
   b.sol(26, longueur, b.tex('sable', 13, 68), -21.5, centre, -.04);                  // plage
   b.sol(7, longueur, b.tex('sable', 4, 68, '#e6d6b0'), -30, centre, .85);            // cordon dunaire
-  b.sol(64, longueur, b.tex('eau', 16, 34), -66, centre, -.25);                      // océan
-  b.boite(1.4, .06, longueur, '#eef4f2', -34.2, .02, centre).castShadow = false;     // ligne d’écume
-  // Muret blanc qui longe le trottoir côté mer.
-  b.boite(.45, .95, longueur, '#f1eee4', -8.7, .48, centre);
-  b.boite(.62, .1, longueur, '#cec7b5', -8.7, 1, centre);
+  const mer = new MerAnimee(b.racine);
+  // Les photos prises sur place montrent une plage sans muret : un chemin sombre
+  // longe l'eau, puis une bande de sable sépare ce chemin du trottoir routier.
+  b.sol(3.4, 118, b.tex('paves', 2, 50, '#7f837c'), -22.5, -35, .025);
+  for (const x of [-24.3, -20.7]) b.boite(.22, .2, 118, '#aaa99f', x, .1, -35).castShadow = false;
   // Piste cyclable et de mise en forme, support du parcours de jogging.
   b.sol(3, 66, b.tex('piste', 1, 11), 6.5, -17, .04);
   for (const z of [8, -42]) b.boite(3, .03, .32, '#fff4d5', 6.5, .08, z).castShadow = false;
   b.panneau('LA CORNICHE', -5, 4, 4, 4);
   b.panneau('ESPACE · Jogging', 6.5, 2.6, 6);
   b.panneau('Arrivée jogging', 6.5, 2.5, -42);
-  // Cocotiers en fosse le long du trottoir, comme sur la Corniche réalisée.
-  for (let z = 18; z > -92; z -= 12) b.cocotier(-6.6, z);
-  for (let z = 12; z > -92; z -= 16) b.cocotier(9.2, z, false);
-  // Jeunes cocotiers plantés sur le sable.
-  for (let z = 16; z > -90; z -= 9) {
-    const x = -14 - varie(z, 3) * 12;
-    b.cone(.5, 1.5, 5, '#5f8a4a', x, .7, z + varie(x, z) * 4).castShadow = false;
+  // Les jeunes palmiers sont espacés dans le sable, tels qu'ils apparaissent
+  // dans les séries IMG_6191–6219 et IMG_9331–9337.
+  for (let z = 15; z > -91; z -= 12) {
+    const x = -12.5 - varie(z, 3) * 6;
+    jeunePalmier(b, x, z);
   }
-  // Bancs tournés vers la mer.
-  for (let z = 14; z > -88; z -= 26) {
-    b.boite(2.6, .18, .7, '#9a6d4a', -5.2, .68, z);
-    b.boite(2.6, .68, .14, '#9a6d4a', -5.2, 1.04, z - .42);
-    for (const dx of [-1.1, 1.1]) b.boite(.14, .62, .52, '#3a4f43', -5.2 + dx, .31, z);
-    b.obstacle(-5.2, z, 3, 1.5);
-  }
-  paillote(b, -15.5, 4, true);
-  paillote(b, -16.5, -30, false);
-  paillote(b, -15, -66, false);
+  // Enrochement visible au bout de la perspective côtière.
+  for (let i = 0; i < 8; i++) b.rocher(-34 - i * .65, .25, -91 + i * .35, .65 + varie(i, 9) * .45, '#686d68');
+  return mer;
 }
 
-/** Buvette sur pilotis en bord de plage, toiture de paille et garde-corps de bois. */
-function paillote(b: Batisseur, x: number, z: number, piscine: boolean) {
-  const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = .12; b.racine.add(g);
-  for (const dx of [-3.4, 0, 3.4]) for (const dz of [-2.4, 2.4]) b.cyl(.17, .2, 2.7, 6, '#b9a481', dx, 1.35, dz, g);
-  b.boite(8.4, .26, 6, '#c9b48c', 0, 2.75, 0, g);
-  for (const dz of [-3, 3]) {
-    b.boite(8.4, .12, .12, '#dccdae', 0, 3.85, dz, g);
-    b.boite(8.4, .12, .12, '#dccdae', 0, 3.3, dz, g);
-    for (let i = -3; i <= 3; i++) b.boite(.1, .95, .1, '#dccdae', i * 1.2, 3.4, dz, g);
+function jeunePalmier(b: Batisseur, x: number, z: number) {
+  const g=new T.Group();g.position.set(x,0,z);g.rotation.y=varie(x,z)*Math.PI;b.racine.add(g);
+  b.cyl(.07,.13,1.15,6,'#806f58',0,.55,0,g);
+  for(let i=0;i<7;i++){
+    const a=i*Math.PI*2/7,feuille=b.boite(.17,.055,1.35,i%2?'#4b7643':'#62864d',Math.sin(a)*.52,1.18,Math.cos(a)*.52,g);
+    feuille.rotation.y=a;feuille.rotation.x=(i%2?-.12:.12);feuille.castShadow=false;
   }
-  b.cone(6.6, 2.3, 4, b.tex('tole', 3, 3, '#b39a63'), 0, 5.2, 0, g).rotation.y = Math.PI / 4;
-  b.boite(4, 2.4, 3.4, '#8fb87f', -1.5, 1.2, 0, g);                                   // local peint en vert
-  if (piscine) b.sol(5, 4, b.tex('eau', 3, 3, '#9fd7dd'), x + 6.4, z + 1.6, .12);
-  b.obstacle(x, z, 8, 6);
+  b.sphere(.16,'#718a45',0,1.18,0,g).castShadow=false;
 }
 
 /** Esplanade des Amazones : vaste plateforme ouverte, statue de 30 m et portiques du port. */
 export function esplanadeAmazone(b: Batisseur) {
-  b.sol(44, 78, b.tex('gazon', 22, 39), -32, -137, .04);
-  b.sol(32, 36, b.tex('beton', 16, 18), -21, -124, .07);
+  // La vue aérienne fournie par l'utilisateur montre un grand parvis pavé,
+  // traversé de bandes claires, puis une pelouse rectangulaire à l'arrière.
+  b.sol(44, 54, b.tex('paves', 22, 27, '#c3baaa'), -31, -126, .07);
+  b.sol(23, 43, b.tex('paves', 12, 22, '#9b9890'), -19, -126, .085);
+  b.sol(44, 30, b.tex('gazon', 22, 15), -32, -168, .05);
+  b.sol(8, 23, b.tex('paves', 4, 12, '#c8b9a1'), -19, -163, .08);
+
+  const bande = (longueur: number, x: number, z: number, rotation = 0) => {
+    const m = b.boite(.85, .055, longueur, '#dfd4bd', x, .12, z);
+    m.rotation.y = rotation; m.castShadow = false;
+  };
+  // Axes et diagonales observés depuis le drone : ils découpent le parvis en
+  // grands polygones et convergent vers le monument.
+  bande(44, -19, -125);
+  bande(39, -30.5, -124, .58);
+  bande(38, -7.5, -125, -.58);
+  bande(28, -36, -136, -.78);
+  bande(25, -2.8, -137, .78);
+
   b.boite(.5, 1.1, 78, '#d5cab1', -53, .55, -137);
   for (let z = -104; z > -172; z -= 13) { b.lampadaireSimple(-11.5, z, -1); b.lampadaireSimple(-44, z, 1); }
   // Portiques du port de Cotonou, aperçus au fond des photos de l’esplanade.
   for (const z of [-104, -124, -144]) portique(b, -80, z);
   statueAmazone(b, -19, -123);
+
+  // Massifs bas de feuillage et fleurs rouges qui ceinturent le pied, avec
+  // l'avant laissé libre pour les marches et la plaque commémorative.
+  for (const [x, z, w, d] of [[-25.1, -123, 1.8, 8], [-12.9, -123, 1.8, 8], [-19, -128.2, 10.5, 1.7]] as const) {
+    b.haie(x, z, w, d, .55);
+    const horizontal = w > d;
+    const longueur = horizontal ? w : d;
+    let index = 0;
+    for (let i = -longueur / 2 + .65; i < longueur / 2; i += 1.25, index++) {
+      const fleur = b.sphere(.16, index % 2 ? '#b9343d' : '#d4554e', horizontal ? x + i : x, .63, horizontal ? z : z + i);
+      fleur.scale.set(1.25, .55, 1.25);
+    }
+  }
+
+  // Corbeilles et petits bollards sombres visibles autour de la zone de visite.
+  for (const [x, z] of [[-31, -111], [-7, -112], [-31, -142], [-7, -142]] as const) {
+    b.cyl(.24, .29, .8, 10, '#303936', x, .4, z);
+  }
+  // Jardin linéaire vu depuis le trottoir : haies basses, fleurs et jeunes arbres.
+  for (const z of [-105, -116, -137, -149, -160]) {
+    b.haie(-7.2, z, 1.3, 7.5, .5);
+    for (let dz = -2.6; dz <= 2.6; dz += 1.3) b.sphere(.13, dz ? '#d85d55' : '#f1c85a', -6.5, .58, z + dz);
+  }
+  for (const [x, z] of [[-4.8, -103], [-5.2, -155], [-39, -165]] as const) b.arbre(x, z, .6);
+  for (const z of [-106, -123, -141, -159]) {
+    b.cyl(.065, .09, 5.7, 7, '#2f3738', -9.2, 2.85, z);
+    b.boite(.85, .08, .26, '#242b2d', -8.84, 5.55, z).rotation.z = -.08;
+  }
   b.panneau('MONUMENT DE L’AMAZONE', -19, 30, -123, 11);
+}
+
+/**
+ * Cité ministérielle observée sur IMG_6228–6233 et IMG_9364–9367 : volumes
+ * horizontaux en pierre claire, bandeaux vitrés sombres et grandes casquettes.
+ */
+export function citeMinisterielle(b: Batisseur) {
+  const g = new T.Group(); g.name = 'cite-ministerielle'; g.position.set(43, 0, -119); b.racine.add(g);
+  b.sol(19, 48, b.tex('gazon', 8, 18, '#789353'), 43, -119, .025);
+  const pierre = b.mat('#c9c7bd'), verre = b.mat('#29484e', {rugosite: .28, metal: .22});
+  for (const z of [-13.5, 0, 13.5]) {
+    b.boite(15.5, 13.2, 11.2, pierre, 1.5, 6.6, z, g);
+    // Quatre rubans vitrés séparés par les dalles de pierre en porte-à-faux.
+    for (const y of [2.25, 5.05, 7.85, 10.65]) {
+      b.boite(.18, 1.25, 10.2, verre, -6.34, y, z, g);
+      b.boite(16.1, .38, 11.9, pierre, 1.15, y + .87, z, g);
+    }
+    b.boite(18.8, .62, 12.8, '#d8d5cb', -.15, 13.45, z, g);
+  }
+  // Longues poutres de toiture qui relient visuellement les ailes.
+  b.boite(20.5, .62, 42, '#d7d4ca', -.4, 14.15, 0, g);
+  b.boite(3.2, 12, 34, '#bdbbb2', 8.2, 6, 0, g);
+  // Premier plan très planté, clôture sombre et palmiers battus par le vent.
+  for (const z of [-19, -12, -5, 3, 11, 19]) {
+    b.haie(35.6, -119 + z, 1.1, 5, .72);
+    if (z % 2) b.palmierRoyal(37.3, -119 + z);
+  }
+  b.boite(.12, 1.25, 44, '#344944', -8.3, .72, 0, g).castShadow = false;
+  for (let z = -21; z <= 21; z += 1.5) b.boite(.08, 1.45, .08, '#344944', -8.38, .75, z, g);
+  b.panneau('CITÉ MINISTÉRIELLE', 35, 4.2, -101, 7);
 }
 
 /** Portique a conteneurs du port de Cotonou, apercu au fond de l’esplanade. */
@@ -112,8 +174,13 @@ function portique(b: Batisseur, x: number, z: number) {
  * pagne noué, bandoulière et épaulière, sur butte rocheuse et socle à plaque.
  */
 function statueAmazone(b: Batisseur, x: number, z: number) {
-  b.boite(12, 1.6, 10, b.tex('beton', 6, 5, '#cec2a8'), x, .8, z);
-  b.boite(9, .5, 7, '#c9bda4', x, 1.75, z);
+  // Les vues au niveau du sol montrent un emmarchement et un haut socle en
+  // pierre noire, légèrement réfléchissante, avec une inscription dorée.
+  b.boite(14, .24, 12, '#4b4c4b', x, .12, z);
+  b.boite(12.8, .32, 10.8, '#282b2c', x, .4, z);
+  b.boite(11.4, 1.15, 9.4, '#303334', x, 1.14, z);
+  b.boite(9, .28, 7, '#4b4e4e', x, 1.86, z);
+  b.boite(4, .62, .08, '#b98a3d', x, 1.18, z + 4.74);
   // Statue, butte et plaque : cèdent la place au modèle amazone.glb.
   b.ensemble('statue-amazone', () => {
     b.boite(1.9, 1.1, .16, '#3a3630', x + 4.4, 1.35, z + 1);                             // plaque commemorative
@@ -188,6 +255,19 @@ export function palaisMarina(b: Batisseur) {
 export function palaisCongres(b: Batisseur) {
   b.sol(38, 64, b.tex('beton', 19, 32), -28, -245, .04);
   b.sol(38, 22, b.tex('gazon', 19, 11), -28, -221, .06);
+  // Parking, grille et motos relevés sur IMG_6253–6258.
+  b.sol(7.2, 54, b.tex('asphalte', 2, 14, '#676765'), -11.8, -246, .055);
+  for (let z=-267;z<=-225;z+=6) {
+    b.boite(3.1,.025,.1,'#ece8da',-11.8,.08,z).castShadow=false;
+    b.boite(.1,.025,4.4,'#ece8da',-9.2,.08,z+2.2).castShadow=false;
+  }
+  b.boite(.16,1.35,43,'#68706e',-15.3,.72,-247).castShadow=false;
+  for(let z=-268;z<=-226;z+=1.45)b.boite(.075,1.55,.075,'#68706e',-15.35,.78,z);
+  for(const [z,type] of [[-229,'zemidjan'],[-235,'zemidjan'],[-261,'voiture']] as const){
+    const stationne=vehicule(b,type);stationne.position.set(-11.7,.08,z);stationne.rotation.y=Math.PI/2;b.racine.add(stationne);
+    stationne.traverse(o=>{const m=o as T.Mesh;if(m.isMesh)m.castShadow=false;});
+  }
+  for(const z of [-222,-270])b.lampadaireSimple(-10.2,z,-1);
   // Bâtiments : cèdent la place au modèle palais-congres.glb.
   b.ensemble('palais-congres', () => {
     tambour(b, -25, -235, 8.6, 10.6, 9.2, true);
@@ -203,8 +283,8 @@ export function palaisCongres(b: Batisseur) {
     b.boite(6, 4.4, .4, '#3d4a44', -16.2, 2.2, -235);
     for (let z = -226; z >= -252; z -= 3.6) b.cyl(.09, .11, 7, 8, '#f0ece0', -12.6, 3.5, z);
   });
-  for (const z of [-218, -266, -274]) b.arbre(-13.5, z);
-  for (const z of [-224, -230, -256, -262]) b.haie(-11.8, z, 1.6, 4, .7);
+  for (const z of [-218, -266, -274]) b.arbre(-17.5, z, .45);
+  for (const z of [-224, -230, -256, -262]) b.haie(-17, z, 1.2, 4, .55);
   b.cocotier(-11.5, -240, false);
   b.panneau('PALAIS DES CONGRÈS', -24, 15, -240, 9);
 }
@@ -356,7 +436,8 @@ export function figures(b: Batisseur) {
     b.panneau(`E · ${guide.id === 'presidence' ? 'Présidence' : 'Guide'}`, guide.x, 3.5, guide.z);
   }
   for (const z of etals) {
-    b.racine.add(new Personnage('#b75c47', 3, z - 1, {pagne: true}).objet);
+    const vendeuse = new Personnage('#b75c47', 3, z - 1, {pagne: true});
+    vendeuse.objet.name = 'vendeuse-aicha'; b.racine.add(vendeuse.objet);
     b.boite(3, 1, 1.5, '#a77750', 3, .6, z + .5);
     b.boite(4, .18, 3, '#d58b4a', 3, 3, z);
     for (const x of [1.4, 4.6]) b.boite(.1, 3, .1, '#74543c', x, 1.5, z);
@@ -368,7 +449,8 @@ export function figures(b: Batisseur) {
     b.boite(.2, 2.8, .2, '#35534b', 3, 1.4, z);
     b.panneau('E · Transport', 3, 3.2, z);
     // Zémidjan en attente, garé hors de la piste de mise en forme.
-    const moto = vehicule(b, 'zemidjan'); moto.position.set(1.8, .1, z); moto.rotation.y = 1.2; b.racine.add(moto);
+    const moto = vehicule(b, 'zemidjan'); moto.position.set(1.8, .1, z); moto.rotation.y = 1.2;
+    moto.name = `moto-borne-${z}`; b.racine.add(moto);
     b.obstacle(1.8, z, 1.8, 2.2);
   }
   // Quelques passants pour animer la promenade.
