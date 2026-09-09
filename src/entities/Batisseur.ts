@@ -278,7 +278,8 @@ export class Batisseur {
     const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = v * 6.3; this.racine.add(g);
     const tronc = this.cyl(.19, .3, h, 8, '#9e8865', 0, h / 2, 0, g);
     tronc.rotation.z = (v - .5) * .16;
-    this.maillage(this.frondaison(9, 3.7, 2.5, .42), this.mat('#4b7d4a', {face2: true}), (v - .5) * .5, h - .1, 0, g);
+    const palmes=this.maillage(this.frondaison(9, 3.7, 2.5, .42), this.mat('#4b7d4a', {face2: true}), (v - .5) * .5, h - .1, 0, g);
+    palmes.name='palmes';
     this.sphere(.22, '#7d9440', .1, h - .55, .14, g).scale.set(1.4, .75, 1.4);
     if (fosse) { const f = this.boite(1.7, .1, 1.7, '#8d8677', 0, .06, 0, g); f.castShadow = false; }
     this.obstacle(x, z, 1, 1);
@@ -289,7 +290,8 @@ export class Batisseur {
     const h = 11 + varie(x, z) * 2;
     const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = varie(z, x) * 6.3; this.racine.add(g);
     this.cyl(.28, .42, h, 8, '#b9b1a0', 0, h / 2, 0, g);
-    this.maillage(this.frondaison(11, 3.2, 2.9, .36), this.mat('#39663d', {face2: true}), 0, h - .1, 0, g);
+    const palmes=this.maillage(this.frondaison(11, 3.2, 2.9, .36), this.mat('#39663d', {face2: true}), 0, h - .1, 0, g);
+    palmes.name='palmes';
     return g;
   }
   /** Arbre à couronne étalée des places de Cotonou. */
@@ -348,7 +350,7 @@ export class Batisseur {
     const g = new T.Group(); g.position.set(x, 0, z); this.racine.add(g);
     this.cyl(.07, .1, h, 8, '#e8e4d6', 0, h / 2, 0, g);
     const toile = this.maillage(this.geo('pl2.2,1.4', () => new T.PlaneGeometry(2.2, 1.4)), this.tex('drapeau', 1, 1, '#ffffff', {face2: true}), 0, h - 1.1, 1.15, g);
-    toile.rotation.y = -Math.PI / 2; toile.castShadow = false;
+    toile.name='toile-drapeau';toile.rotation.y = -Math.PI / 2; toile.castShadow = false;
     return g;
   }
   /** Bloc rocheux irregulier, oriente au hasard mais de facon reproductible. */

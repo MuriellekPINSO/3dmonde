@@ -53,8 +53,8 @@ function horizonUrbain(b: Batisseur) {
   }
   // Nuages très légers : ils donnent de la profondeur au ciel sans masquer les monuments.
   const nuage=b.mat('#fffaf0',{transparent:.36,face2:true});
-  for(const [x,y,z,s] of [[-34,39,-34,7],[48,46,-118,9],[-52,43,-222,8],[55,40,-330,7],[-28,48,-430,10]] as const){
-    const g=new T.Group();g.position.set(x,y,z);b.racine.add(g);
+  for(const [index,[x,y,z,s]] of [[-34,39,-34,7],[48,46,-118,9],[-52,43,-222,8],[55,40,-330,7],[-28,48,-430,10]].entries()){
+    const g=new T.Group();g.name=`nuage-3d-${index+1}`;g.position.set(x,y,z);b.racine.add(g);
     for(const [dx,dy,e] of [[-1.2,0,.8],[0,.35,1],[1.35,.05,.72]] as const){
       const m=b.sphere(1,nuage,dx*s*.18,dy*s*.12,0,g);m.scale.set(s*.42,s*.13,s*.2);m.castShadow=false;m.receiveShadow=false;
     }

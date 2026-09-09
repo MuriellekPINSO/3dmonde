@@ -134,6 +134,11 @@ Le sol et la chaussée continuent au-delà des limites jouables afin que les vé
 jamais en bout de carte. Des volumes d'immeubles lointains, des nuages légers et un ciel en
 dégradé ferment la perspective lorsque la caméra regarde hors des quatre zones détaillées.
 
+Une passe d'ambiance anime aussi la ville : oiseaux en mouvement, poussière sous les pas et les
+véhicules, palmes, drapeaux et nuages sensibles au vent. Le rendu utilise une courbe de couleur
+cinéma. La caméra élargit progressivement son champ avec la vitesse, accompagne les pas et réagit
+aux collisions, sans ajouter de post-traitement lourd pour les ordinateurs moins puissants.
+
 Les quinze fichiers actifs optimisés tiennent en environ 15,7 MiB. Le détail de la chaîne, le tableau des modèles et la raison
 pour laquelle celui de l’Étoile Rouge a été écarté sont dans [docs/MESHY.md](docs/MESHY.md).
 

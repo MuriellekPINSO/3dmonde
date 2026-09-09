@@ -6,6 +6,11 @@ test('rues habitées : circulation, pause, son facultatif et captures',async({pa
  await page.goto('/');await page.getByRole('button',{name:'Commencer la balade'}).click();
  await expect(page.locator('#ambiance')).toHaveAttribute('aria-pressed','false');
  await expect.poll(()=>page.evaluate(()=>!!(window as any).__scenes.find((s:any)=>s.getObjectByName('joueur'))?.getObjectByName('rue-commerce-0'))).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>!!(window as any).__scenes.find((s:any)=>s.getObjectByName('joueur'))?.getObjectByName('vie-urbaine'))).toBe(true);
+ const oiseauX=()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('oiseaux-ville-1').position.x;});
+ const oiseauAvant=await oiseauX();await expect.poll(oiseauX).not.toBe(oiseauAvant);
+ await page.keyboard.down('z');await page.waitForTimeout(700);await page.keyboard.up('z');
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const a=s.getObjectByName('poussiere-deplacement').geometry.attributes.position.array;return Array.from(a).some((v:any)=>v>-500);})).toBe(true);
  const z=()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('circulation-1').position.z;});
  const before=await z();await expect.poll(z).not.toBe(before);
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s?.getObjectByName('circulation-1')?.getObjectByName('vehicule-modele');}),{timeout:60000}).toBe(true);

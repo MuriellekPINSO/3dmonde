@@ -6,6 +6,7 @@ import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina,
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
+import { VieUrbaine } from './entities/VieUrbaine';
 
 /**
  * Modèles détaillés posés sur la scène. Chacun remplace son ensemble construit
@@ -37,6 +38,7 @@ export class Monde {
   private readonly rues: Rues;
   private readonly foule = new Foule(this.scene);
   private readonly mer: MerAnimee;
+  private readonly vie: VieUrbaine;
   private passagerMoto?: T.Group;
   private accident=0;
   onAccident?:(type:'vehicule'|'personnage')=>void;
@@ -82,7 +84,9 @@ export class Monde {
     const textureCiel=new T.CanvasTexture(ciel);textureCiel.colorSpace=T.SRGBColorSpace;
     this.scene.background=textureCiel;this.scene.fog=new T.Fog('#d1dfd5',75,215);
     this.renderer=new T.WebGLRenderer({antialias:true});this.renderer.setSize(innerWidth,innerHeight);
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=T.SRGBColorSpace;
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
+    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
     host.append(this.renderer.domElement);this.renderer.domElement.setAttribute('aria-label','Balade 3D dans quatre zones de Cotonou');
     this.scene.add(new T.HemisphereLight('#fff5dd','#648979',1.9));
     this.soleil.castShadow=true;this.soleil.shadow.mapSize.set(2048,2048);this.soleil.shadow.bias=-.0006;
@@ -93,6 +97,7 @@ export class Monde {
     boulevard(batisseur);this.mer=corniche(batisseur);esplanadeAmazone(batisseur);citeMinisterielle(batisseur);
     palaisMarina(batisseur);palaisCongres(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
+    this.vie=new VieUrbaine(this.scene);
     // La scène construite s’affiche tout de suite ; les modèles la remplacent dès qu’ils arrivent.
     const poses:Pose[]=[...POSES,{
       groupe:'kekenon-circulation',fichier:'kekenon.glb',x:13.6,z:18,
@@ -194,7 +199,7 @@ export class Monde {
         if(choc&&this.rues.accidenterVehicule(vehicule.objet)&&choc.position.distanceTo(this.player.position)<28)this.onAccident?.('personnage');
       }
       if(this.accident>0)this.accident=Math.max(0,this.accident-dt);
-      if(!state.paused){this.foule.actualiser(dt);this.mer.actualiser(dt);}
+      if(!state.paused){this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);}
       // Les deux modèles détaillés embarquent leur propre conducteur : le personnage
       // en boîtes s'effacerait sinon derrière lui, ou se superposerait au pilote.
       this.player.visible=!state.transport;
@@ -215,6 +220,11 @@ export class Monde {
       // et le sommet des monuments, hauts de vingt-cinq à trente-cinq mètres.
       const recul=12,hauteur=2.4+Math.max(0,-this.pitch)*10;
       desired.set(target.x+Math.sin(this.yaw)*recul,target.y+hauteur,target.z+Math.cos(this.yaw)*recul);
+      // Champ de vision et mouvement de caméra progressifs selon l'allure.
+      const fovCible=mouvement.moving?(state.transport==='voiture'?58:state.transport==='zemidjan'?55:state.running?52:49):48;
+      this.camera.fov=T.MathUtils.lerp(this.camera.fov,fovCible,1-Math.exp(-dt*3.8));this.camera.updateProjectionMatrix();
+      if(mouvement.moving&&!state.transport){const cadence=state.running?12:8,ampleur=state.running?.1:.045;desired.y+=Math.sin(time/1000*cadence)*ampleur;desired.x+=Math.cos(time/1000*cadence*.5)*ampleur*.32;}
+      if(this.accident>0){const force=Math.min(1,this.accident/.45)*Math.min(1,(2.7-this.accident)/.12);desired.x+=Math.sin(time*.075)*.2*force;desired.y+=Math.cos(time*.09)*.12*force;}
       this.camera.position.lerp(desired,1-Math.exp(-dt*6));
       regard.set(-Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),-Math.cos(this.yaw)*Math.cos(this.pitch))
         .multiplyScalar(25).add(this.camera.position);
