@@ -37,7 +37,6 @@ type Habitant = {
   bulle?:T.Sprite;
 };
 
-export type StyleTenue = 'ville'|'sport'|'wax';
 export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb';
 
 /** Teinte et saturation d’une couleur, pour reconnaître les habits dans l’atlas. */
@@ -83,8 +82,6 @@ export class Foule {
   private varie = false;
   private couleurJoueur='#f3b94f';
   private temps=0;
-  private accessoiresJoueur?:T.Group;
-  private styleJoueur:StyleTenue='ville';
 
   constructor(private readonly scene: T.Object3D) {}
 
@@ -235,9 +232,9 @@ export class Foule {
     }
     return habilles;
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,style:StyleTenue=this.styleJoueur){
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur){
     const corpsChange=corps!==this.corpsJoueur;
-    this.couleurJoueur=couleur;this.corpsJoueur=corps;this.styleJoueur=style;
+    this.couleurJoueur=couleur;this.corpsJoueur=corps;
     if(corpsChange)this.changerCorpsJoueur();
     this.appliquerCouleurJoueur();
   }
@@ -251,29 +248,14 @@ export class Foule {
   }
   private appliquerCouleurJoueur(){
     const h=this.joueur;if(!h||!this.matiereOrigine)return;
-    this.accessoiresJoueur?.removeFromParent();
-    const groupe=new T.Group();groupe.name=`tenue-joueur-${this.styleJoueur}`;
-    const tissu=new T.MeshStandardMaterial({color:this.couleurJoueur,roughness:.78,side:T.DoubleSide});
-    const clair=new T.MeshStandardMaterial({color:new T.Color(this.couleurJoueur).lerp(new T.Color('#f8df9c'),.38),roughness:.82,side:T.DoubleSide});
-    const piece=(geometrie:T.BufferGeometry,matiere:T.Material,x:number,y:number,z:number)=>{const m=new T.Mesh(geometrie,matiere);m.position.set(x,y,z);m.castShadow=true;groupe.add(m);return m;};
-    if(this.styleJoueur==='ville'){
-      const veste=piece(new T.CylinderGeometry(.255,.22,.53,12),tissu,0,1.22,.005);veste.scale.z=.72;
-      piece(new T.BoxGeometry(.3,.055,.025),clair,0,1.2,.18);
-    }else if(this.styleJoueur==='sport'){
-      const maillot=piece(new T.CylinderGeometry(.225,.205,.48,12),tissu,0,1.23,.006);maillot.scale.z=.7;
-      piece(new T.BoxGeometry(.08,.49,.025),clair,0,1.23,.17);
-      const bandeau=piece(new T.TorusGeometry(.145,.025,6,16),tissu,0,1.82,0);bandeau.rotation.x=Math.PI/2;
-    }else{
-      const pagne=piece(new T.CylinderGeometry(.22,.31,.64,12),tissu,0,.78,0);pagne.scale.z=.78;
-      for(const y of [.56,.76,.96])piece(new T.TorusGeometry(.275,.024,5,18),clair,0,y,0).rotation.x=Math.PI/2;
-      const echarpe=piece(new T.PlaneGeometry(.2,.82),tissu,.04,1.22,.19);echarpe.rotation.z=-.28;
-    }
-    h.personnage.objet.add(groupe);this.accessoiresJoueur=groupe;
     if(!h.fige){const tenue=this.matiere(this.couleurJoueur);h.corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh)m.material=tenue;});return;}
-    // Les silhouettes debout possèdent un autre atlas UV. On conserve leur
-    // propre texture et applique seulement une teinte claire.
+    this.teinterCorps(h.corps);
+  }
+  private teinterCorps(corps:T.Object3D){
+    // Les silhouettes debout possèdent leur propre atlas UV. La matière est
+    // clonée et teintée directement, sans ajouter de volumes autour du corps.
     const teinte=new T.Color(this.couleurJoueur).lerp(new T.Color('#ffffff'),.58);
-    h.corps.traverse(n=>{const m=n as T.Mesh;if(!m.isMesh||!(m.material instanceof T.MeshStandardMaterial))return;
+    corps.traverse(n=>{const m=n as T.Mesh;if(!m.isMesh||!(m.material instanceof T.MeshStandardMaterial))return;
       const origine=(m.userData.matiereTenueOrigine as T.MeshStandardMaterial|undefined)??m.material;
       m.userData.matiereTenueOrigine=origine;const matiere=origine.clone();matiere.color.copy(origine.color).multiply(teinte);m.material=matiere;});
   }
@@ -314,9 +296,9 @@ export class Foule {
     const corps=choix.clone();corps.scale.setScalar(echelle);
     corps.position.set(-centre.x*echelle,-boite.min.y*echelle,-centre.z*echelle);
     corps.rotation.x=-.1;
+    this.teinterCorps(corps);
     corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh){m.castShadow=false;m.receiveShadow=true;}});
     const passager=new T.Group();passager.name='passager-joueur-moto';passager.add(corps);passager.visible=false;
-    if(this.accessoiresJoueur){const tenue=this.accessoiresJoueur.clone();tenue.scale.setScalar(.85);passager.add(tenue);}
     return passager;
   }
   /** Fait entrer ou sortir visuellement le corps du joueur par le côté du véhicule. */

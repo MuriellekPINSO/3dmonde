@@ -414,10 +414,10 @@ export class Rues {
       .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'?2.2:p.type==='velo'?0.8:1.9,d:p.type==='minibus'?4.8:p.type==='velo'?1.7:3.4}));
   }
   /** Cherche autour de la borne un emplacement qui laisse quatre mètres libres. */
-  placeLibreSurVoie(z:number){
+  placeLibreSurVoie(z:number,voie=14){
     for(const decalage of [0,-8,8,-16,16,-24,24,-32,32,-40,40,-52,52]){
       const candidat=T.MathUtils.clamp(z+decalage,-398,18);
-      const libre=this.mouvements.every(p=>p.personne||Math.abs(p.objet.position.x-14)>1.8||Math.abs(p.objet.position.z-candidat)>10);
+      const libre=this.mouvements.every(p=>p.personne||Math.abs(p.objet.position.x-voie)>1.8||Math.abs(p.objet.position.z-candidat)>10);
       if(libre)return candidat;
     }
     return T.MathUtils.clamp(z,-398,18);

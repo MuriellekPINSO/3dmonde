@@ -18,6 +18,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  // Le départ se fait volontairement au cœur de la borne : la montée doit dégager
  // le véhicule sur la voie et permettre d'avancer immédiatement.
  await position(3,-24);await page.keyboard.press('e');await page.getByRole('button',{name:'Zémidjan 200 FCFA'}).click();
+ await page.getByRole('button',{name:/Vers l’Étoile Rouge/}).click();
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('joueur').getObjectByName('corps-personnage');}),{timeout:30000}).toBe(true);
  await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('1 300 FCFA');
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('joueur').userData.transitionTransport?.sens;}),{timeout:800}).toBe('montee');
@@ -51,10 +52,11 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  await page.keyboard.press('f');await expect(page.locator('#vehicle-status')).toBeHidden();
  // La voiture emprunte exactement la même sortie de borne et doit aussi avancer.
  await position(3,-24);await page.keyboard.press('e');await page.getByRole('button',{name:'Voiture 500 FCFA'}).click();
+ await page.getByRole('button',{name:/Vers la Corniche/}).click();
  await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('600 FCFA');
- await expect.poll(async()=>(await positionVehicule()).x).toBeCloseTo(14,1);
+ await expect.poll(async()=>(await positionVehicule()).x).toBeCloseTo(18.3,1);
  const departVoiture=(await positionVehicule()).z;await page.keyboard.down('z');
- await expect.poll(async()=>(await positionVehicule()).z,{timeout:10000}).toBeLessThan(departVoiture-1);
+ await expect.poll(async()=>(await positionVehicule()).z,{timeout:10000}).toBeGreaterThan(departVoiture+1);
  await page.keyboard.up('z');
  // En voiture, le même choc couche le piéton et provoque un arrêt avec une secousse.
  await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur'),p=s.getObjectByName('passant-1');j.position.set(0,.15,-185);p.position.set(0,.15,-186.4);});

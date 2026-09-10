@@ -4,7 +4,7 @@
 
 Un jeu de découverte urbaine en 3D dans le navigateur. Le joueur explore Cotonou à pied, emprunte des transports payants, discute avec des vendeuses par écrit ou par voix et découvre les lieux avec des guides écrits et audio.
 
-Avant le départ, le joueur crée son personnage : prénom, choix entre trois silhouettes 3D, style de ville, sport ou wax, puis couleur des habits. Cette apparence est visible à pied et sur le zémidjan, peut être modifiée depuis le menu Pause et est sauvegardée avec la progression.
+Avant le départ, le joueur choisit son prénom, une des trois silhouettes 3D et sa couleur. La teinte s’applique directement au modèle, sans ajouter de vêtement géométrique. Cette apparence est visible à pied et sur le zémidjan, peut être modifiée depuis le menu Pause et est sauvegardée avec la progression.
 
 Le dossier était vide au démarrage. Le cadrage ci-dessous décrit le MVP cible ; les quatre zones et les cinq lieux sont maintenant implémentés, et leurs décors sont repris d’après des photographies des lieux réels (voir « Prototype disponible » et [docs/REFERENCES.md](docs/REFERENCES.md)).
 
@@ -44,7 +44,7 @@ Quatre zones représentent cinq lieux. Les distances et les liaisons seront simp
 
 ## Périmètre proposé
 
-Le prototype comprend le zémidjan et la voiture. Les tarifs, le budget initial et les objets vendus restent fictifs.
+Le prototype comprend le zémidjan et la voiture. À la commande, le joueur choisit s’il part vers l’Étoile Rouge ou vers la Corniche ; le véhicule rejoint alors la voie correspondant à ce sens et s’oriente avant le départ. Les tarifs, le budget initial et les objets vendus restent fictifs.
 
 Le trajet doit rester réalisable à pied si le joueur manque d'argent. Un paiement refusé ne modifie ni le solde ni l'inventaire. Les narrations ne doivent pas se superposer.
 

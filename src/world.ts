@@ -5,7 +5,7 @@ import { Batisseur } from './entities/Batisseur';
 import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, etoileRouge, figures, vehicule } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
-import type { CorpsJoueur, StyleTenue } from './entities/Foule';
+import type { CorpsJoueur } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
 import { Meteo, type ModeMeteo } from './entities/Meteo';
@@ -29,6 +29,7 @@ const POSES: Pose[] = [
 
 type Frame = {paused:boolean;running:boolean;transport:'zemidjan'|'voiture'|null;speed:number};
 type TransitionTransport={type:'zemidjan'|'voiture';sens:'montee'|'descente';temps:number;duree:number};
+export type DirectionTrajet='etoile'|'corniche';
 export class Monde {
   readonly scene = new T.Scene();
   readonly camera = new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,260);
@@ -77,9 +78,9 @@ export class Monde {
   restaurerPosition(x:number,z:number){
     if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-25,23),.15,T.MathUtils.clamp(z,-406,24));
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb',style:StyleTenue='ville'){
-    this.foule.personnaliserJoueur(couleur,corps,style);
-    this.player.userData.apparenceJoueur={couleur,corps,style};
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb'){
+    this.foule.personnaliserJoueur(couleur,corps);
+    this.player.userData.apparenceJoueur={couleur,corps};
     if(this.passagerMoto){this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
     const passager=this.foule.creerPassagerMoto();
     if(passager){this.passagerMoto=passager;this.scene.add(passager);}
@@ -96,14 +97,16 @@ export class Monde {
    * Sans ce déplacement, un joueur placé près du poteau pouvait démarrer dans
    * son volume de collision et rester bloqué malgré le statut « en véhicule ».
    */
-  engagerTransportSurVoie(type:'zemidjan'|'voiture') {
+  engagerTransportSurVoie(type:'zemidjan'|'voiture',direction:DirectionTrajet) {
     this.keys.clear();
     this.axesManette.x = this.axesManette.z = 0;
-    this.player.position.x = 14;
+    const versEtoile=direction==='etoile',voie=versEtoile?14:18.3;
+    this.player.position.x = voie;
     this.player.position.y = .15;
-    this.player.position.z = this.rues.placeLibreSurVoie(this.player.position.z);
-    this.player.rotation.y = Math.PI;
-    this.yaw = 0;
+    this.player.position.z = this.rues.placeLibreSurVoie(this.player.position.z,voie);
+    this.player.rotation.y = versEtoile?Math.PI:0;
+    this.player.userData.directionTrajet=direction;
+    this.yaw = versEtoile?0:-Math.PI;
     this.transitionTransport={type,sens:'montee',temps:0,duree:.95};
   }
 
