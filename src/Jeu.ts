@@ -50,7 +50,7 @@ export class Jeu {
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
-    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/5</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">1 500 FCFA</span></div></header>
+    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/5</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">10 000 FCFA</span></div></header>
     <aside class="location"><p class="eyebrow" id="zone-kicker">BÉNIN / AKPAKPA</p><h1 id="zone-title">La Corniche</h1><p id="zone-description">Au bord de l’eau, Cotonou s’éveille.</p><div class="rule"></div><p class="eyebrow">VOTRE CARNET DE BALADE</p><ol>${zones.map(z=>`<li id="task-${z.id}">${z.nom}${z.id==='amazone'?' & Présidence':''}</li>`).join('')}</ol><p class="note" id="next-objective">Rencontrer le guide de la Corniche.</p><p class="note" id="side-quests">Jogging : à essayer · Aïcha : à rencontrer</p></aside>
     <button id="ambiance" aria-pressed="false">Ambiance : coupée</button>
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
@@ -83,12 +83,13 @@ export class Jeu {
     {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
   ];}
   private sauvegarder(){
-    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,nomJoueur:this.nomJoueur}));}catch{}
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,nomJoueur:this.nomJoueur}));}catch{}
   }
   private chargerSauvegarde(){
     try{
       const brut=localStorage.getItem('cotonou-sauvegarde-v2');if(!brut)return;
       const data=JSON.parse(brut);if(data?.partie)this.partie.restaurer(data.partie);
+      if(data?.soldeVersion!==2)this.partie.portefeuille.restaurer(10000);
       this.sport.termine=!!data?.sport?.termine;
       if(data?.position)this.monde.restaurerPosition(Number(data.position.x),Number(data.position.z));
       if(typeof data?.tenue==='string')this.tenue=data.tenue;

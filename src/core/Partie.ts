@@ -1,7 +1,7 @@
 import { buy, reply, type State } from '../game.ts';
 
 export class Portefeuille {
-  private solde = 1500;
+  private solde = 10000;
   get balance() { return this.solde; }
   payer(montant: number): boolean {
     if (!Number.isSafeInteger(montant) || montant <= 0 || montant > this.solde) return false;

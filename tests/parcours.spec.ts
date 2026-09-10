@@ -20,7 +20,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  await position(3,-24);await page.keyboard.press('e');await page.getByRole('button',{name:'Zémidjan 200 FCFA'}).click();
  await page.getByRole('button',{name:/Vers l’Étoile Rouge/}).click();
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('joueur').getObjectByName('corps-personnage');}),{timeout:30000}).toBe(true);
- await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('1 300 FCFA');
+ await expect(page.locator('#wallet')).toHaveText('10 000 FCFA');await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('9 800 FCFA');
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('joueur').userData.transitionTransport?.sens;}),{timeout:800}).toBe('montee');
  await page.screenshot({path:'docs/audit/animation-montee-zemidjan.png'});
  await expect(page.locator('#vehicle-status')).toBeVisible();
@@ -53,7 +53,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  // La voiture emprunte exactement la même sortie de borne et doit aussi avancer.
  await position(3,-24);await page.keyboard.press('e');await page.getByRole('button',{name:'Voiture 500 FCFA'}).click();
  await page.getByRole('button',{name:/Vers la Corniche/}).click();
- await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('600 FCFA');
+ await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('9 100 FCFA');
  await expect.poll(async()=>(await positionVehicule()).x).toBeCloseTo(18.3,1);
  const departVoiture=(await positionVehicule()).z;await page.keyboard.down('z');
  await expect.poll(async()=>(await positionVehicule()).z,{timeout:10000}).toBeGreaterThan(departVoiture+1);

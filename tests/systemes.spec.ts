@@ -30,3 +30,13 @@ test('sauvegarde, météo, réglages, carte et missions',async({page})=>{
   await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('joueur').position.z;})).toBeCloseTo(-121,0);
   expect(errors).toEqual([]);
 });
+
+test('une ancienne sauvegarde reçoit le nouveau solde de 10 000 FCFA',async({page})=>{
+  await page.addInitScript(()=>localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({
+    partie:{balance:1500,inventory:[],visites:[],vendeuseRencontree:false,finAnnoncee:false,securite:100,accidents:0,transportsUtilises:[],recompenses:[]},
+    sport:{termine:false},position:{x:0,z:12},tenue:'#f3b94f',corpsJoueur:'personnage1.glb',nomJoueur:'Mika'
+  })));
+  await page.goto('/');
+  await expect(page.locator('#wallet')).toHaveText('10 000 FCFA');
+  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cotonou-sauvegarde-v2')!).soldeVersion)).toBe(2);
+});

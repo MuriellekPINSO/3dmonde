@@ -11,19 +11,19 @@ import * as T from 'three';
 import {placerModele} from './entities/Placement.ts';
 import {zoneMorte} from './input/Manette.ts';
 test('transport : paiement unique, descente, solde insuffisant',()=>{
- const p=new Partie();assert.equal(p.monter(new Zemidjan()),true);assert.equal(p.balance,1300);
- assert.equal(p.monter(new Voiture()),false);assert.equal(p.balance,1300);p.descendre();
- assert.equal(p.monter(new Voiture()),true);p.descendre();assert.equal(p.monter(new Voiture()),true);p.descendre();
+ const p=new Partie();assert.equal(p.monter(new Zemidjan()),true);assert.equal(p.balance,9800);
+ assert.equal(p.monter(new Voiture()),false);assert.equal(p.balance,9800);p.descendre();
+ assert.equal(p.monter(new Voiture()),true);p.descendre();p.portefeuille.restaurer(300);
  assert.equal(p.monter(new Voiture()),false);assert.equal(p.transport,null);assert.equal(p.balance,300);
 });
 test('vendeuse : inventaire partagé avec le portefeuille du transport',()=>{
  const p=new Partie(),v=new Vendeuse();p.monter(new Voiture());p.descendre();v.acheter(p,'ananas');
- assert.equal(p.balance,700);assert.deepEqual(p.inventory,['Ananas découpé']);
+ assert.equal(p.balance,9200);assert.deepEqual(p.inventory,['Ananas découpé']);
 });
 test('fin : cinq guides uniques nécessaires, aucun transport requis',()=>{
  const p=new Partie();for(const g of guides.slice(0,4))p.visiter(g.id);p.visiter(guides[0].id);
  assert.equal(p.terminee(lieux),false);p.visiter(guides[4].id);assert.equal(p.terminee(lieux),true);
- assert.equal(p.balance,1500);assert.equal(zoneActuelle(-220).id,'congres');
+ assert.equal(p.balance,10000);assert.equal(zoneActuelle(-220).id,'congres');
 });
 test('sport : départ à pied, sortie de piste et arrivée',()=>{
  const s=new SportJogging();assert.equal(s.demarrer(6,8,true),false);assert.equal(s.demarrer(0,8,false),false);
@@ -45,7 +45,7 @@ test('manette : zone morte et amplitude analogique',()=>{
 });
 test('sauvegarde, énergie et récompenses de missions',()=>{
  const p=new Partie(),v=new Vendeuse();p.signalerAccident();p.signalerAccident();
- assert.equal(p.securite,50);assert.equal(p.balance,1300);v.acheter(p,'eau');assert.equal(p.utiliser(0),'Tu bois l’eau fraîche et récupères 15 points d’énergie.');assert.equal(p.securite,65);
+ assert.equal(p.securite,50);assert.equal(p.balance,9800);v.acheter(p,'eau');assert.equal(p.utiliser(0),'Tu bois l’eau fraîche et récupères 15 points d’énergie.');assert.equal(p.securite,65);
  assert.equal(p.recompenser('sport',300),true);assert.equal(p.recompenser('sport',300),false);
  const copie=new Partie();copie.restaurer(p.serialiser());assert.deepEqual(copie.serialiser(),p.serialiser());
 });

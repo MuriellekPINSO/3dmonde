@@ -14,9 +14,9 @@ test('Corniche : marche, guide, discussion et achat confirmé',async({page})=>{
   await page.keyboard.up('z');
   await page.keyboard.press('e');await expect(page.getByRole('heading',{name:'Une pause chez Aïcha'})).toBeVisible();
   await page.getByLabel('Ton message').fill('Je veux acheter de l’eau');await page.getByRole('button',{name:'Envoyer',exact:true}).click();
-  await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');
-  await page.getByRole('button',{name:'Eau fraîche 200 FCFA'}).click();await expect(page.locator('#wallet')).toHaveText('1 500 FCFA');
-  await page.getByRole('button',{name:'Confirmer l’achat'}).click();await expect(page.locator('#wallet')).toHaveText('1 300 FCFA');
+  await expect(page.locator('#wallet')).toHaveText('10 000 FCFA');
+  await page.getByRole('button',{name:'Eau fraîche 200 FCFA'}).click();await expect(page.locator('#wallet')).toHaveText('10 000 FCFA');
+  await page.getByRole('button',{name:'Confirmer l’achat'}).click();await expect(page.locator('#wallet')).toHaveText('9 800 FCFA');
   await expect(page.getByRole('button',{name:'Sac · 1'})).toBeVisible();
   await page.getByRole('button',{name:'Fermer',exact:true}).click();
   await page.getByRole('button',{name:'Sac · 1'}).click();await expect(page.locator('#panel-body')).toContainText('Eau fraîche');
