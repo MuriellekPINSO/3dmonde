@@ -10,8 +10,17 @@ export class MerAnimee {
 
   constructor(parent: T.Object3D) {
     // Maillage assez souple pour les vagues, mais léger pour les GPU intégrés.
-    const surface = new T.PlaneGeometry(100, 170, 32, 58);
+    const surface = new T.PlaneGeometry(120, 170, 38, 58);
     surface.rotateX(-Math.PI / 2);
+    // Une nappe sombre reste sous les creux : aucun morceau de l'ancien terrain
+    // côtier ne réapparaît quand la surface animée descend.
+    const fond = new T.Mesh(
+      new T.PlaneGeometry(120, 170),
+      new T.MeshStandardMaterial({color:'#245d66',roughness:.72,metalness:.04}),
+    );
+    fond.geometry.rotateX(-Math.PI/2);
+    fond.name='fond-ocean-corniche';fond.position.set(-68.6,-.035,-37);fond.receiveShadow=true;
+    parent.add(fond);
     const eau = new T.ShaderMaterial({
       name: 'matiere-ocean-anime',
       fog: true,
@@ -24,10 +33,10 @@ export class MerAnimee {
         void main() {
           vUvEau = uv;
           vec3 p = position;
-          float ample = .13 + (1.0 - uv.x) * .18;
+          float ample = .05 + (1.0 - uv.x) * .08;
           float vague = sin(p.x * .34 + p.z * .09 + uTemps * 1.35) * ample;
-          vague += sin(p.x * .13 - p.z * .28 + uTemps * 1.85) * .09;
-          vague += sin(p.z * .52 + uTemps * 2.2) * .035;
+          vague += sin(p.x * .13 - p.z * .28 + uTemps * 1.85) * .04;
+          vague += sin(p.z * .52 + uTemps * 2.2) * .015;
           p.y += vague;
           vVague = vague;
           vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
@@ -56,13 +65,15 @@ export class MerAnimee {
     });
     const ocean = new T.Mesh(surface, eau);
     ocean.name = 'ocean-anime';
-    ocean.position.set(-84.5, -.18, -37);
+    // Dans la vidéo aérienne, l'eau longe presque directement la promenade.
+    // Le bord droit du maillage arrive donc à x=-8.6, juste sous le garde-corps.
+    ocean.position.set(-68.6, .12, -37);
     ocean.receiveShadow = true;
     parent.add(ocean);
     this.materiaux.push(eau);
 
     // Plusieurs rouleaux arrivent à des vitesses et positions différentes.
-    const rouleaux = [[-35.9, 3.8], [-39.4, 2.3], [-43.2, 1.7]] as const;
+    const rouleaux = [[-9.9, .65], [-11.8, .8], [-14.4, 1.05]] as const;
     for (const [index, [x, largeur]] of rouleaux.entries()) {
       const geometrie = new T.PlaneGeometry(largeur, 148, 3, 58);
       geometrie.rotateX(-Math.PI / 2);
@@ -103,7 +114,7 @@ export class MerAnimee {
             float cellule = fract(vUvEcume.y * 47.0 + vUvEcume.x * 2.7 - uTemps * .42 + uPhase);
             float mousse = smoothstep(.08, .34, cellule) * (1.0 - smoothstep(.7, .96, cellule));
             float souffle = .76 + .24 * cos(uTemps * 1.2 + uPhase);
-            float alpha = bord * (.38 + mousse * .62) * souffle;
+            float alpha = bord * (.13 + mousse * .27) * souffle;
             gl_FragColor = vec4(vec3(.91, .96, .91), alpha);
             #include <fog_fragment>
           }

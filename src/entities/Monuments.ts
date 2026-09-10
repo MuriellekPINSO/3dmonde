@@ -22,8 +22,8 @@ export function boulevard(b: Batisseur) {
   b.sol(28, longueur, b.tex('sable', 14, 310, '#cfc6ab'), -22, centre, -.05).name='sol-lointain-ouest';
   b.sol(30, longueur, b.tex('sable', 15, 310, '#c9c2a8'), 36, centre, -.05).name='sol-lointain-est';
   b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
-  b.sol(3, longueur, b.tex('gazon', 1.5, 205), 9.7, centre, -.02).name='accotement-continu';
-  b.sol(10, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
+  b.sol(2.2, longueur, b.tex('gazon', 1.5, 205), 9.25, centre, -.02).name='accotement-continu';
+  b.sol(13, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
   for (const x of [-8.2, 8.35]) b.boite(.35, .24, longueur, '#e7e1d2', x, .12, centre).castShadow = false;
   // Le tronçon de la Corniche reçoit ses lampadaires solaires spécifiques dans Rues.ts.
   for (let z = -102; z > -400; z -= 34) b.lampadaireDouble(10.6, z);
@@ -61,30 +61,35 @@ function horizonUrbain(b: Batisseur) {
   }
 }
 
-/** Corniche Est d’Akpakpa : plage ouverte, promenades, jeunes palmiers et piste de mise en forme. */
+/** Corniche Est d’Akpakpa : promenade au bord de l’eau et piste de mise en forme. */
 export function corniche(b: Batisseur) {
-  const centre = -37, longueur = 136;
-  b.sol(26, longueur, b.tex('sable', 13, 68), -21.5, centre, -.04);                  // plage
-  b.sol(7, longueur, b.tex('sable', 4, 68, '#e6d6b0'), -30, centre, .85);            // cordon dunaire
+  const longueur = 136;
   const mer = new MerAnimee(b.racine);
-  // Les photos prises sur place montrent une plage sans muret : un chemin sombre
-  // longe l'eau, puis une bande de sable sépare ce chemin du trottoir routier.
-  b.sol(3.4, 118, b.tex('paves', 2, 50, '#7f837c'), -22.5, -35, .025);
-  for (const x of [-24.3, -20.7]) b.boite(.22, .2, 118, '#aaa99f', x, .1, -35).castShadow = false;
+  // La vue drone montre une bande bleu-gris continue, des jardinières carrées
+  // et une rambarde métallique entre le large trottoir et l'océan.
+  b.sol(3.25, 122, b.tex('beton', 2, 44, '#78979a'), -6.35, -35, .035).name='promenade-bleue-corniche';
+  b.boite(.28, .28, 122, '#d8d1bf', -4.62, .14, -35).castShadow=false;
+  for(let z=23;z>-94;z-=5.5){
+    b.cyl(.065,.075,1.25,7,'#596766',-8.02,.63,z);
+  }
+  for(const y of [.42,.86,1.18]) b.boite(.07,.055,122,'#657371',-8.02,y,-35).castShadow=false;
+  for(let z=18;z>-91;z-=15.5){
+    b.boite(1.55,.5,1.55,'#b8b1a2',-5.9,.27,z);
+    b.boite(1.25,.14,1.25,'#765f49',-5.9,.57,z);
+    const arbuste=b.sphere(.72,z%2?'#477447':'#557f4c',-5.9,1.1,z);
+    arbuste.scale.set(1,.75,1);
+  }
+  b.obstacle(-8.02,-35,.24,122);
   // Piste cyclable et de mise en forme, support du parcours de jogging.
   b.sol(3, 66, b.tex('piste', 1, 11), 6.5, -17, .04);
   for (const z of [8, -42]) b.boite(3, .03, .32, '#fff4d5', 6.5, .08, z).castShadow = false;
   b.panneau('LA CORNICHE', -5, 4, 4, 4);
   b.panneau('ESPACE · Jogging', 6.5, 2.6, 6);
   b.panneau('Arrivée jogging', 6.5, 2.5, -42);
-  // Les jeunes palmiers sont espacés dans le sable, tels qu'ils apparaissent
-  // dans les séries IMG_6191–6219 et IMG_9331–9337.
-  for (let z = 15; z > -91; z -= 12) {
-    const x = -12.5 - varie(z, 3) * 6;
-    jeunePalmier(b, x, z);
-  }
+  // Quelques palmiers restent en retrait côté ville, comme sur les vues hautes.
+  for (const z of [13,-17,-49,-82]) jeunePalmier(b, 7.9, z);
   // Enrochement visible au bout de la perspective côtière.
-  for (let i = 0; i < 8; i++) b.rocher(-34 - i * .65, .25, -91 + i * .35, .65 + varie(i, 9) * .45, '#686d68');
+  for (let i = 0; i < 8; i++) b.rocher(-9.6 - i * .55, .2, -94 + i * .35, .55 + varie(i, 9) * .35, '#686d68');
   return mer;
 }
 
@@ -106,6 +111,7 @@ export function esplanadeAmazone(b: Batisseur) {
   b.sol(23, 43, b.tex('paves', 12, 22, '#9b9890'), -19, -126, .085);
   b.sol(44, 30, b.tex('gazon', 22, 15), -32, -168, .05);
   b.sol(8, 23, b.tex('paves', 4, 12, '#c8b9a1'), -19, -163, .08);
+  jardinAerienAmazone(b);
 
   const bande = (longueur: number, x: number, z: number, rotation = 0) => {
     const m = b.boite(.85, .055, longueur, '#dfd4bd', x, .12, z);
@@ -153,6 +159,43 @@ export function esplanadeAmazone(b: Batisseur) {
     b.boite(.85, .08, .26, '#242b2d', -8.84, 5.55, z).rotation.z = -.08;
   }
   b.panneau('MONUMENT DE L’AMAZONE', -19, 30, -123, 11);
+}
+
+/** Jardins géométriques et chemin courbe visibles dans le survol TOUR.mp4. */
+function jardinAerienAmazone(b: Batisseur) {
+  b.sol(45, 31, b.tex('gazon', 20, 13, '#6f934e'), -32.5, -193, .045).name='jardin-aerien-amazone';
+  // Une promenade organique continue relie l'esplanade au grand parc planté.
+  const axe=Array.from({length:34},(_,i)=>({x:-31.5+Math.sin(i*.22)*7.5,z:-176.5-i*.93}));
+  const gauche:{x:number;z:number}[]=[],droite:{x:number;z:number}[]=[];
+  for(let i=0;i<axe.length;i++){
+    const avant=axe[Math.max(0,i-1)],apres=axe[Math.min(axe.length-1,i+1)];
+    const dx=apres.x-avant.x,dz=apres.z-avant.z,longueur=Math.hypot(dx,dz)||1;
+    const nx=-dz/longueur*1.65,nz=dx/longueur*1.65;
+    gauche.push({x:axe[i].x+nx,z:axe[i].z+nz});droite.push({x:axe[i].x-nx,z:axe[i].z-nz});
+  }
+  const ruban=new T.Shape();
+  [...gauche,...droite.reverse()].forEach(({x,z},index)=>index?ruban.lineTo(x,-z):ruban.moveTo(x,-z));ruban.closePath();
+  const geoRuban=new T.ShapeGeometry(ruban);geoRuban.rotateX(-Math.PI/2);
+  const allee=b.maillage(geoRuban,b.mat('#d9d1c1',{face2:true}),0,.09,0);allee.castShadow=false;
+  // Triangles de pelouse sombre séparés par des allées claires, lisibles du sol
+  // comme depuis la caméra haute.
+  const triangles=[
+    [[-52,-180],[-41,-181],[-48,-190]],
+    [[-18,-183],[-9,-188],[-18,-194]],
+    [[-51,-199],[-39,-205],[-50,-207]],
+  ] as const;
+  for(const points of triangles){
+    const forme=new T.Shape();
+    // ShapeGeometry travaille en XY ; l'axe Y devient -Z après rotation au sol.
+    points.forEach(([x,z],index)=>index?forme.lineTo(x,-z):forme.moveTo(x,-z));forme.closePath();
+    const geo=new T.ShapeGeometry(forme);geo.rotateX(-Math.PI/2);
+    const massif=b.maillage(geo,new T.MeshBasicMaterial({color:'#537c42',side:T.DoubleSide}),0,.1,0);massif.castShadow=false;
+  }
+  for(const [x,z,s] of [[-50,-187,.52],[-44,-201,.45],[-13,-190,.5],[-22,-205,.46]] as const)b.arbre(x,z,s);
+  for(const z of [-181,-189,-198,-205]){
+    b.haie(-53.5,z,1.1,5.2,.42);
+    for(let dz=-1.7;dz<=1.7;dz+=1.1)b.sphere(.12,dz>0?'#d55249':'#efc34f',-52.9,.48,z+dz);
+  }
 }
 
 /**

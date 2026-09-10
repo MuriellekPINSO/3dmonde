@@ -37,12 +37,12 @@ const dessins: Record<Motif, (c: CanvasRenderingContext2D, t: number) => void> =
     }
     grain(c, t, 500, ['#c7bfb0', '#e4dfd3']);
   },
-  // Chaussée bidirectionnelle : ligne axiale discontinue et lignes de rive.
+  // Large boulevard de la Corniche : quatre files lisibles et lignes de rive.
   asphalte(c, t) {
     c.fillStyle = '#3a3d3f'; c.fillRect(0, 0, t, t);
     grain(c, t, 1200, ['#434648', '#2f3234', '#4a4d4f']);
     c.fillStyle = '#e6e0d0';
-    c.fillRect(t * .49, t * .2, t * .022, t * .6);
+    for (const x of [.25, .49, .75]) c.fillRect(t * x, t * .2, t * .018, t * .6);
     c.fillRect(t * .05, 0, t * .016, t); c.fillRect(t * .935, 0, t * .016, t);
   },
   sable(c, t) { c.fillStyle = '#e0cfa8'; c.fillRect(0, 0, t, t); grain(c, t, 1600, ['#d6c39a', '#e9daba', '#cbb891', '#f0e3c6']); },

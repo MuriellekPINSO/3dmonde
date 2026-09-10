@@ -217,3 +217,11 @@ Corrections réalisées à partir de ce repérage :
 - ajout du parking, de la grille, des marquages et de véhicules stationnés devant le Palais des Congrès.
 
 Ces médias sont des sources de travail et contiennent 520 Mo de données originales. Ils restent ignorés par Git et sont exclus de la compilation de production ; seuls les décors reconstruits et les modèles 3D optimisés sont publiés.
+
+## Survols continus `public/360` — 10 septembre 2026
+
+Les vidéos locales `CORNICHE .mp4` et `TOUR.mp4` ont été parcourues sur toute leur durée, avec 36 images de contrôle réparties entre le début et la fin des deux fichiers. Elles sont verticales et proposent plusieurs panoramiques aériens successifs ; elles ne sont pas utilisées comme textures dans le jeu.
+
+`CORNICHE .mp4` montre une chaussée sombre large, plusieurs files séparées par des pointillés blancs, le bord d'eau très proche, une bande de promenade bleu-gris, un garde-corps métallique, des jardinières espacées et un front bâti bas côté ville. `TOUR.mp4` montre les jardins géométriques autour de l'Amazone, une allée blanche sinueuse, de grands îlots verts, la Cité ministérielle, le Palais des Congrès et des quartiers résidentiels composés de villas claires à toits orangés, jardins clos et piscines.
+
+Corrections réalisées : l'océan rejoint désormais la promenade de la Corniche ; ses vagues et son écume restent animées mais plus discrètes. La promenade reçoit sa bande bleu-gris, sa rambarde et ses jardinières. Le boulevard est élargi et son marquage suggère quatre files. Un jardin aérien avec allée courbe prolonge l'Esplanade et un arrière-plan de villas végétalisées complète le côté ville.

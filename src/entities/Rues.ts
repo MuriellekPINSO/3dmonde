@@ -163,6 +163,24 @@ export class Rues {
       this.b.cyl(.09,.13,3.2,6,'#87745e',27.7,1.6,z);
       const couronne=this.b.sphere(.9,'#4e7548',27.7,3.25,z);couronne.scale.set(1.2,.55,1.1);
     }
+
+    // Quartier résidentiel très vert aperçu dans TOUR.mp4 : villas blanches,
+    // toits orangés, murs bas, jardins et bassins derrière le premier front bâti.
+    const villas=new T.Group();villas.name='quartier-villas-tour';this.b.scene.add(villas);
+    for(const [index,z] of [15,-12,-43,-73].entries()){
+      const x=57+(index%2)*3,w=12+(index%2)*2,d=16;
+      const parcelle=new T.Group();parcelle.position.set(x,0,z);villas.add(parcelle);
+      this.b.sol(w+7,d+7,this.b.tex('gazon',5,5,'#6d944f'),x,z,.015);
+      this.b.boite(w,4.5,d,'#f0eadc',0,2.25,0,parcelle);
+      const toit=this.b.cone(9.2,2.7,4,index%2?'#b76137':'#c87342',0,5.65,0,parcelle);
+      toit.rotation.y=Math.PI/4;toit.scale.set(w/13,1,d/13);
+      for(const dz of [-4,0,4])this.b.boite(.12,1.55,1.9,'#385b62',-w/2-.07,2.55,dz,parcelle);
+      this.b.boite(.16,2.35,3.1,'#6f5843',-w/2-.09,1.3,-5.2,parcelle);
+      this.b.boite(w+7,.95,.22,'#ded6c6',0,.48,d/2+3.45,parcelle);
+      this.b.boite(.22,.95,d+7,'#ded6c6',-w/2-3.45,.48,0,parcelle);
+      this.b.sol(4.5,7,'#54a3ad',x+w/2+1.1,z-2,.055).name=`piscine-villa-${index+1}`;
+      for(const [dx,dz] of [[-w/2-1,-d/2-1],[w/2+1,d/2+1]] as const)this.b.arbre(x+dx,z+dz,.42);
+    }
   }
   /** Fresque portuaire relevée sur IMG_9338–9346, reconstruite au canvas sans incorporer la photo. */
   private fresquePortuaire(){
