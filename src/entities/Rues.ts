@@ -24,8 +24,13 @@ export class Rues {
   private readonly statiques:{objet:T.Object3D;portee:number}[]=[];
   private temps=0;
   constructor(private readonly b:Batisseur){
-    this.cornicheObservee();this.fresquePortuaire();this.carrefoursOfficiels();
+    this.cornichePlage6194();this.cornicheObservee();this.fresquePortuaire();this.carrefoursOfficiels();
     this.facades();this.abords();this.circulation();this.passants();
+  }
+  /** Mobilier du premier tronçon, relevé dans les 17 secondes de IMG_6194.MOV. */
+  private cornichePlage6194(){
+    for(let z=140;z>36;z-=14)this.lampadaireSolaire(-4.6,z,-1);
+    this.panneauPieton(-4.7,116);
   }
   private enseigne(titre:string,detail:string,couleur:string,w:number,h:number,parent:T.Object3D,x:number,y:number,z:number,rotation=0){
     const toile=document.createElement('canvas');toile.width=1024;toile.height=256;
@@ -261,6 +266,19 @@ export class Rues {
     for(const dz of [-w*.28,w*.28])this.b.cyl(.08,.12,y-h/2,7,'#727973',0,(y-h/2)/2,dz,g);
     this.enseigne(titre,detail,'#66756f',w,h,g,0,y,0,-Math.PI/2);
   }
+  private panneauPieton(x:number,z:number){
+    const toile=document.createElement('canvas');toile.width=toile.height=256;
+    const c=toile.getContext('2d')!;c.fillStyle='#f4f1e8';c.fillRect(0,0,256,256);c.fillStyle='#2365a2';c.fillRect(13,13,230,230);
+    c.fillStyle='#f7f4e9';c.beginPath();c.moveTo(128,34);c.lineTo(224,214);c.lineTo(32,214);c.closePath();c.fill();
+    c.strokeStyle='#252d30';c.lineWidth=12;c.lineCap='round';c.beginPath();c.arc(128,87,13,0,Math.PI*2);c.stroke();
+    c.beginPath();c.moveTo(128,102);c.lineTo(117,145);c.lineTo(91,181);c.moveTo(119,139);c.lineTo(151,176);c.moveTo(122,119);c.lineTo(158,137);c.stroke();
+    for(let i=0;i<4;i++){c.fillStyle='#252d30';c.fillRect(61+i*36,196,25,9);}
+    const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;
+    const g=new T.Group();g.name='panneau-pieton-6194';g.position.set(x,0,z);this.b.scene.add(g);
+    this.b.cyl(.065,.09,3.7,7,'#737975',0,1.85,0,g);
+    const panneau=new T.Mesh(new T.PlaneGeometry(1.25,1.25),new T.MeshStandardMaterial({map:texture,roughness:.85,side:T.DoubleSide}));
+    panneau.position.set(0,3.45,0);g.add(panneau);
+  }
   private parasol(x:number,z:number,couleur:string){
     const g=new T.Group();g.position.set(x,0,z);this.b.racine.add(g);
     this.b.cyl(.055,.055,2.7,6,'#bcb39b',0,1.35,0,g);
@@ -313,7 +331,7 @@ export class Rues {
       const type=i%5===0?'voiture':'zemidjan';const objet=vehicule(this.b,type);
       const sens=i%2?1:-1;objet.position.set(sens>0?18.3:13.6,0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
       objet.name=`circulation-${i}`;this.b.scene.add(objet);
-      this.mouvements.push({objet,debut:-421,fin:43,vitesse:type==='voiture'?6.3:8.2,sens,phase:i,type});
+      this.mouvements.push({objet,debut:-421,fin:153,vitesse:type==='voiture'?6.3:8.2,sens,phase:i,type});
     }
     // Taxis verts et blancs, puis deux minibus : silhouettes courantes qui
     // diversifient le trafic sans charger de nouveaux fichiers 3D.
@@ -321,7 +339,7 @@ export class Rues {
       const objet=vehicule(this.b,'voiture');objet.name=`circulation-taxi-${i+1}`;
       const carrosserie=objet.children[0] as T.Mesh;if(carrosserie?.isMesh&&carrosserie.material instanceof T.MeshStandardMaterial){const matiere=carrosserie.material.clone();matiere.color.set(i%2?'#ece7d6':'#3f7b58');carrosserie.material=matiere;}
       const sens=i%2?1:-1,departs=[-58,-149,-217,-331];objet.position.set(sens>0?18.3:13.6,0,departs[i]);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
-      this.mouvements.push({objet,debut:-421,fin:43,vitesse:6.7+i*.12,sens,phase:70+i,type:'taxi'});
+      this.mouvements.push({objet,debut:-421,fin:153,vitesse:6.7+i*.12,sens,phase:70+i,type:'taxi'});
     }
     for(let i=0;i<2;i++){
       const objet=new T.Group();objet.name=`circulation-minibus-${i+1}`;
@@ -330,7 +348,7 @@ export class Rues {
       this.b.boite(1.5,.18,1.2,'#3d7653',0,1.13,-2.27,objet);
       for(const x of [-.98,.98])for(const z of [-1.45,1.35]){const roue=this.b.cyl(.33,.33,.18,10,'#272b29',x,.4,z,objet);roue.rotation.z=Math.PI/2;}
       const sens=i?1:-1;objet.position.set(sens>0?18.3:13.6,0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
-      this.mouvements.push({objet,debut:-421,fin:43,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
+      this.mouvements.push({objet,debut:-421,fin:153,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
     }
     for(let i=0;i<3;i++){
       const objet=new T.Group();objet.name=`circulation-velo-${i+1}`;
@@ -338,7 +356,7 @@ export class Rues {
       for(const z of [-.62,.62]){const roue=new T.Mesh(new T.TorusGeometry(.35,.045,7,16),matRoue);roue.position.set(0,.42,z);roue.rotation.y=Math.PI/2;objet.add(roue);}
       const cadre=new T.Mesh(new T.CylinderGeometry(.035,.035,1.18,6),matCadre);cadre.position.set(0,.61,0);cadre.rotation.x=Math.PI/2.8;objet.add(cadre);
       const sens=i%2?1:-1;objet.position.set(sens>0?20.15:11.75,0,-42-i*126);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
-      this.mouvements.push({objet,debut:-421,fin:43,vitesse:4.1+i*.22,sens,phase:90+i,type:'velo',portee:100,voieCible:objet.position.x});
+      this.mouvements.push({objet,debut:-421,fin:153,vitesse:4.1+i*.22,sens,phase:90+i,type:'velo',portee:100,voieCible:objet.position.x});
     }
   }
   /**
@@ -422,7 +440,7 @@ export class Rues {
       // premier kekenon qui exige un demi-tour dans son gabarit.
       this.poserModele(groupe,gabarit,0);
       this.b.scene.add(groupe);
-      this.mouvements.push({objet:groupe,debut:-421,fin:43,vitesse:7.4+i*.22,sens,phase:40+i,type:'zem-nouveau',portee:105});
+      this.mouvements.push({objet:groupe,debut:-421,fin:153,vitesse:7.4+i*.22,sens,phase:40+i,type:'zem-nouveau',portee:105});
     }
     return nombre;
   }
@@ -434,11 +452,11 @@ export class Rues {
   /** Cherche autour de la borne un emplacement qui laisse quatre mètres libres. */
   placeLibreSurVoie(z:number,voie=14){
     for(const decalage of [0,-8,8,-16,16,-24,24,-32,32,-40,40,-52,52]){
-      const candidat=T.MathUtils.clamp(z+decalage,-398,18);
+      const candidat=T.MathUtils.clamp(z+decalage,-398,138);
       const libre=this.mouvements.every(p=>p.personne||Math.abs(p.objet.position.x-voie)>1.8||Math.abs(p.objet.position.z-candidat)>10);
       if(libre)return candidat;
     }
-    return T.MathUtils.clamp(z,-398,18);
+    return T.MathUtils.clamp(z,-398,138);
   }
   /** Renverse le véhicule de circulation le plus proche lors d'un choc. */
   percuterProche(position:T.Vector3,portee=2.8){
@@ -465,7 +483,7 @@ export class Rues {
     cible.accident=2.7;cible.chuteDirection=1;return true;
   }
   private passants(){
-    const trajets=[[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325]];
+    const trajets=[[-21.1,58,136],[1.5,42,122],[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325]];
     trajets.forEach(([x,debut,fin],i)=>{
       const personne=new Personnage(['#c5754a','#447e88','#698756','#995764'][i%4],x,(debut+fin)/2,{pagne:i%3===0});
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);

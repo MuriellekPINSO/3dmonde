@@ -14,8 +14,8 @@ export class Zone {
   }
 }
 export const zones = [
-  new Zone('corniche', 'La Corniche', 'Au bord de l’eau, Cotonou s’éveille.', 30, [
-    new Guide('corniche', 'Au fil de la Corniche', 'Bienvenue sur la Corniche Est, à Akpakpa, près de l’Hôtel du Lac. Cet aménagement du bord de mer réunit une chaussée à deux voies, des accotements pour les deux-roues, un large trottoir et une piste réservée à la mise en forme. C’est cette piste, la bande terracotta, qui sert de parcours de jogging. Observe la plage ouverte, les jeunes palmiers, le chemin au bord de l’eau et les lampadaires solaires, puis continue vers l’Esplanade de l’Amazone. Les distances du jeu sont raccourcies.', -3, 4, 'https://beninrevele.bj/article/216/la-realisation-corniche-cotonou-avance-grands-coups-pioche/'),
+  new Zone('corniche', 'La Corniche', 'Au bord de l’eau, Cotonou s’éveille.', 150, [
+    new Guide('corniche', 'Au fil de la Corniche', 'Bienvenue sur la Corniche Est, à Akpakpa, près de l’Hôtel du Lac. Le parcours commence par la plage ouverte observée sur place : une large promenade grise, une bande de sable plantée de jeunes cocotiers et un chemin pavé au plus près des vagues. En avançant, tu rejoindras la promenade aménagée, son garde-corps et la bande terracotta réservée à la mise en forme. Les distances du jeu restent adaptées, mais ces deux visages de la Corniche sont maintenant séparés avant l’Esplanade de l’Amazone.', 1.5, 124, 'https://beninrevele.bj/article/216/la-realisation-corniche-cotonou-avance-grands-coups-pioche/'),
   ]),
   new Zone('amazone', 'L’Esplanade', 'L’Amazone & la Présidence.', -90, [
     new Guide('amazone', 'La statue de l’Amazone', 'Le monument de l’Amazone rend hommage aux guerrières du Danxomè. Haut de trente mètres, c’est une structure métallique recouverte de bronze, d’environ cent cinquante tonnes, œuvre du sculpteur Li Xiangqun, inaugurée le 30 juillet 2022. La guerrière tient un fusil dressé d’une main et un sabre de l’autre, la tête relevée. Elle se dresse sur l’esplanade des Amazones, entre le boulevard de la Marina et l’Atlantique, face à la Présidence. Sa silhouette de jeu est stylisée, sans reproduire le modelé de la sculpture.', -3, -116, 'https://fr.wikipedia.org/wiki/Monument_Amazone'),
@@ -31,5 +31,5 @@ export const zones = [
 export const guides = zones.flatMap(zone => zone.guides);
 export const lieux = guides.map(guide => guide.id);
 export const zoneActuelle = (z: number) => [...zones].reverse().find(zone => z <= zone.debut) ?? zones[0];
-export const stations = [-24, -168, -266, -382];
+export const stations = [94, -24, -168, -266, -382];
 export const etals = [-9, -130];

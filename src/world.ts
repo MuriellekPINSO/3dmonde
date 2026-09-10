@@ -78,7 +78,10 @@ export class Monde {
   restaurerPosition(x:number,z:number){
     // Les sauvegardes créées avant le rapprochement de l'océan peuvent avoir
     // une coordonnée x sur l'ancienne plage. On les replace sur la promenade.
-    if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-7.65,23),.15,T.MathUtils.clamp(z,-406,24));
+    if(Number.isFinite(x)&&Number.isFinite(z)){
+      const positionZ=T.MathUtils.clamp(z,-406,148),minimumX=positionZ>30?-23.65:-7.65;
+      this.player.position.set(T.MathUtils.clamp(x,minimumX,23),.15,positionZ);
+    }
   }
   personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb'){
     this.foule.personnaliserJoueur(couleur,corps);
@@ -188,7 +191,7 @@ export class Monde {
     this.vehicules.zemidjan.name='vehicule-joueur-zemidjan';this.vehicules.voiture.name='vehicule-joueur-voiture';
     Object.values(this.vehicules).forEach(g=>{g.visible=false;this.scene.add(g);});this.ajouterPorteVoiture();
 
-    this.camera.position.set(0,9,25);
+    this.camera.position.set(this.player.position.x,9,this.player.position.z+13);
     let drag=false,lastX=0,lastY=0;
     const canvas=this.renderer.domElement;
     canvas.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});

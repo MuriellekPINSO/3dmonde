@@ -10,16 +10,16 @@ export class MerAnimee {
 
   constructor(parent: T.Object3D) {
     // Maillage assez souple pour les vagues, mais léger pour les GPU intégrés.
-    const surface = new T.PlaneGeometry(120, 170, 38, 58);
+    const surface = new T.PlaneGeometry(120, 300, 38, 76);
     surface.rotateX(-Math.PI / 2);
     // Une nappe sombre reste sous les creux : aucun morceau de l'ancien terrain
     // côtier ne réapparaît quand la surface animée descend.
     const fond = new T.Mesh(
-      new T.PlaneGeometry(120, 170),
+      new T.PlaneGeometry(120, 300),
       new T.MeshStandardMaterial({color:'#245d66',roughness:.72,metalness:.04}),
     );
     fond.geometry.rotateX(-Math.PI/2);
-    fond.name='fond-ocean-corniche';fond.position.set(-68.6,-.035,-37);fond.receiveShadow=true;
+    fond.name='fond-ocean-corniche';fond.position.set(-68.6,-.035,14);fond.receiveShadow=true;
     parent.add(fond);
     const eau = new T.ShaderMaterial({
       name: 'matiere-ocean-anime',
@@ -33,6 +33,9 @@ export class MerAnimee {
         void main() {
           vUvEau = uv;
           vec3 p = position;
+          // Au premier tronçon (z monde > 38), la plage est plus large et la
+          // ligne d'eau recule de vingt mètres. La transition reste progressive.
+          p.x -= smoothstep(16.0, 24.0, p.z) * 20.5;
           float ample = .05 + (1.0 - uv.x) * .08;
           float vague = sin(p.x * .34 + p.z * .09 + uTemps * 1.35) * ample;
           vague += sin(p.x * .13 - p.z * .28 + uTemps * 1.85) * .04;
@@ -67,7 +70,7 @@ export class MerAnimee {
     ocean.name = 'ocean-anime';
     // Dans la vidéo aérienne, l'eau longe presque directement la promenade.
     // Le bord droit du maillage arrive donc à x=-8.6, juste sous le garde-corps.
-    ocean.position.set(-68.6, .12, -37);
+    ocean.position.set(-68.6, .12, 14);
     ocean.receiveShadow = true;
     parent.add(ocean);
     this.materiaux.push(eau);
@@ -75,7 +78,7 @@ export class MerAnimee {
     // Plusieurs rouleaux arrivent à des vitesses et positions différentes.
     const rouleaux = [[-9.9, .65], [-11.8, .8], [-14.4, 1.05]] as const;
     for (const [index, [x, largeur]] of rouleaux.entries()) {
-      const geometrie = new T.PlaneGeometry(largeur, 148, 3, 58);
+      const geometrie = new T.PlaneGeometry(largeur, 276, 3, 74);
       geometrie.rotateX(-Math.PI / 2);
       const ecume = new T.ShaderMaterial({
         name: `matiere-ecume-${index + 1}`,
@@ -95,6 +98,7 @@ export class MerAnimee {
           void main() {
             vUvEcume = uv;
             vec3 p = position;
+            p.x -= smoothstep(16.0, 24.0, p.z) * 20.5;
             p.x += sin(p.z * .105 + uTemps * .8 + uPhase) * .36;
             p.x += sin(p.z * .31 - uTemps * 1.4 + uPhase) * .1;
             p.y += .08 + sin(p.z * .22 + uTemps * 1.7 + uPhase) * .055;
@@ -122,7 +126,7 @@ export class MerAnimee {
       });
       const rouleau = new T.Mesh(geometrie, ecume);
       rouleau.name = `ecume-animee-${index + 1}`;
-      rouleau.position.set(x, .03 + index * .015, -37);
+      rouleau.position.set(x, .03 + index * .015, 14);
       rouleau.renderOrder = 2 + index;
       parent.add(rouleau);
       this.materiaux.push(ecume);

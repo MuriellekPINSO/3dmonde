@@ -46,7 +46,7 @@ export class Personnage {
 export class Joueur extends Personnage {
   private phase = 0;
   private vitesseVehicule = 0;
-  constructor() { super('#f3b94f',0,12); this.objet.name = 'joueur'; }
+  constructor() { super('#f3b94f',1.5,132); this.objet.name = 'joueur'; }
   deplacer(keys: Set<string>, yaw:number, dt:number, vitesse:number, paused:boolean, obstacles:Obstacle[], vehicule:boolean, analog={x:0,z:0}) {
     const clavierX=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('q')||keys.has('a')||keys.has('arrowleft'));
     const clavierZ=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('z')||keys.has('w')||keys.has('arrowup'));
@@ -57,10 +57,10 @@ export class Joueur extends Personnage {
     const p=this.objet.position;
     const rayon=vehicule?.85:.3;
     const can=(x:number,z:number)=>{
-      // La mer rejoint maintenant le garde-corps à x=-8 : l'ancienne plage
-      // située jusqu'à x=-27 n'est plus une surface praticable.
-      const ouest=-8, est=24;
-      return x>ouest+rayon&&x<est-rayon&&z>-407&&z<25
+      // Le premier tronçon possède un chemin côtier accessible. Plus loin, la
+      // mer rejoint le garde-corps de la promenade aménagée.
+      const ouest=z>30?-24:-8, est=24;
+      return x>ouest+rayon&&x<est-rayon&&z>-407&&z<150
         &&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+rayon&&Math.abs(z-o.z)<o.d/2+rayon);
     };
     if(vehicule){

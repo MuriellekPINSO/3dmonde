@@ -16,9 +16,9 @@ const CREME_CONGRES = '#ece5d6';
 
 /** Sol continu de la promenade, chaussée, accotements et rives. */
 export function boulevard(b: Batisseur) {
-  // Le décor visible dépasse largement les limites jouables (-407 à 25). La
+  // Le décor visible dépasse largement les limites jouables (-407 à 150). La
   // circulation peut ainsi faire demi-tour hors champ sans rouler dans le vide.
-  const longueur = 620, centre = -190;
+  const longueur = 710, centre = -175;
   b.sol(28, longueur, b.tex('sable', 14, 310, '#cfc6ab'), -22, centre, -.05).name='sol-lointain-ouest';
   b.sol(30, longueur, b.tex('sable', 15, 310, '#c9c2a8'), 36, centre, -.05).name='sol-lointain-est';
   b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
@@ -65,6 +65,7 @@ function horizonUrbain(b: Batisseur) {
 export function corniche(b: Batisseur) {
   const longueur = 136;
   const mer = new MerAnimee(b.racine);
+  cornichePlageOuverte(b);
   // La vue drone montre une bande bleu-gris continue, des jardinières carrées
   // et une rambarde métallique entre le large trottoir et l'océan.
   b.sol(3.25, 122, b.tex('beton', 2, 44, '#78979a'), -6.35, -35, .035).name='promenade-bleue-corniche';
@@ -93,6 +94,28 @@ export function corniche(b: Batisseur) {
   return mer;
 }
 
+/**
+ * Premier tronçon observé sur toute la vidéo IMG_6194.MOV : large promenade
+ * grise, sable planté, chemin côtier pavé et plage ouverte avant la rambarde.
+ */
+function cornichePlageOuverte(b:Batisseur){
+  const centre=90,longueur=116;
+  b.sol(14.5,longueur,b.tex('beton',5,42,'#aaa797'),2,centre,.055).name='promenade-grise-6194';
+  b.sol(14,longueur,b.tex('sable',7,42,'#bd8256'),-12.25,centre,.06).name='bande-sable-6194';
+  b.sol(3.4,longueur,b.tex('paves',2,46,'#777b73'),-21.05,centre,.07).name='chemin-plage-6194';
+  b.sol(6.4,longueur,b.tex('sable',4,42,'#d4b07a'),-25.95,centre,.045).name='plage-ouverte-6194';
+  for(const x of [9.3,-5.3,-19.3,-22.8])b.boite(.28,.22,longueur,'#c9c3b5',x,.11,centre).castShadow=false;
+
+  // Jeunes cocotiers régulièrement plantés dans la bande sableuse.
+  for(let z=140;z>36;z-=12.5){
+    const palmier=jeunePalmier(b,-11.5+varie(z,4)*2.2,z);
+    palmier.scale.setScalar(.72+varie(z,7)*.2);
+  }
+  // Passage piéton au début du parcours, visible dans les premières secondes.
+  for(let x=10.1;x<22.2;x+=1.35)b.boite(.76,.035,3,'#f2efe5',x,.035,132).castShadow=false;
+  b.panneau('CORNICHE · PLAGE OUVERTE',1.5,3.3,140,7);
+}
+
 function jeunePalmier(b: Batisseur, x: number, z: number) {
   const g=new T.Group();g.position.set(x,0,z);g.rotation.y=varie(x,z)*Math.PI;b.racine.add(g);
   b.cyl(.07,.13,1.15,6,'#806f58',0,.55,0,g);
@@ -101,6 +124,7 @@ function jeunePalmier(b: Batisseur, x: number, z: number) {
     feuille.rotation.y=a;feuille.rotation.x=(i%2?-.12:.12);feuille.castShadow=false;
   }
   b.sphere(.16,'#718a45',0,1.18,0,g).castShadow=false;
+  return g;
 }
 
 /** Esplanade des Amazones : vaste plateforme ouverte, statue de 30 m et portiques du port. */
@@ -530,7 +554,7 @@ export function figures(b: Batisseur) {
     b.obstacle(1.8, z, 1.8, 2.2);
   }
   // Quelques passants pour animer la promenade.
-  for (const [x, z, couleur] of [[-4.5, -60, '#cf7f4a'], [5.5, -104, '#7a9bb8'], [-5, -190, '#c9a04c'],
+  for (const [x, z, couleur] of [[-21, 103, '#6d8e9b'], [-1.5, 74, '#b76554'], [-4.5, -60, '#cf7f4a'], [5.5, -104, '#7a9bb8'], [-5, -190, '#c9a04c'],
     [5.8, -250, '#8fae7c'], [-4.8, -300, '#b8746b'], [6, -340, '#d9c46a']] as const)
     b.racine.add(new Personnage(couleur, x, z).objet);
 }
