@@ -24,7 +24,7 @@ export class Rues {
   private readonly statiques:{objet:T.Object3D;portee:number}[]=[];
   private temps=0;
   constructor(private readonly b:Batisseur){
-    this.cornichePlage6194();this.cornicheObservee();this.fresquePortuaire();this.carrefoursOfficiels();
+    this.cornichePlage6194();this.frontPlageOuverte();this.cornicheObservee();this.fresquePortuaire();this.carrefoursOfficiels();
     this.facades();this.abords();this.circulation();this.passants();
   }
   /** Mobilier du premier tronçon, relevé dans les 17 secondes de IMG_6194.MOV. */
@@ -274,10 +274,164 @@ export class Rues {
     c.beginPath();c.moveTo(128,102);c.lineTo(117,145);c.lineTo(91,181);c.moveTo(119,139);c.lineTo(151,176);c.moveTo(122,119);c.lineTo(158,137);c.stroke();
     for(let i=0;i<4;i++){c.fillStyle='#252d30';c.fillRect(61+i*36,196,25,9);}
     const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;
-    const g=new T.Group();g.name='panneau-pieton-6194';g.position.set(x,0,z);this.b.scene.add(g);
+    const g=new T.Group();g.name=`panneau-pieton-${Math.round(z)}`;g.position.set(x,0,z);this.b.scene.add(g);
     this.b.cyl(.065,.09,3.7,7,'#737975',0,1.85,0,g);
     const panneau=new T.Mesh(new T.PlaneGeometry(1.25,1.25),new T.MeshStandardMaterial({map:texture,roughness:.85,side:T.DoubleSide}));
     panneau.position.set(0,3.45,0);g.add(panneau);
+  }
+  /**
+   * Front de ville qui fait face à la plage ouverte, relevé sur IMG_6202–6207 :
+   * clôtures blanches à claustras et pilastres bleus, portail métallique, fonds
+   * de parcelle plantés de cocotiers, complexe vert menthe à toitures en pente,
+   * immeuble à balcons, terrain sableux ceint d'un mur ajouré sombre, puis
+   * immeubles clairs et pylône télécom au fond. Ce côté du boulevard était vide
+   * sur tout le premier tronçon : le regard partait droit dans le ciel.
+   */
+  private frontPlageOuverte(){
+    // Trottoir et caniveau continus, dans la même coupe que le tronçon suivant.
+    this.b.sol(3.2,126,this.b.tex('beton',2,45,'#d8d3c8'),23.1,87,.02);
+    this.b.sol(.55,126,'#64665f',21.25,87,-.07);
+    for(let z=148;z>28;z-=9)this.b.boite(.85,.1,2,'#cbc5b8',21.35,.02,z).castShadow=false;
+    // Les mâts solaires se succèdent aussi côté ville sur la chaussée neuve.
+    for(let z=146;z>28;z-=15)this.lampadaireSolaire(21.45,z,-1);
+    // Seconde traversée piétonne, à mi-parcours de la plage ouverte.
+    for(let x=10.1;x<22.2;x+=1.35)this.b.boite(.76,.035,3,'#f2efe5',x,.035,58).castShadow=false;
+    this.panneauPieton(23.5,63);
+
+    // Clôtures de propriétés, coupées par un portail puis par le terrain vague.
+    this.clotureClaustra(127,42,'#eceadf','#5a86a6');
+    this.portailBleu(100);
+    this.clotureClaustra(85,18,'#eceadf','#5a86a6');
+    this.clotureClaustra(59,30,'#cfcabb','#4d5a57');
+    this.clotureClaustra(35,14,'#eceadf','#5a86a6');
+    // Terrain sableux derrière le mur ajouré sombre relevé sur IMG_6203.
+    this.b.sol(18,26,this.b.tex('sable',7,10,'#c99a63'),36,57,.015);
+    for(const [x,z] of [[25.6,118],[25.6,119.6],[25.6,76.5],[25.6,78.1],[25.6,46]] as const)this.poubelleVerte(x,z);
+
+    // Fonds de parcelle : cocotiers serrés, paillote et petit bâtiment patiné.
+    for(let z=146;z>30;z-=9.5){
+      if(z<73&&z>45)continue;
+      this.b.cocotier(30.2+varie(z,3)*2.6,z+varie(z,8)*2.4,false);
+    }
+    this.paillote(32.5,104);
+    this.b.boite(9,2.9,12,'#c3bbaa',31.5,1.45,86);
+    this.b.boite(9.8,.32,12.8,'#4d7fa1',31.5,3.06,86);
+    for(const [x,z] of [[29.5,76],[33,42]] as const)this.b.arbre(x,z,.8);
+
+    // Complexe vert menthe : hangars à toiture en pente et immeuble à balcons.
+    for(const z of [146,137,128])this.hangarVert(42,z,13,7.4,3.6);
+    this.immeubleBalcons(41,112);
+    // Longs bâtiments clairs à bandeaux, coiffés d'une tourelle cylindrique.
+    this.immeubleBandeaux(43,84,14,13,26);
+    this.immeubleBandeaux(43,32,13,10,18);
+    // Immeubles lointains et pylône télécom, repères du fond de la photo.
+    for(const [x,z,h,teinte] of [[56,134,11,'#d8a58c'],[56,100,9,'#cfd3c0'],[56,56,12,'#d3b79a']] as const){
+      this.b.boite(12,h,16,this.b.tex('immeuble',1,h/5,teinte),x,h/2,z);
+      this.b.boite(12.6,.3,16.6,'#b6b0a2',x,h+.15,z);
+    }
+    this.pyloneTelecom(52,118,19);
+  }
+  /**
+   * Clôture de propriété de la Corniche Est : soubassement, panneaux clairs,
+   * pilastres et couronnements colorés, rangée de claustras ajourés au sommet.
+   */
+  private clotureClaustra(z:number,longueur:number,panneau:string,accent:string){
+    const g=new T.Group();g.name=`cloture-corniche-${Math.round(z)}`;g.position.set(26.9,0,z);this.b.scene.add(g);
+    this.b.boite(.44,.3,longueur,'#b6b0a1',0,.15,0,g);
+    this.b.boite(.34,1.6,longueur,panneau,0,1.1,0,g);
+    this.b.boite(.42,.2,longueur,accent,0,2,0,g);
+    this.b.boite(.28,.62,longueur,this.b.tex('claustra',Math.round(longueur/1.3),1,'#e9e5d8'),0,2.41,0,g);
+    this.b.boite(.42,.16,longueur,accent,0,2.8,0,g);
+    // Le pas est ajusté pour qu'un pilastre tombe exactement aux deux bouts.
+    const pas=longueur/Math.max(1,Math.round(longueur/4.4));
+    for(let dz=-longueur/2;dz<=longueur/2+.01;dz+=pas)this.b.boite(.48,2.88,.48,accent,0,1.44,dz,g);
+    this.statiques.push({objet:g,portee:170});
+    return g;
+  }
+  /** Portail métallique bleu à deux battants, entre deux piles blanches. */
+  private portailBleu(z:number){
+    const g=new T.Group();g.name='portail-corniche';g.position.set(26.9,0,z);this.b.scene.add(g);
+    for(const dz of [-2.05,2.05]){
+      this.b.boite(.14,2.5,4,'#3f6f96',0,1.28,dz,g);
+      for(let y=.5;y<2.4;y+=.44)this.b.boite(.18,.08,3.8,'#31597b',0,y,dz,g).castShadow=false;
+    }
+    for(const dz of [-4.3,4.3])this.b.boite(.56,3.05,.56,'#e2ddcf',0,1.52,dz,g);
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Paillote à toit de chaume aperçue derrière la clôture sur IMG_6204. */
+  private paillote(x:number,z:number){
+    const g=new T.Group();g.name='paillote-corniche';g.position.set(x,0,z);this.b.scene.add(g);
+    for(const [dx,dz] of [[-2.3,-2.3],[2.3,-2.3],[-2.3,2.3],[2.3,2.3]] as const)
+      this.b.cyl(.11,.14,2.6,6,'#8a6f4f',dx,1.3,dz,g);
+    const bord=this.b.cone(4.5,.4,4,'#8a6a3a',0,2.75,0,g);bord.rotation.y=Math.PI/4;
+    const toit=this.b.cone(4.1,1.6,4,'#a6813f',0,3.4,0,g);toit.rotation.y=Math.PI/4;
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Hangar vert menthe à toiture en pente du complexe vu sur IMG_6202. */
+  private hangarVert(x:number,z:number,w:number,d:number,h:number){
+    const g=new T.Group();g.name=`hangar-vert-${Math.round(z)}`;g.position.set(x,0,z);this.b.scene.add(g);
+    this.b.boite(w,h,d,'#cfe0d2',0,h/2,0,g);
+    for(const sens of [-1,1]){
+      const pan=this.b.boite(w+.6,.2,d/2+.6,'#a8bcac',0,h+.58,sens*d/4,g);
+      pan.rotation.x=sens*.3;
+    }
+    this.b.boite(w-1,.85,.16,'#eef4ec',0,h-.75,-d/2-.08,g);
+    for(const dx of [-w/4,w/4])this.b.boite(1.3,1.5,.12,'#48696c',dx,h/2-.2,-d/2-.07,g);
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Immeuble pâle à trois niveaux de balcons filants, centre de la photo IMG_6202. */
+  private immeubleBalcons(x:number,z:number){
+    const g=new T.Group();g.name=`immeuble-balcons-${Math.round(z)}`;g.position.set(x,0,z);this.b.scene.add(g);
+    this.b.boite(11,9.6,12,'#cadfd0',0,4.8,0,g);
+    for(let y=3.1;y<9.2;y+=3.1){
+      this.b.boite(11.5,.2,12.5,'#eaf0e7',0,y,0,g).castShadow=false;
+      for(const dz of [-3.6,0,3.6]){
+        this.b.boite(.12,1.6,2.5,'#40636b',-5.56,y+.95,dz,g);
+        const dalle=this.b.boite(1.5,.14,2.8,'#eaf0e7',-6.2,y+.22,dz,g);dalle.castShadow=false;
+        for(let bz=-1.25;bz<1.3;bz+=.42)this.b.boite(.07,.8,.07,'#8a9c8d',-6.85,y+.62,dz+bz,g).castShadow=false;
+        this.b.boite(.1,.1,2.75,'#8a9c8d',-6.85,y+1.02,dz,g).castShadow=false;
+      }
+    }
+    this.b.boite(11.6,.34,12.6,'#a8bdae',0,9.77,0,g);
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Long bâtiment clair à bandeaux et tourelle de toit, fond de la photo IMG_6205. */
+  private immeubleBandeaux(x:number,z:number,w:number,h:number,d:number){
+    const g=new T.Group();g.name=`immeuble-bandeaux-${Math.round(z)}`;g.position.set(x,0,z);this.b.scene.add(g);
+    this.b.boite(w,h,d,'#dee4e1',0,h/2,0,g);
+    for(let y=2.7;y<h-1;y+=3.2){
+      this.b.boite(.12,1.45,d-1.8,'#3f6d84',-w/2-.06,y,0,g);
+      this.b.boite(w-1.8,1.45,.12,'#3f6d84',0,y,-d/2-.06,g);
+    }
+    this.b.boite(w+.7,.34,d+.7,'#bac2be',0,h+.17,0,g);
+    this.b.cyl(1.8,1.8,3,12,'#e8ece8',w*.2,h+1.8,d*.12,g);
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Pylône télécom en treillis, silhouette récurrente au-dessus du quartier. */
+  private pyloneTelecom(x:number,z:number,h:number){
+    const g=new T.Group();g.name='pylone-telecom-corniche';g.position.set(x,0,z);this.b.scene.add(g);
+    const acier=this.b.mat('#8f9691');
+    for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]] as const){
+      const jambe=this.b.cyl(.07,.11,h,5,acier,dx*.6,h/2,dz*.6,g);
+      jambe.rotation.set(-dz*.022,0,dx*.022);jambe.castShadow=false;
+    }
+    for(let y=1.8;y<h;y+=3.2){
+      for(const dz of [-.6,.6])this.b.boite(1.25,.07,.07,acier,0,y,dz,g).castShadow=false;
+      for(const dx of [-.6,.6])this.b.boite(.07,.07,1.25,acier,dx,y,0,g).castShadow=false;
+    }
+    for(const dy of [0,1])for(const a of [0,2.09,4.19]){
+      const antenne=this.b.boite(.85,.55,.11,'#cbcfc8',Math.cos(a)*1.05,h-1.3-dy,Math.sin(a)*1.05,g);
+      antenne.rotation.y=-a;antenne.castShadow=false;
+    }
+    this.statiques.push({objet:g,portee:170});
+  }
+  /** Bac à ordures vert sur roues, aligné au pied des clôtures. */
+  private poubelleVerte(x:number,z:number){
+    const g=new T.Group();g.position.set(x,0,z);this.b.scene.add(g);
+    this.b.boite(.7,.92,.6,'#3f7248',0,.55,0,g);
+    this.b.boite(.76,.1,.66,'#2f5636',0,1.06,0,g);
+    for(const dz of [-.2,.2])this.b.cyl(.09,.09,.07,8,'#2b2f2d',-.26,.09,dz,g).rotation.z=Math.PI/2;
+    this.statiques.push({objet:g,portee:120});
   }
   private parasol(x:number,z:number,couleur:string){
     const g=new T.Group();g.position.set(x,0,z);this.b.racine.add(g);

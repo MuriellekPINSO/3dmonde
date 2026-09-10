@@ -20,7 +20,7 @@ export function boulevard(b: Batisseur) {
   // circulation peut ainsi faire demi-tour hors champ sans rouler dans le vide.
   const longueur = 710, centre = -175;
   b.sol(28, longueur, b.tex('sable', 14, 310, '#cfc6ab'), -22, centre, -.05).name='sol-lointain-ouest';
-  b.sol(30, longueur, b.tex('sable', 15, 310, '#c9c2a8'), 36, centre, -.05).name='sol-lointain-est';
+  b.sol(64, longueur, b.tex('sable', 32, 310, '#c9c2a8'), 53, centre, -.05).name='sol-lointain-est';
   b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
   b.sol(2.2, longueur, b.tex('gazon', 1.5, 205), 9.25, centre, -.02).name='accotement-continu';
   b.sol(13, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
@@ -37,8 +37,8 @@ function horizonUrbain(b: Batisseur) {
   const couleurs=['#c9bda8','#b7c2bb','#d2aa87','#aab8b5','#d5cbb7'];
   // Deux rangées restent derrière les façades détaillées. Leur silhouette est
   // visible lorsque le joueur regarde de côté, à la place d'un grand fond vide.
-  for(let i=0;i<19;i++){
-    const z=66-i*30+(i%2?4:-3),x=72;
+  for(let i=0;i<23;i++){
+    const z=171-i*30+(i%2?4:-3),x=72;
     const h=5+(i*7%11),w=13+(i%3)*4,d=18+(i%4)*3;
     const immeuble=b.boite(w,h,d,couleurs[(i+2)%couleurs.length],x,h/2,z);
     immeuble.castShadow=false;
@@ -46,7 +46,7 @@ function horizonUrbain(b: Batisseur) {
     bande.castShadow=false;
   }
   // Les deux extrémités ferment la perspective au-delà des demi-tours du trafic.
-  for(const z of [82,-474])for(let x=30;x<=70;x+=20){
+  for(const z of [176,-474])for(let x=30;x<=70;x+=20){
     const h=5+Math.abs(Math.round(x/10))%8;
     const fond=b.boite(16,h,13,couleurs[Math.abs(Math.round(x/20))%couleurs.length],x,h/2,z);
     fond.castShadow=false;
