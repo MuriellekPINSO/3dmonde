@@ -24,9 +24,10 @@ Quatre zones représentent cinq lieux. Les distances et les liaisons seront simp
 - Interaction à proximité avec la touche E et une indication visible de l'action disponible.
 - Guide : texte toujours disponible, lecture audio déclenchée par le joueur, arrêt de la narration et possibilité de relire.
 - Jogging : Espace démarre l'activité dans sa zone ; courte épreuve avec progression et résultat.
-- Transport : affichage du tarif en FCFA avant validation, déduction unique, passage en mode véhicule plus rapide et possibilité de descendre.
-- Commerce : conversation par écrit ou par voix, catalogue de 2 à 3 objets, prix, confirmation et inventaire simple.
-- Progression : lieux visités, objectif courant et message de fin après le dernier guide du parcours.
+- Transport : tarif confirmé, accélération et freinage progressifs, marche arrière, braquage, klaxon, caméra de suivi et descente animée.
+- Commerce : conversation par écrit ou par voix, catalogue, confirmation et objets consommables qui restaurent l’énergie.
+- Progression : missions rémunérées en FCFA, lieux visités, énergie, objectif courant, sauvegarde automatique et bilan final.
+- Monde vivant : heure évolutive, pluie tropicale, circulation avec dépassements, taxis, minibus, vélos, animaux et réactions des PNJ.
 
 ## Conversations avec les vendeuses
 
@@ -37,11 +38,11 @@ Quatre zones représentent cinq lieux. Les distances et les liaisons seront simp
 - Le micro s'active uniquement sur demande du joueur, avec autorisation et indication visible de l'écoute. L'écoute s'arrête à la fermeture du dialogue.
 - Le texte reconnu depuis la voix est affiché. Si le micro est refusé, indisponible ou si la reconnaissance échoue, le joueur peut continuer par écrit.
 - Un achat nécessite une confirmation explicite affichant l'objet et son prix, même si la demande initiale est orale.
-- Pour le MVP, les échanges portent sur les produits, les achats et le lieu ; une question non comprise entraîne une réponse invitant à reformuler.
+- Un serveur OpenAI facultatif permet les échanges libres. Sans serveur ou sans connexion, les réponses locales sur les produits et les lieux prennent automatiquement le relais.
 
 ## Périmètre proposé
 
-Le premier MVP comprend le zémidjan. La voiture, présente dans le concept global, sera ajoutée après validation du parcours complet. Les tarifs, le budget initial et les objets vendus seront des paramètres de jeu à définir, sans les présenter comme des prix réels.
+Le prototype comprend le zémidjan et la voiture. Les tarifs, le budget initial et les objets vendus restent fictifs.
 
 Le trajet doit rester réalisable à pied si le joueur manque d'argent. Un paiement refusé ne modifie ni le solde ni l'inventaire. Les narrations ne doivent pas se superposer.
 
@@ -86,15 +87,15 @@ Le concept fourni sert de base éditoriale. Les dates, dimensions, auteurs, orig
 
 ## Prototype disponible — les quatre zones
 
-Installation : `npm install`. Démarrage : `npm run dev`, puis ouvrir l’adresse locale affichée. Compilation : `npm run build`. Vérification des règles d’achat : `npm test`.
+Installation : `npm install`. Démarrage de développement : `npm run dev`, puis ouvrir l’adresse locale affichée. Compilation : `npm run build`. Serveur de production : `npm start` après la compilation. Vérification de la logique : `npm test`.
 
-Le parcours complet est jouable : la Corniche Est, l’Esplanade de l’Amazone avec le Palais de la Marina, le Palais des Congrès et la place de l’Étoile Rouge. On y trouve un personnage avec caméra orientable par glissement, des guides écrits avec lecture vocale, une vendeuse fictive avec réponses préparées, trois produits et confirmation d’achat, un inventaire de session, un parcours de jogging, et des bornes de transport proposant le zémidjan ou la voiture avec tarif confirmé avant débit.
+Le parcours complet est jouable : la Corniche Est, l’Esplanade de l’Amazone avec le Palais de la Marina, le Palais des Congrès et la place de l’Étoile Rouge. On y trouve un personnage personnalisable, une caméra orientable, des guides écrits et parlés, une vendeuse fictive, trois produits consommables, quatre missions récompensées, une carte, un parcours de jogging et deux transports. La position, le portefeuille, les visites, l’inventaire et les récompenses sont sauvegardés dans le navigateur.
 
 Aïcha tient un étal à la Corniche et un second à l’Esplanade. Le premier sert à essayer la boucle locale dès le départ.
 
-Commandes clavier : ZQSD, WASD ou flèches pour marcher ; E pour interagir à proximité ; Espace au départ de la bande terracotta pour commencer le jogging ; F pour descendre d’un véhicule. Sur une DualSense : joystick gauche pour marcher ou conduire, joystick droit pour regarder, ✕ pour interagir et valider, □ pour le jogging, ○ pour revenir ou descendre, △ pour le sac, Options pour le parcours et croix directionnelle pour naviguer dans les dialogues. La manette peut être reliée en USB ou en Bluetooth ; il faut parfois appuyer sur une touche après l’ouverture de la page pour que le navigateur l’expose au jeu.
+Commandes clavier : ZQSD, WASD ou flèches pour marcher ; E pour interagir ; Espace pour le jogging ; F pour descendre ; H pour klaxonner ; M pour la carte ; I pour le sac ; P ou Échap pour la pause. En véhicule, Z accélère, S freine puis passe en marche arrière et Q/D braquent. Sur une DualSense : joystick gauche pour marcher ou conduire, joystick droit pour regarder, ✕ pour interagir, □ pour le jogging, ○ pour revenir ou descendre, △ pour le sac et Options pour la carte.
 
-La voix est facultative. La lecture utilise la synthèse vocale du navigateur. La saisie orale utilise sa reconnaissance vocale lorsqu’elle est disponible ; le joueur relit la transcription puis l’envoie. Le support dépend du navigateur et de ses permissions ; selon le navigateur, l’audio peut être traité par un service en ligne. Voir [MDN — Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API). Les conversations libres par IA, la sauvegarde et les personnages animés restent à développer. À la demande de l’utilisateur, le jeu fonctionne pour le moment sans OpenAI et sans clé API, avec des réponses préparées.
+La voix est facultative. La lecture utilise la synthèse vocale du navigateur et la saisie orale sa reconnaissance vocale lorsqu’elle est disponible. Voir [MDN — Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API). Pour activer les conversations libres, définir `OPENAI_API_KEY` uniquement dans l’environnement du serveur avant `npm run dev` ou `npm start`. Le navigateur ne reçoit jamais la clé. `OPENAI_MODEL` permet de choisir un autre modèle ; sans clé ou en cas d’erreur réseau, Aïcha utilise les réponses locales.
 
 ### Décors repris d’après photographies
 
@@ -154,8 +155,8 @@ visible, sans interrompre le jeu.
 ### Vérifications du prototype
 
 - Compilation TypeScript et production Vite réussies.
-- Neuf tests de logique réussis : commerce, portefeuille partagé, transport, progression, jogging, manette et placement des modèles après rotation.
-- Les sept tests Playwright couvrent la marche vers le guide et la vendeuse, l’achat et l’inventaire, l’accueil à 390 pixels, le chargement des modèles, les personnages articulés et leurs réactions, les cinq nouveaux zémidjans, les cinq guides, le paiement et la conduite des deux transports, les transitions d'embarquement, les feux tricolores, la manette DualSense simulée et les nouveaux repères photographiés.
+- Dix tests de logique réussis : commerce, portefeuille partagé, transport, progression, jogging, manette, sauvegarde, énergie, récompenses et placement des modèles.
+- Les huit tests Playwright couvrent aussi la sauvegarde/reprise, la météo, l’heure, les réglages, la personnalisation, la carte et les missions.
 - Capture de la scène contrôlée visuellement : `docs/prototype-desktop.png`.
 - Les cinq lieux ont été contrôlés visuellement en comparant des vues rendues aux photographies de référence, à hauteur d’yeux du joueur et en vue rapprochée. La page d’aperçu utilisée pour ces rendus était temporaire et n’est pas conservée dans le dépôt.
 - Les modèles Meshy ont été rendus avant et après optimisation, puis contrôlés en place dans la scène. C’est ce contrôle qui a conduit à écarter celui de l’Étoile Rouge et à orienter le zémidjan détaillé sur sa voie.
@@ -168,17 +169,17 @@ Dernier contrôle des modèles : [audit détaillé et aperçu](docs/AUDIT-MODELE
 
 ### Rues et ambiance quotidienne
 
-Les abords comportent désormais des devantures variées, enseignes fictives, auvents, petits étals, kiosques, balcons, terrasses et deux percées latérales. Vingt véhicules décoratifs, dont le zémidjan détaillé, et sept passants suivent des trajectoires animées. Les personnages construits en code ont des volumes arrondis et des tenues variées ; cela ne remplace pas le travail d'animation des futurs personnages Meshy.
+Les abords comportent des devantures variées, enseignes fictives, auvents, étals, kiosques, balcons et terrasses. Plus de trente véhicules mobiles — zémidjans, voitures, taxis, minibus et vélos — partagent la chaussée. Quatorze passants, des vendeuses et trois animaux animent les trottoirs ; certains passants discutent entre eux.
 
-Le bouton **Ambiance 3D** active un mixage spatial HRTF sans clé API ni fichier sonore distant. La mer,
+Le bouton **Ambiance 3D** active un mixage spatial HRTF sans clé API ni fichier sonore distant. Un court enregistrement local provenant des médias de repérage complète le mixage lorsqu’il est présent et lisible. La mer,
 la circulation et l'activité du marché viennent de leur position dans la scène ; le moteur suit le
 véhicule du joueur et change de hauteur avec l'accélération. Le son est désactivé par défaut à cause
 des règles de lecture automatique des navigateurs, puis s'atténue pendant un dialogue ou lorsque la
 page perd le focus. La caméra initiale est moins plongeante et le panneau latéral laisse davantage de
-place au décor. Le carnet complet reste accessible avec **Parcours**.
+place au décor. La carte et les missions restent accessibles avec **Carte**.
 
 Il s'agit d'une évocation stylisée : les rues restent linéaires et les noms des commerces sont fictifs. Voir les [références de cette passe](docs/REFERENCES.md).
 
-Validation de cette passe : compilation et neuf tests de logique réussis ; les tests navigateur vérifient notamment l'arrêt au feu rouge, la réaction des PNJ, la transition de montée, la commande d'ambiance 3D et le déplacement du zémidjan détaillé. Le test vérifie la commande sonore, pas sa qualité d'écoute. Captures : [vue initiale](docs/audit/rues-corniche.png), [commerces](docs/audit/rues-akpakpa.png), [abords de l'Étoile Rouge](docs/audit/rues-etoile.png), [montée sur le zémidjan](docs/audit/animation-montee-zemidjan.png).
+Validation de cette passe : compilation, dix tests de logique et huit tests navigateur réussis. Les tests vérifient notamment l'arrêt au rouge, les réactions des PNJ, les transitions de véhicule, les collisions, la sauvegarde et la météo. Le test vérifie l’activation audio, tandis que la qualité sonore et les vibrations réelles restent à contrôler sur le matériel cible. Captures : [vue initiale](docs/audit/rues-corniche.png), [commerces](docs/audit/rues-akpakpa.png), [abords de l'Étoile Rouge](docs/audit/rues-etoile.png), [montée sur le zémidjan](docs/audit/animation-montee-zemidjan.png), [pluie et nouvelle interface](docs/audit/pluie-reglages-missions.png).
 
 Une vidéo de 53 secondes de la Corniche Est a ensuite corrigé le premier secteur : sa rue est plus ouverte et moins commerçante, avec lampadaires solaires, murs de propriétés, bâtiments en retrait, passages piétons, panneaux et accotements sableux. Cette vidéo concerne la Corniche Est et ne constitue pas un passage par les cinq lieux. Les observations détaillées sont consignées dans [les références](docs/REFERENCES.md).

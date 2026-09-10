@@ -43,3 +43,9 @@ test('manette : zone morte et amplitude analogique',()=>{
  assert.equal(zoneMorte(1),1);assert.equal(zoneMorte(-1),-1);
  assert.ok(zoneMorte(.5)>.35&&zoneMorte(.5)<.45);
 });
+test('sauvegarde, énergie et récompenses de missions',()=>{
+ const p=new Partie(),v=new Vendeuse();p.signalerAccident();p.signalerAccident();
+ assert.equal(p.securite,50);assert.equal(p.balance,1300);v.acheter(p,'eau');assert.equal(p.utiliser(0),'Tu bois l’eau fraîche et récupères 15 points d’énergie.');assert.equal(p.securite,65);
+ assert.equal(p.recompenser('sport',300),true);assert.equal(p.recompenser('sport',300),false);
+ const copie=new Partie();copie.restaurer(p.serialiser());assert.deepEqual(copie.serialiser(),p.serialiser());
+});

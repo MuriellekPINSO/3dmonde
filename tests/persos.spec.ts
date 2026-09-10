@@ -25,6 +25,8 @@ test('les personnages variés rejoignent la scène', async ({page}) => {
     const scene=scenes?.find(s=>s.getObjectByName('joueur'));
     return scene?.getObjectByName('vendeuse-aicha')?.getObjectByName('modele-vendeuse')!=null;
   }),{timeout:30000}).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Array.from({length:14},(_,i)=>s.getObjectByName(`passant-${i}`)).filter(Boolean).length;})).toBe(14);
+  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('discussion-pnj');})).toBe(true);
   // À pied, un passant proche se tourne vers le joueur et le salue.
   await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur'),p=s.getObjectByName('passant-0');j.position.set(p.position.x,.15,p.position.z+1.8);});
   await page.keyboard.down('z');

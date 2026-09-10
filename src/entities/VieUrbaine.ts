@@ -4,6 +4,7 @@ type ModeDeplacement = 'zemidjan'|'voiture'|null;
 type Oiseaux = {groupe:T.Group;geometrie:T.BufferGeometry;repos:Float32Array;phase:number};
 type ElementVent = {objet:T.Object3D;rotationX:number;rotationZ:number;phase:number};
 type Grain = {vie:number;x:number;y:number;z:number;vx:number;vy:number;vz:number};
+type Animal={groupe:T.Group;debut:number;fin:number;sens:number;vitesse:number;phase:number};
 
 /**
  * Petits mouvements d'ambiance qui donnent de la continuité à la ville sans
@@ -17,6 +18,7 @@ export class VieUrbaine {
   private readonly poussiere:T.Points;
   private readonly oiseaux:Oiseaux[]=[];
   private readonly vent:ElementVent[]=[];
+  private readonly animaux:Animal[]=[];
 
   constructor(private readonly scene:T.Object3D){
     const groupe=new T.Group();groupe.name='vie-urbaine';scene.add(groupe);
@@ -30,10 +32,22 @@ export class VieUrbaine {
     this.poussiere=new T.Points(geometrie,new T.PointsMaterial({map:carte,color:'#ead4a9',size:.42,transparent:true,opacity:.42,depthWrite:false,sizeAttenuation:true}));
     this.poussiere.name='poussiere-deplacement';this.poussiere.frustumCulled=false;groupe.add(this.poussiere);
     for(let i=0;i<3;i++)this.creerVolee(groupe,i);
+    this.creerAnimal(groupe,'chèvre',22.8,-214,-240,-190,'#d8c39d');
+    this.creerAnimal(groupe,'chèvre',-4.5,-330,-370,-302,'#71594a');
+    this.creerAnimal(groupe,'chien',22.5,-72,-91,-50,'#9a6f45');
     scene.traverse(objet=>{
       if(objet.name==='palmes'||objet.name==='toile-drapeau'||objet.name.startsWith('nuage-3d-'))
         this.vent.push({objet,rotationX:objet.rotation.x,rotationZ:objet.rotation.z,phase:this.vent.length*1.37});
     });
+  }
+
+  private creerAnimal(parent:T.Object3D,nom:string,x:number,z:number,debut:number,fin:number,couleur:string){
+    const g=new T.Group();g.name=`animal-${nom}-${this.animaux.length+1}`;g.position.set(x,0,z);parent.add(g);
+    const mat=new T.MeshStandardMaterial({color:couleur,roughness:.9}),sombre=new T.MeshStandardMaterial({color:'#362f29',roughness:1});
+    const corps=new T.Mesh(new T.CapsuleGeometry(.22,.55,3,7),mat);corps.rotation.z=Math.PI/2;corps.position.y=.48;g.add(corps);
+    const tete=new T.Mesh(new T.SphereGeometry(.22,8,6),mat);tete.position.set(0,.68,-.5);g.add(tete);
+    for(const dx of [-.16,.16])for(const dz of [-.28,.3]){const patte=new T.Mesh(new T.CylinderGeometry(.035,.045,.38,5),sombre);patte.position.set(dx,.22,dz);g.add(patte);}
+    this.animaux.push({groupe:g,debut,fin,sens:this.animaux.length%2?1:-1,vitesse:.36+this.animaux.length*.07,phase:this.animaux.length*1.7});
   }
 
   private creerVolee(parent:T.Object3D,index:number){
@@ -72,6 +86,12 @@ export class VieUrbaine {
       const souffle=Math.sin(this.temps*1.8+element.phase)+.35*Math.sin(this.temps*4.1+element.phase*.7);
       element.objet.rotation.x=element.rotationX+souffle*.018;
       element.objet.rotation.z=element.rotationZ+souffle*(element.objet.name==='toile-drapeau'?.055:.025);
+    }
+    for(const animal of this.animaux){
+      animal.groupe.position.z+=animal.vitesse*animal.sens*dt;
+      if(animal.groupe.position.z<animal.debut||animal.groupe.position.z>animal.fin){animal.sens*=-1;animal.groupe.position.z=T.MathUtils.clamp(animal.groupe.position.z,animal.debut,animal.fin);}
+      animal.groupe.rotation.y=animal.sens>0?0:Math.PI;animal.groupe.position.y=Math.abs(Math.sin(this.temps*4+animal.phase))*.025;
+      animal.groupe.visible=Math.abs(animal.groupe.position.z-joueur.position.z)<75;
     }
   }
 

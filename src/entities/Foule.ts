@@ -34,6 +34,7 @@ type Habitant = {
   reactionTemps?: number;
   reactionCooldown?: number;
   reactionCible?: T.Vector3;
+  bulle?:T.Sprite;
 };
 
 /** Teinte et saturation d’une couleur, pour reconnaître les habits dans l’atlas. */
@@ -77,8 +78,18 @@ export class Foule {
   corpsJoueur: string | null = 'personnage1.glb';
   private images = 0;
   private varie = false;
+  private couleurJoueur='#f3b94f';
+  private temps=0;
+  private accessoireJoueur?:T.Mesh;
 
   constructor(private readonly scene: T.Object3D) {}
+
+  private creerBulle(){
+    const toile=document.createElement('canvas');toile.width=160;toile.height=80;const c=toile.getContext('2d')!;
+    c.fillStyle='rgba(255,250,235,.92)';c.beginPath();c.roundRect(8,8,144,52,22);c.fill();c.fillStyle='#21473d';c.font='bold 32px sans-serif';c.textAlign='center';c.fillText('…',80,45);
+    const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;
+    const bulle=new T.Sprite(new T.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));bulle.name='discussion-pnj';bulle.scale.set(1.15,.58,1);bulle.position.set(0,2.35,0);bulle.visible=false;return bulle;
+  }
 
   /** Charge le modèle articulé et ses deux animations. */
   async charger(base = '/modeles/') {
@@ -189,8 +200,9 @@ export class Foule {
         const mixeur = new T.AnimationMixer(corps);
         const habitant:Habitant={personnage, corps, mixeur, marche: mixeur.clipAction(this.clipMarche),
           bouge: true, fige: true, reposY:corps.position.y, precedent: personnage.objet.position.clone()};
+        if(personnage.objet.name.startsWith('passant-')&&this.habitants.length%4===0){habitant.bulle=this.creerBulle();personnage.objet.add(habitant.bulle);}
         this.habitants.push(habitant);
-        if (personnage.objet.name === 'joueur') this.joueur = habitant;
+        if (personnage.objet.name === 'joueur') {this.joueur = habitant;this.appliquerCouleurJoueur();}
         habilles++;
         continue;
       }
@@ -212,11 +224,28 @@ export class Foule {
       course?.play(); if (course) course.weight = 0;
       const habitant:Habitant={personnage, corps, mixeur, marche, course, bouge: false,
         reposY:corps.position.y,precedent: personnage.objet.position.clone()};
+      if(personnage.objet.name.startsWith('passant-')&&this.habitants.length%4===0){habitant.bulle=this.creerBulle();personnage.objet.add(habitant.bulle);}
       this.habitants.push(habitant);
-      if (personnage.objet.name === 'joueur') this.joueur = habitant;
+      if (personnage.objet.name === 'joueur') {this.joueur = habitant;this.appliquerCouleurJoueur();}
       habilles++;
     }
     return habilles;
+  }
+  personnaliserJoueur(couleur:string){this.couleurJoueur=couleur;this.appliquerCouleurJoueur();}
+  private appliquerCouleurJoueur(){
+    const h=this.joueur;if(!h||!this.matiereOrigine)return;
+    if(!this.accessoireJoueur){
+      const accent=new T.Mesh(new T.PlaneGeometry(.24,.72),new T.MeshStandardMaterial({color:this.couleurJoueur,roughness:.72,side:T.DoubleSide}));
+      accent.name='accent-tenue-joueur';accent.position.set(.04,1.2,.19);accent.rotation.z=-.3;h.personnage.objet.add(accent);this.accessoireJoueur=accent;
+    }
+    (this.accessoireJoueur.material as T.MeshStandardMaterial).color.set(this.couleurJoueur);
+    if(!h.fige){const tenue=this.matiere(this.couleurJoueur);h.corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh)m.material=tenue;});return;}
+    // Les silhouettes debout possèdent un autre atlas UV. On conserve leur
+    // propre texture et applique seulement une teinte claire.
+    const teinte=new T.Color(this.couleurJoueur).lerp(new T.Color('#ffffff'),.58);
+    h.corps.traverse(n=>{const m=n as T.Mesh;if(!m.isMesh||!(m.material instanceof T.MeshStandardMaterial))return;
+      const origine=(m.userData.matiereTenueOrigine as T.MeshStandardMaterial|undefined)??m.material;
+      m.userData.matiereTenueOrigine=origine;const matiere=origine.clone();matiere.color.copy(origine.color).multiply(teinte);m.material=matiere;});
   }
   /** Pose une silhouette debout dans un personnage : pieds au sol, face au sud. */
   private poserDebout(personnage: Personnage, choix: T.Object3D,hauteurCible=1.74,base=.0) {
@@ -280,11 +309,12 @@ export class Foule {
    */
   actualiser(dt: number) {
     if (!dt) return;
-    this.images++;
-    for (const h of this.habitants) {
+    this.images++;this.temps+=dt;
+    for (const [index,h] of this.habitants.entries()) {
       h.reactionCooldown=Math.max(0,(h.reactionCooldown??0)-dt);
       const position = h.personnage.objet.position;
       const vitesse = position.distanceTo(h.precedent) / dt;
+      if(h.bulle)h.bulle.visible=h.chute===undefined&&!h.reaction&&vitesse<1.5&&Math.sin(this.temps*.42+index*1.7)>.72;
       h.precedent.copy(position);
       if (h.chute !== undefined) { this.tenirChute(h, dt); continue; }
       if(h.reaction&&h.reactionTemps!==undefined){

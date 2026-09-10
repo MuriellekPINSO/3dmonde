@@ -5,6 +5,7 @@ import { Partie, SportJogging, Vendeuse, Zemidjan, Voiture, type Transport } fro
 import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from './content/zones';
 import { DialogueVocal } from './ui/DialogueVocal';
 import { Manette, type LectureManette } from './input/Manette';
+import { demanderIA } from './ui/DialogueIA';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
 
@@ -22,6 +23,8 @@ export class Jeu {
   private manetteId='';
   private dernierFocus:HTMLElement|null=null;
   private zoneId='';
+  private sauvegardeTemps=0;
+  private tenue='#f3b94f';
   private get panel(){return $<HTMLDialogElement>('panel');}
   private get accueil(){return $<HTMLDialogElement>('welcome');}
 
@@ -32,8 +35,10 @@ export class Jeu {
     }
     this.voix=new DialogueVocal($<HTMLButtonElement>('sound'));
     this.ambiance=new Ambiance($<HTMLButtonElement>('ambiance'));
-    this.monde.onAccident=type=>{
+    this.chargerSauvegarde();
+    this.monde.onAccident=(type,responsable=true)=>{
       this.manette.vibrer('collision');
+      if(responsable){this.partie.signalerAccident();this.synchroniser();}
       this.notifier(type==='personnage'
         ?'Accident ! Un personnage a été percuté. Le véhicule s’arrête pendant qu’il se relève.'
         :'Collision ! Les motos et leurs passagers sont tombés. Reprends la route après le choc.');
@@ -42,21 +47,50 @@ export class Jeu {
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
-    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Parcours · 0/5</button><button id="bag">Sac · 0</button><span id="wallet">1 500 FCFA</span></div></header>
+    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/5</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">1 500 FCFA</span></div></header>
     <aside class="location"><p class="eyebrow" id="zone-kicker">BÉNIN / AKPAKPA</p><h1 id="zone-title">La Corniche</h1><p id="zone-description">Au bord de l’eau, Cotonou s’éveille.</p><div class="rule"></div><p class="eyebrow">VOTRE CARNET DE BALADE</p><ol>${zones.map(z=>`<li id="task-${z.id}">${z.nom}${z.id==='amazone'?' & Présidence':''}</li>`).join('')}</ol><p class="note" id="next-objective">Rencontrer le guide de la Corniche.</p><p class="note" id="side-quests">Jogging : à essayer · Aïcha : à rencontrer</p></aside>
     <button id="ambiance" aria-pressed="false">Ambiance : coupée</button>
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
+    <div id="world-state"><span id="clock">07:30</span><span id="weather">Ciel clair</span><span id="health">Énergie 100</span></div>
+    <div id="mission-hud"><strong>Mission</strong><span id="mission-text">Rencontrer le guide de la Corniche</span></div>
+    <div id="tutorial" hidden><button id="tutorial-close" aria-label="Fermer le tutoriel">×</button><strong>Premiers pas</strong><span>ZQSD : marcher · E : interagir · M : carte · P : pause</span><small>Manette : joystick gauche pour conduire, ✕ interagir, ○ descendre, R1 klaxonner et Options mettre en pause.</small></div>
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
     <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
-    <dialog id="welcome"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Une ville.<br>Mille rencontres.</h2><p>De la Corniche à l’Étoile Rouge, découvre cinq lieux à pied, en zémidjan ou en voiture. Discute avec Aïcha et fais une pause sportive.</p><p class="note">Clavier, écran tactile ou manette compatible · quatre zones stylisées · distances raccourcies.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></dialog>
+    <dialog id="welcome"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Une ville.<br>Mille rencontres.</h2><p>De la Corniche à l’Étoile Rouge, découvre cinq lieux à pied, en zémidjan ou en voiture. Discute avec Aïcha et fais une pause sportive.</p><div class="loading-city"><span></span></div><p class="note">La ville se charge progressivement · progression sauvegardée automatiquement · clavier, écran tactile ou manette compatible.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
   }
   private notifier(text:string){
     $('toast').textContent=text;$('toast').classList.add('show');clearTimeout(this.toastTimer);
     this.toastTimer=window.setTimeout(()=>$('toast').classList.remove('show'),5500);
+  }
+  private missionCourante(){
+    const guide=guides.find(g=>!this.partie.visites.has(g.id));
+    if(guide)return `Rencontrer le guide : ${guide.titre}`;
+    if(!this.partie.vendeuseRencontree)return'Rencontrer Aïcha sur l’esplanade';
+    if(!this.sport.termine)return'Terminer le parcours de jogging de la Corniche';
+    return'Explorer librement Cotonou';
+  }
+  private missions(){return[
+    {id:'exploration',titre:'Mémoire de Cotonou',detail:'Écouter les cinq guides',gain:600,faite:this.partie.terminee(lieux)},
+    {id:'sport',titre:'Matin sportif',detail:'Terminer les 50 m de jogging',gain:300,faite:this.sport.termine},
+    {id:'commerce',titre:'Rencontre locale',detail:'Acheter un produit chez Aïcha',gain:150,faite:this.partie.inventory.length>0},
+    {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
+  ];}
+  private sauvegarder(){
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue}));}catch{}
+  }
+  private chargerSauvegarde(){
+    try{
+      const brut=localStorage.getItem('cotonou-sauvegarde-v2');if(!brut)return;
+      const data=JSON.parse(brut);if(data?.partie)this.partie.restaurer(data.partie);
+      this.sport.termine=!!data?.sport?.termine;
+      if(data?.position)this.monde.restaurerPosition(Number(data.position.x),Number(data.position.z));
+      if(typeof data?.tenue==='string'){this.tenue=data.tenue;this.monde.personnaliserJoueur(this.tenue);}
+      $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
+    }catch{localStorage.removeItem('cotonou-sauvegarde-v2');}
   }
   private ouvrir(titre:string,kicker:string,html:string){
     this.dernierFocus=document.activeElement as HTMLElement;this.monde.keys.clear();this.voix.arreter();
@@ -64,25 +98,28 @@ export class Jeu {
   }
   private synchroniser(){
     $('wallet').textContent=`${this.partie.balance.toLocaleString('fr-FR')} FCFA`;$('bag').textContent=`Sac · ${this.partie.inventory.length}`;
-    $('map').textContent=`Parcours · ${this.partie.visites.size}/5`;
+    $('map').textContent=`Carte · ${this.partie.visites.size}/5`;
     for(const zone of zones)$(`task-${zone.id}`).classList.toggle('done',zone.guides.every(g=>this.partie.visites.has(g.id)));
     const suivant=guides.find(g=>!this.partie.visites.has(g.id));
     $('next-objective').textContent=suivant?`Prochaine découverte : ${suivant.titre}.`:'Les cinq lieux sont découverts !';
     $('side-quests').textContent=`Jogging : ${this.sport.termine?'terminé':'à essayer'} · Aïcha : ${this.partie.vendeuseRencontree?'rencontrée':'à rencontrer'}`;
+    $('health').textContent=`Énergie ${this.partie.securite}`;$('mission-text').textContent=this.missionCourante();this.sauvegarder();
   }
   private commandes(){
     $('close').onclick=()=>this.panel.close();
     // `close` est émis de façon différée par le navigateur. Effacer les touches ici
     // pouvait supprimer un mouvement pressé juste après la fermeture du guide.
     this.panel.addEventListener('close',()=>{this.voix.arreter();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
-    $('begin').onclick=()=>this.accueil.close();this.accueil.addEventListener('cancel',e=>e.preventDefault());
-    $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();
+    $('begin').onclick=()=>{this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());
+    $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
+    $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
     addEventListener('keydown',e=>{
       if(this.panel.open||this.accueil.open)return;
       const key=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
       this.monde.keys.add(key);if(e.repeat)return;
-      if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();
+      if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();if(key==='h'&&this.partie.transport)this.ambiance.klaxonner();
+      if(key==='escape'||key==='p')this.ouvrirMenu();if(key==='m')this.ouvrirParcours();if(key==='i')this.ouvrirSac();
     });
     addEventListener('keyup',e=>this.monde.keys.delete(e.key.toLowerCase()));
     addEventListener('gamepadconnected',e=>this.manette.connecter(e.gamepad));
@@ -118,13 +155,14 @@ export class Jeu {
   private commandesManette(dt:number){
     const lecture:LectureManette|null=this.manette.lire();
     if(!lecture){this.monde.axesManette.x=this.monde.axesManette.z=0;return;}
-    if(lecture.id!==this.manetteId){
-      this.manetteId=lecture.id;
+    const signature=`${lecture.index}:${lecture.id}:${lecture.mapping}`;
+    if(signature!==this.manetteId){
+      this.manetteId=signature;
       $('controller-status').hidden=false;
       $('controller-status').textContent=this.manette.vibrationsDisponibles?'🎮 MANETTE · VIBRATION':'🎮 MANETTE · SANS HAPTIQUE';
       $('controller-status').title=this.manette.vibrationsDisponibles
-        ?'Le navigateur expose le moteur de vibration de la manette.'
-        :'Le navigateur ou la connexion actuelle n’expose pas le moteur de vibration.';
+        ?`${lecture.id} · ${lecture.mapping} · ${lecture.nombreAxes} axes · ${lecture.nombreBoutons} boutons · vibrations disponibles.`
+        :`${lecture.id} · ${lecture.mapping} · ${lecture.nombreAxes} axes · ${lecture.nombreBoutons} boutons · vibrations non exposées par le navigateur.`;
       this.manette.vibrer('succes');
       if(!this.accueil.open)this.notifier(this.manette.vibrationsDisponibles
         ?'Manette connectée · vibrations actives · ✕ interagir · □ jogging · ○ retour.'
@@ -147,17 +185,32 @@ export class Jeu {
     if(lecture.appuye(1))this.descendre();
     if(lecture.appuye(2))this.basculerSport();
     if(lecture.appuye(3))this.ouvrirSac();
-    if(lecture.appuye(9))this.ouvrirParcours();
+    if(lecture.appuye(5)&&this.partie.transport)this.ambiance.klaxonner();
+    if(lecture.appuye(8))this.ouvrirParcours();
+    if(lecture.appuye(9))this.ouvrirMenu();
   }
   private ouvrirSac(){
-    this.ouvrir('Ton sac','OBJETS ACHETÉS','');const list=document.createElement('ul');
-    for(const item of this.partie.inventory){const li=document.createElement('li');li.textContent=item;list.append(li);}
+    this.ouvrir('Ton sac','OBJETS ET ÉNERGIE','');const list=document.createElement('div');list.className='inventory-list';
+    this.partie.inventory.forEach((item,index)=>{const ligne=document.createElement('div');ligne.innerHTML=`<span>${item}</span><button data-use="${index}">Utiliser</button>`;list.append(ligne);});
     $('panel-body').append(this.partie.inventory.length?list:Object.assign(document.createElement('p'),{textContent:'Ton sac est vide. Retrouve Aïcha au stand pour découvrir ses produits.'}));
+    list.querySelectorAll<HTMLButtonElement>('[data-use]').forEach(b=>b.onclick=()=>{const message=this.partie.utiliser(Number(b.dataset.use));this.synchroniser();this.notifier(message);this.panel.close();});
   }
   private ouvrirParcours(){
     const z=this.monde.player.position.z;
-    this.ouvrir('Ton parcours','CINQ LIEUX · QUATRE ZONES',`<p>Les lieux sont reliés par la promenade. Avance vers le nord pour continuer ; repars vers le sud pour revenir.</p><div class="route-list">${guides.map(g=>`<div><strong>${this.partie.visites.has(g.id)?'✓ ':''}${g.titre}</strong><small>${Math.round(Math.abs(g.z-z))} m de jeu · ${g.z<z?'vers le nord':'vers le sud'}</small></div>`).join('')}</div><p class="note">Distances fictives. Chaque borne Transport propose un zémidjan ou une voiture. Le trajet reste entièrement accessible à pied.</p>${this.partie.terminee(lieux)?'<button id="summary" class="primary">Voir le bilan</button>':''}`);
+    const position=Math.max(0,Math.min(100,(12-z)/368*100));
+    this.ouvrir('Carte et missions','CINQ LIEUX · QUATRE ZONES',`<div class="mini-map"><span class="map-player" style="top:${position}%">●</span>${guides.map(g=>`<span class="map-stop ${this.partie.visites.has(g.id)?'done':''}" style="top:${Math.max(0,Math.min(100,(12-g.z)/368*100))}%">${g.titre}</span>`).join('')}</div><div class="route-list">${guides.map(g=>`<div><strong>${this.partie.visites.has(g.id)?'✓ ':''}${g.titre}</strong><small>${Math.round(Math.abs(g.z-z))} m de jeu · ${g.z<z?'vers le nord':'vers le sud'}</small></div>`).join('')}</div><h3>Missions et récompenses</h3><div class="missions">${this.missions().map(m=>`<div><span><strong>${m.titre}</strong><small>${m.detail} · ${m.gain} FCFA</small></span>${this.partie.recompenses.has(m.id)?'<b>Réclamée</b>':m.faite?`<button data-claim="${m.id}">Réclamer</button>`:'<em>En cours</em>'}</div>`).join('')}</div><p class="note">Les distances sont adaptées au jeu. La position ● suit le joueur.</p>${this.partie.terminee(lieux)?'<button id="summary" class="primary">Voir le bilan</button>':''}`);
+    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-claim]').forEach(b=>b.onclick=()=>{const mission=this.missions().find(m=>m.id===b.dataset.claim);if(mission?.faite&&this.partie.recompenser(mission.id,mission.gain)){this.manette.vibrer('succes');this.synchroniser();this.notifier(`Mission accomplie : +${mission.gain} FCFA`);this.panel.close();}});
     if($('summary'))$('summary').onclick=()=>{this.panel.close();this.bilan();};
+  }
+  private ouvrirMenu(){
+    this.ouvrir('Pause','RÉGLAGES ET SAUVEGARDE',`<div class="settings"><label>Qualité graphique<select id="quality"><option value="normale">Normale</option><option value="basse">Basse</option><option value="haute">Haute</option></select></label><label>Météo<select id="weather-setting"><option value="auto">Dynamique</option><option value="soleil">Ciel clair</option><option value="pluie">Pluie tropicale</option></select></label><label>Heure<select id="time-setting"><option value="auto">Cycle automatique</option><option value="matin">Matin</option><option value="jour">Journée</option><option value="soir">Soirée</option></select></label><label>Volume ambiance<input id="volume-setting" type="range" min="0" max="100" value="58"></label></div><h3>Tenue du personnage</h3><div class="outfits"><button data-outfit="#f3b94f">Jaune</button><button data-outfit="#287b72">Vert</button><button data-outfit="#9c4058">Bordeaux</button><button data-outfit="#365f8c">Bleu</button></div><p class="note">La progression et la position sont enregistrées automatiquement sur cet appareil.</p><button id="save-now" class="primary">Sauvegarder maintenant</button> <button id="reset-save">Nouvelle partie</button>`);
+    $<HTMLSelectElement>('quality').onchange=e=>this.monde.reglerQualite((e.target as HTMLSelectElement).value as 'basse'|'normale'|'haute');
+    $<HTMLSelectElement>('weather-setting').onchange=e=>this.monde.reglerMeteo((e.target as HTMLSelectElement).value as 'auto'|'soleil'|'pluie');
+    $<HTMLSelectElement>('time-setting').onchange=e=>this.monde.reglerHeure((e.target as HTMLSelectElement).value as 'auto'|'matin'|'jour'|'soir');
+    $<HTMLInputElement>('volume-setting').oninput=e=>this.ambiance.reglerVolume(Number((e.target as HTMLInputElement).value)/100);
+    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-outfit]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.outfit!;this.monde.personnaliserJoueur(this.tenue);this.sauvegarder();});
+    $('save-now').onclick=()=>{this.sauvegarder();this.notifier('Progression sauvegardée.');this.panel.close();};
+    $('reset-save').onclick=()=>{if(confirm('Effacer la progression et recommencer ?')){localStorage.removeItem('cotonou-sauvegarde-v2');location.reload();}};
   }
   private afficherGuide(guide:Guide){
     this.partie.visiter(guide.id);this.synchroniser();
@@ -176,11 +229,13 @@ export class Jeu {
   private bulle(who:string,text:string){this.vendeuse.historique.push({who,text});this.renderHistory();if(who===this.vendeuse.nom)this.voix.lire(text);}
   private parlerVendeuse(){
     this.partie.vendeuseRencontree=true;this.synchroniser();
-    this.ouvrir('Une pause chez Aïcha','VENDEUSE · CONVERSATION',`<p class="note">Échanges préparés : produits, prix et lieux.</p><div id="messages" role="log" aria-label="Conversation avec Aïcha" aria-live="polite"></div><form id="chat"><label for="message">Ton message</label><div class="input-row"><input id="message" maxlength="400" placeholder="Bonjour, qu’est-ce que tu vends ?" autocomplete="off" required><button class="primary" type="submit">Envoyer</button></div></form><button id="mic">Parler au micro</button><p id="mic-status" class="note" role="status">Le micro s’active sur demande. Selon le navigateur, la transcription peut utiliser un service en ligne.</p><div class="products">${products.map(p=>`<button data-product="${p.id}"><span>${p.name}</span><strong>${p.price} FCFA</strong></button>`).join('')}</div><div id="confirmation"></div><p class="note">Tarifs fictifs du prototype.</p>`);
+    this.ouvrir('Une pause chez Aïcha','VENDEUSE · CONVERSATION',`<p class="note">Conversation libre si le serveur OpenAI est configuré, réponses locales hors connexion.</p><div id="messages" role="log" aria-label="Conversation avec Aïcha" aria-live="polite"></div><form id="chat"><label for="message">Ton message</label><div class="input-row"><input id="message" maxlength="400" placeholder="Bonjour, qu’est-ce que tu vends ?" autocomplete="off" required><button class="primary" type="submit">Envoyer</button></div></form><button id="mic">Parler au micro</button><p id="mic-status" class="note" role="status">Le micro s’active seulement sur demande.</p><div class="products">${products.map(p=>`<button data-product="${p.id}"><span>${p.name}</span><strong>${p.price} FCFA</strong></button>`).join('')}</div><div id="confirmation"></div><p class="note">Tarifs fictifs du prototype.</p>`);
     if(!this.vendeuse.historique.length)this.bulle(this.vendeuse.nom,this.vendeuse.discuter('bonjour'));else this.renderHistory();
-    $<HTMLFormElement>('chat').onsubmit=e=>{
+    $<HTMLFormElement>('chat').onsubmit=async e=>{
       e.preventDefault();const input=$<HTMLInputElement>('message'),text=input.value.trim();if(!text)return;
-      this.bulle('Vous',text);input.value='';this.bulle(this.vendeuse.nom,this.vendeuse.discuter(text));
+      this.bulle('Vous',text);input.value='';const bouton=$<HTMLButtonElement>('chat').querySelector('button')!;bouton.disabled=true;bouton.textContent='Aïcha réfléchit…';
+      const reponse=await demanderIA(text,this.vendeuse.historique);this.bulle(this.vendeuse.nom,reponse??this.vendeuse.discuter(text));
+      if(bouton.isConnected){bouton.disabled=false;bouton.textContent='Envoyer';}
     };
     $('panel-body').querySelectorAll<HTMLButtonElement>('[data-product]').forEach(button=>button.onclick=()=>{
       const p=products.find(p=>p.id===button.dataset.product)!;
@@ -226,7 +281,10 @@ export class Jeu {
   private actualiser(dt:number){
     this.commandesManette(dt);
     const p=this.monde.player.position,paused=this.panel.open||this.accueil.open||document.hidden;
-    this.ambiance.actualiser({x:p.x,z:p.z,yaw:this.monde.angleCamera,mode:this.partie.transport?.id??null,intensite:this.monde.intensiteCommande},paused);
+    const maximum=this.partie.transport?.vitesse??7;
+    this.ambiance.actualiser({x:p.x,z:p.z,yaw:this.monde.angleCamera,mode:this.partie.transport?.id??null,intensite:Math.min(1,this.monde.allure/maximum),pluie:this.monde.meteoTexte==='Pluie tropicale'},paused);
+    $('clock').textContent=this.monde.heureTexte;$('weather').textContent=this.monde.meteoTexte;
+    this.sauvegardeTemps+=dt;if(this.sauvegardeTemps>2){this.sauvegardeTemps=0;this.sauvegarder();}
     const zone=zoneActuelle(p.z);
     if(zone.id!==this.zoneId){this.zoneId=zone.id;$('zone-title').textContent=zone.nom;$('zone-description').textContent=zone.sousTitre;$('zone-kicker').textContent=`BÉNIN / ${zone.id==='corniche'?'AKPAKPA':'COTONOU'}`;this.synchroniser();}
     const guide=guides.find(g=>g.estProche(p.x,p.z));
@@ -243,7 +301,7 @@ export class Jeu {
     $('sport').hidden=!this.sport.actif;$<HTMLProgressElement>('progress').value=this.sport.distance;
     $('sport-label').textContent=`Jogging · ${Math.floor(this.sport.distance)} / 50 m`;
     $('vehicle-status').hidden=!this.partie.transport||paused;
-    $('vehicle-label').textContent=this.partie.transport?`${this.partie.transport.nom} · vitesse ×${this.partie.transport.vitesse/4}`:'';
+    $('vehicle-label').textContent=this.partie.transport?`${this.partie.transport.nom} · ${Math.round(this.monde.allure*7.2)} km/h · H : klaxon`:'';
     return {paused,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:4)};
   }
 }

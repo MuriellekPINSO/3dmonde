@@ -8,6 +8,8 @@ export class Portefeuille {
     this.solde -= montant;
     return true;
   }
+  crediter(montant:number){if(Number.isSafeInteger(montant)&&montant>0)this.solde+=montant;}
+  restaurer(montant:number){if(Number.isSafeInteger(montant)&&montant>=0)this.solde=montant;}
 }
 
 export abstract class Transport {
@@ -30,17 +32,48 @@ export class Partie {
   transport: Transport | null = null;
   vendeuseRencontree = false;
   finAnnoncee = false;
+  securite = 100;
+  accidents = 0;
+  readonly transportsUtilises = new Set<string>();
+  readonly recompenses = new Set<string>();
   get balance() { return this.portefeuille.balance; }
   get inventory() { return this.inventaire; }
   monter(transport: Transport): boolean {
     if (this.transport || !this.portefeuille.payer(transport.tarif)) return false;
-    this.transport = transport;
+    this.transport = transport; this.transportsUtilises.add(transport.id);
     return true;
   }
   descendre() { this.transport = null; }
   visiter(id: string) { this.visites.add(id); }
   terminee(ids: readonly string[]) { return ids.every(id => this.visites.has(id)); }
+  utiliser(index:number){
+    const objet=this.inventaire[index];if(!objet)return 'Objet indisponible.';
+    if(objet==='Eau fraîche'){this.securite=Math.min(100,this.securite+15);this.inventaire.splice(index,1);return 'Tu bois l’eau fraîche et récupères 15 points d’énergie.';}
+    if(objet==='Ananas découpé'){this.securite=Math.min(100,this.securite+25);this.inventaire.splice(index,1);return 'L’ananas te redonne 25 points d’énergie.';}
+    if(objet==='Arachides grillées'){this.securite=Math.min(100,this.securite+10);this.inventaire.splice(index,1);return 'Les arachides te redonnent 10 points d’énergie.';}
+    return 'Cet objet se conserve dans ton sac.';
+  }
+  signalerAccident(){this.accidents++;this.securite=Math.max(0,this.securite-25);this.portefeuille.payer(Math.min(100,this.balance));}
+  recompenser(id:string,montant:number){
+    if(this.recompenses.has(id))return false;
+    this.recompenses.add(id);this.portefeuille.crediter(montant);return true;
+  }
+  restaurer(data:SauvegardePartie){
+    this.portefeuille.restaurer(data.balance);
+    this.inventaire.splice(0,this.inventaire.length,...data.inventory.slice(0,50));
+    this.visites.clear();for(const id of data.visites)this.visites.add(id);
+    this.vendeuseRencontree=!!data.vendeuseRencontree;this.finAnnoncee=!!data.finAnnoncee;
+    this.securite=Math.max(0,Math.min(100,data.securite??100));this.accidents=Math.max(0,data.accidents??0);
+    this.transportsUtilises.clear();for(const id of data.transportsUtilises??[])this.transportsUtilises.add(id);
+    this.recompenses.clear();for(const id of data.recompenses??[])this.recompenses.add(id);
+  }
+  serialiser():SauvegardePartie{return {balance:this.balance,inventory:[...this.inventory],visites:[...this.visites],
+    vendeuseRencontree:this.vendeuseRencontree,finAnnoncee:this.finAnnoncee,securite:this.securite,accidents:this.accidents,
+    transportsUtilises:[...this.transportsUtilises],recompenses:[...this.recompenses]};}
 }
+
+export type SauvegardePartie={balance:number;inventory:string[];visites:string[];vendeuseRencontree:boolean;
+  finAnnoncee:boolean;securite?:number;accidents?:number;transportsUtilises?:string[];recompenses?:string[]};
 
 export class Vendeuse {
   readonly nom = 'Aïcha';

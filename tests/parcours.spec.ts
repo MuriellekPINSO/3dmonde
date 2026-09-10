@@ -30,7 +30,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  await expect.poll(async()=>(await positionVehicule()).z,{timeout:10000}).toBeLessThan(departVehicule-1);
  await page.keyboard.up('z');await page.waitForTimeout(500);await page.screenshot({path:'docs/audit/joueur-sur-zemidjan.png'});
  // Un choc avec un autre zémidjan bloque les volumes et couche les deux motos.
- await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const joueur=s.getObjectByName('joueur'),cible=s.getObjectByName('circulation-2');joueur.position.set(cible.position.x,.15,cible.position.z+2.7);});
+ await page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const joueur=s.getObjectByName('joueur'),cible=s.getObjectByName('circulation-2');cible.position.set(14,0,joueur.position.z-1.2);joueur.position.x=14;});
  await page.keyboard.down('z');
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('circulation-2').rotation.z);}),{timeout:10000}).toBeGreaterThan(.5);
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return Math.abs(s.getObjectByName('vehicule-joueur-zemidjan').rotation.z);})).toBeGreaterThan(.5);
@@ -51,7 +51,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
  await page.keyboard.press('f');await expect(page.locator('#vehicle-status')).toBeHidden();
  // La voiture emprunte exactement la même sortie de borne et doit aussi avancer.
  await position(3,-24);await page.keyboard.press('e');await page.getByRole('button',{name:'Voiture 500 FCFA'}).click();
- await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('800 FCFA');
+ await page.getByRole('button',{name:'Confirmer et monter'}).click();await expect(page.locator('#wallet')).toHaveText('600 FCFA');
  await expect.poll(async()=>(await positionVehicule()).x).toBeCloseTo(14,1);
  const departVoiture=(await positionVehicule()).z;await page.keyboard.down('z');
  await expect.poll(async()=>(await positionVehicule()).z,{timeout:10000}).toBeLessThan(departVoiture-1);
@@ -69,7 +69,7 @@ test('modèles, cinq guides, transport et fin de démo',async({page})=>{
   if(z===-356){await page.getByRole('button',{name:'Terminer la balade'}).click();await expect(page.locator('#panel-kicker')).toHaveText('FIN DE LA DÉMO');}
   await page.keyboard.press('Escape');
  }
- await expect(page.locator('#map')).toHaveText('Parcours · 5/5');
+ await expect(page.locator('#map')).toHaveText('Carte · 5/5');
  // Regard orienté vers les monuments, pour contrôle visuel de leur intégration.
  await page.mouse.move(1000,600);await page.mouse.down();await page.mouse.move(820,720);await page.mouse.up();
  for(const [name,z] of [['amazone',-116],['palais',-236],['etoile',-356]] as const){await position(0,z);await page.waitForTimeout(1000);await page.screenshot({path:`docs/audit/scene-${name}.png`});}

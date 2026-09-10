@@ -15,7 +15,7 @@ const commerces = [
   ['FRUITS DE SAISON','ANANAS · ORANGES · BANANES','#477d4d'],
 ];
 
-type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture';accident?:number;chuteDirection?:number};
+type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus'|'velo';accident?:number;chuteDirection?:number;voieCible?:number};
 export class Rues {
   private readonly mouvements:Passage[]=[];
   private readonly feux:{groupe:T.Group;rouge:T.MeshStandardMaterial;orange:T.MeshStandardMaterial;vert:T.MeshStandardMaterial}[]=[];
@@ -216,6 +216,7 @@ export class Rues {
       return boitier;
     };
     feu(10.5,-99,1);feu(21.5,-103,-1);
+    feu(10.5,-330,1);feu(21.5,-334,-1);
     for(const z of [-99,-103])for(let x=11.5;x<21;x+=1.25)
       this.b.boite(.72,.035,2.6,'#eeeade',x,.035,z).castShadow=false;
     for(const x of [12.1,19.9])this.b.boite(.16,.035,5.5,'#eeeade',x,.035,-94).castShadow=false;
@@ -295,6 +296,31 @@ export class Rues {
       const sens=i%2?1:-1;objet.position.set(sens>0?18.3:13.6,0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
       objet.name=`circulation-${i}`;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:43,vitesse:type==='voiture'?6.3:8.2,sens,phase:i,type});
+    }
+    // Taxis verts et blancs, puis deux minibus : silhouettes courantes qui
+    // diversifient le trafic sans charger de nouveaux fichiers 3D.
+    for(let i=0;i<4;i++){
+      const objet=vehicule(this.b,'voiture');objet.name=`circulation-taxi-${i+1}`;
+      const carrosserie=objet.children[0] as T.Mesh;if(carrosserie?.isMesh&&carrosserie.material instanceof T.MeshStandardMaterial){const matiere=carrosserie.material.clone();matiere.color.set(i%2?'#ece7d6':'#3f7b58');carrosserie.material=matiere;}
+      const sens=i%2?1:-1,departs=[-58,-149,-217,-331];objet.position.set(sens>0?18.3:13.6,0,departs[i]);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      this.mouvements.push({objet,debut:-421,fin:43,vitesse:6.7+i*.12,sens,phase:70+i,type:'taxi'});
+    }
+    for(let i=0;i<2;i++){
+      const objet=new T.Group();objet.name=`circulation-minibus-${i+1}`;
+      this.b.boite(2.05,1.85,4.5,i?'#e5d7b1':'#d9e4d9',0,1.05,0,objet);
+      this.b.boite(2.08,.42,3.4,'#526b70',0,1.55,-.15,objet);
+      this.b.boite(1.5,.18,1.2,'#3d7653',0,1.13,-2.27,objet);
+      for(const x of [-.98,.98])for(const z of [-1.45,1.35]){const roue=this.b.cyl(.33,.33,.18,10,'#272b29',x,.4,z,objet);roue.rotation.z=Math.PI/2;}
+      const sens=i?1:-1;objet.position.set(sens>0?18.3:13.6,0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      this.mouvements.push({objet,debut:-421,fin:43,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
+    }
+    for(let i=0;i<3;i++){
+      const objet=new T.Group();objet.name=`circulation-velo-${i+1}`;
+      const matRoue=new T.MeshStandardMaterial({color:'#252a28',roughness:.9}),matCadre=new T.MeshStandardMaterial({color:['#b24d38','#3f7771','#d0a23e'][i],roughness:.55});
+      for(const z of [-.62,.62]){const roue=new T.Mesh(new T.TorusGeometry(.35,.045,7,16),matRoue);roue.position.set(0,.42,z);roue.rotation.y=Math.PI/2;objet.add(roue);}
+      const cadre=new T.Mesh(new T.CylinderGeometry(.035,.035,1.18,6),matCadre);cadre.position.set(0,.61,0);cadre.rotation.x=Math.PI/2.8;objet.add(cadre);
+      const sens=i%2?1:-1;objet.position.set(sens>0?20.15:11.75,0,-42-i*126);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      this.mouvements.push({objet,debut:-421,fin:43,vitesse:4.1+i*.22,sens,phase:90+i,type:'velo',portee:100,voieCible:objet.position.x});
     }
   }
   /**
@@ -385,13 +411,13 @@ export class Rues {
   /** Volumes des véhicules visibles, utilisés comme obstacles par le joueur. */
   obstaclesVehicules(zJoueur:number){
     return this.mouvements.filter(p=>!p.personne&&Math.abs(p.objet.position.z-zJoueur)<55)
-      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:1.9,d:3.4}));
+      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'?2.2:p.type==='velo'?0.8:1.9,d:p.type==='minibus'?4.8:p.type==='velo'?1.7:3.4}));
   }
   /** Cherche autour de la borne un emplacement qui laisse quatre mètres libres. */
   placeLibreSurVoie(z:number){
-    for(const decalage of [0,-5,5,-10,10,-15,15,-20,20]){
+    for(const decalage of [0,-8,8,-16,16,-24,24,-32,32,-40,40,-52,52]){
       const candidat=T.MathUtils.clamp(z+decalage,-398,18);
-      const libre=this.mouvements.every(p=>p.personne||Math.abs(p.objet.position.x-14)>1.8||Math.abs(p.objet.position.z-candidat)>4.2);
+      const libre=this.mouvements.every(p=>p.personne||Math.abs(p.objet.position.x-14)>1.8||Math.abs(p.objet.position.z-candidat)>10);
       if(libre)return candidat;
     }
     return T.MathUtils.clamp(z,-398,18);
@@ -412,7 +438,7 @@ export class Rues {
   /** Véhicules susceptibles de heurter un piéton près du joueur. */
   vehiculesPourCollisions(zJoueur:number){
     return this.mouvements.filter(p=>!p.personne&&p.accident===undefined&&Math.abs(p.objet.position.z-zJoueur)<60)
-      .map(p=>({objet:p.objet,type:p.type??'zemidjan'}));
+      .map(p=>({objet:p.objet,type:p.type==='voiture'||p.type==='taxi'||p.type==='minibus'?'voiture':'zemidjan'} as const));
   }
   /** Immobilise et anime le véhicule de circulation impliqué dans un accident. */
   accidenterVehicule(objet:T.Object3D){
@@ -421,7 +447,7 @@ export class Rues {
     cible.accident=2.7;cible.chuteDirection=1;return true;
   }
   private passants(){
-    const trajets=[[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338]];
+    const trajets=[[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325]];
     trajets.forEach(([x,debut,fin],i)=>{
       const personne=new Personnage(['#c5754a','#447e88','#698756','#995764'][i%4],x,(debut+fin)/2,{pagne:i%3===0});
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);
@@ -442,7 +468,7 @@ export class Rues {
         if(p.accident!==undefined){
           p.accident-=dt;
           const ecoule=2.7-p.accident,releve=Math.min(1,Math.max(0,p.accident/.55));
-          const angle=p.type==='voiture'?.14:1.28;
+          const angle=(p.type==='voiture'||p.type==='taxi'||p.type==='minibus') ? 0.14 : 1.28;
           p.objet.rotation.z=(p.chuteDirection??1)*angle*Math.min(1,ecoule/.24)*releve;
           if(p.accident<=0){p.accident=undefined;p.chuteDirection=undefined;p.objet.rotation.z=0;}
         }else{
@@ -452,10 +478,22 @@ export class Rues {
           // sécurité se libère au lieu de traverser celui qui le précède.
           const occupe=vehicules.some(autre=>autre!==p&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.3
             &&Math.abs(autre.objet.position.z-prochain)<3.3);
-          const stop=p.sens>0?-105.2:-96.8;
-          const franchit=p.sens>0?p.objet.position.z<stop&&prochain>=stop:p.objet.position.z>stop&&prochain<=stop;
+          const voieBase=p.sens>0?18.3:13.6,voieDepassement=p.sens>0?20.15:11.75;
+          if(occupe){
+            const libre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieDepassement)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
+            if(libre)p.voieCible=voieDepassement;
+          }else if(Math.abs(p.objet.position.x-voieBase)>.35){
+            const retourLibre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieBase)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
+            if(retourLibre)p.voieCible=voieBase;
+          }else p.voieCible=voieBase;
+          p.objet.position.x=T.MathUtils.lerp(p.objet.position.x,p.voieCible??voieBase,1-Math.exp(-dt*1.8));
+          const arrets=p.sens>0?[-332.2,-105.2]:[-325.8,-96.8];
+          const franchit=arrets.some(stop=>p.sens>0?p.objet.position.z<stop&&prochain>=stop:p.objet.position.z>stop&&prochain<=stop);
           const bloqueFeu=this.etatFeu!=='vert'&&franchit;
-          if(!occupe&&!bloqueFeu)p.objet.position.z=prochain;
+          const bloquePieton=this.mouvements.some(autre=>!!autre.personne&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.5&&
+            (p.sens>0?autre.objet.position.z>=p.objet.position.z&&autre.objet.position.z-p.objet.position.z<5:p.objet.position.z>=autre.objet.position.z&&p.objet.position.z-autre.objet.position.z<5));
+          const depasse=occupe&&Math.abs((p.voieCible??voieBase)-p.objet.position.x)>.25;
+          if((!occupe||depasse)&&!bloqueFeu&&!bloquePieton)p.objet.position.z=prochain;
         }
       }
       // Les passages éloignés ne participent ni au rendu ni aux ombres.

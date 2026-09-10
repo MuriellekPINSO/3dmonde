@@ -7,6 +7,7 @@ import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
+import { Meteo, type ModeMeteo } from './entities/Meteo';
 
 /**
  * Modèles détaillés posés sur la scène. Chacun remplace son ensemble construit
@@ -35,18 +36,24 @@ export class Monde {
   readonly renderer: T.WebGLRenderer;
   readonly obstacles: Obstacle[]=[];
   private readonly soleil = new T.DirectionalLight('#ffe4b5',2.2);
+  private readonly cielLumiere = new T.HemisphereLight('#fff5dd','#648979',1.9);
   private readonly vehicules: Record<'zemidjan'|'voiture',T.Group>;
   private readonly rues: Rues;
   private readonly foule = new Foule(this.scene);
   private readonly mer: MerAnimee;
   private readonly vie: VieUrbaine;
+  private readonly meteo:Meteo;
   private passagerMoto?: T.Group;
+  private porteVoiture?:T.Group;
   private accident=0;
   private transitionTransport?:TransitionTransport;
-  onAccident?:(type:'vehicule'|'personnage')=>void;
+  onAccident?:(type:'vehicule'|'personnage',responsable?:boolean)=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
   private pitch = -.3;
+  private heure=7.5;
+  private heureAutomatique=true;
+  private vitesseReelle=0;
   readonly axesManette = {x: 0, z: 0};
   get player(){return this.joueur.objet;}
   get angleCamera(){return this.yaw;}
@@ -54,6 +61,22 @@ export class Monde {
     const clavier=this.keys.has('z')||this.keys.has('w')||this.keys.has('s')||this.keys.has('arrowup')||this.keys.has('arrowdown');
     return Math.min(1,Math.max(clavier?1:0,Math.hypot(this.axesManette.x,this.axesManette.z)));
   }
+  get allure(){return this.vitesseReelle;}
+  get heureTexte(){const h=Math.floor(this.heure),m=Math.floor((this.heure-h)*60);return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}
+  get meteoTexte(){return this.meteo.etat;}
+  reglerMeteo(mode:ModeMeteo){this.meteo.regler(mode);}
+  reglerHeure(valeur:'auto'|'matin'|'jour'|'soir'){
+    this.heureAutomatique=valeur==='auto';
+    if(valeur==='matin')this.heure=7;if(valeur==='jour')this.heure=13;if(valeur==='soir')this.heure=18.5;
+  }
+  reglerQualite(niveau:'basse'|'normale'|'haute'){
+    const facteur=niveau==='basse'?.75:niveau==='haute'?Math.min(devicePixelRatio,2):Math.min(devicePixelRatio,1.5);
+    this.renderer.setPixelRatio(facteur);this.renderer.shadowMap.enabled=niveau!=='basse';this.renderer.setSize(innerWidth,innerHeight);
+  }
+  restaurerPosition(x:number,z:number){
+    if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-25,23),.15,T.MathUtils.clamp(z,-406,24));
+  }
+  personnaliserJoueur(couleur:string){this.foule.personnaliserJoueur(couleur);}
 
   /** Oriente la caméra avec le joystick droit, en radians par seconde. */
   regarderManette(x:number,y:number,dt:number){
@@ -102,7 +125,7 @@ export class Monde {
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
     host.append(this.renderer.domElement);this.renderer.domElement.setAttribute('aria-label','Balade 3D dans quatre zones de Cotonou');
-    this.scene.add(new T.HemisphereLight('#fff5dd','#648979',1.9));
+    this.scene.add(this.cielLumiere);
     this.soleil.castShadow=true;this.soleil.shadow.mapSize.set(2048,2048);this.soleil.shadow.bias=-.0006;
     Object.assign(this.soleil.shadow.camera,{left:-55,right:55,top:60,bottom:-60,far:150});
     this.scene.add(this.soleil,this.soleil.target);
@@ -112,6 +135,7 @@ export class Monde {
     palaisMarina(batisseur);palaisCongres(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
     this.vie=new VieUrbaine(this.scene);
+    this.meteo=new Meteo(this.scene);
     // La scène construite s’affiche tout de suite ; les modèles la remplacent dès qu’ils arrivent.
     const poses:Pose[]=[...POSES,{
       groupe:'kekenon-circulation',fichier:'kekenon.glb',x:13.6,z:18,
@@ -150,7 +174,7 @@ export class Monde {
     this.scene.add(this.player);
     this.vehicules={zemidjan:vehicule(batisseur,'zemidjan'),voiture:vehicule(batisseur,'voiture')};
     this.vehicules.zemidjan.name='vehicule-joueur-zemidjan';this.vehicules.voiture.name='vehicule-joueur-voiture';
-    Object.values(this.vehicules).forEach(g=>{g.visible=false;this.scene.add(g);});
+    Object.values(this.vehicules).forEach(g=>{g.visible=false;this.scene.add(g);});this.ajouterPorteVoiture();
 
     this.camera.position.set(0,9,25);
     let drag=false,lastX=0,lastY=0;
@@ -183,8 +207,13 @@ export class Monde {
     const {gabarit,remplaces}=this.rues.remplacerVoitures(objet);
     const monture=this.vehicules.voiture;
     monture.clear();
-    const copie=gabarit.clone();copie.rotation.y=Math.PI;monture.add(copie);
+    const copie=gabarit.clone();copie.rotation.y=Math.PI;monture.add(copie);this.ajouterPorteVoiture();
     console.info(`voitures détaillées : ${remplaces} sur la voie, plus celle du joueur`);
+  }
+  private ajouterPorteVoiture(){
+    const charniere=new T.Group();charniere.name='porte-voiture-animee';charniere.position.set(-.92,.92,.1);charniere.visible=false;
+    const porte=new T.Mesh(new T.BoxGeometry(.08,1.05,1.35),new T.MeshStandardMaterial({color:'#d8ddd7',roughness:.28,metalness:.42}));
+    porte.position.z=.62;porte.castShadow=true;charniere.add(porte);this.vehicules.voiture.add(charniere);this.porteVoiture=charniere;
   }
   start(update:(dt:number)=>Frame){
     const target=new T.Vector3(),desired=new T.Vector3(),regard=new T.Vector3();let last=0;
@@ -200,8 +229,9 @@ export class Monde {
       const avant=this.player.position.clone(),enAccident=this.accident>0,enTransition=!!transition;
       const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z)];
       const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident||enTransition,obstacles,!!state.transport,this.axesManette);
+      this.vitesseReelle=mouvement.vitesse;
       this.rues.actualiser(dt,state.paused,this.player.position.z);
-      if(state.transport&&!enAccident&&mouvement.moving){
+      if(state.transport&&!enAccident&&(mouvement.moving||mouvement.bloque)){
         const chocVehicule=this.rues.percuterProche(this.player.position,mouvement.bloque?3:1.65);
         const chocPersonnage=chocVehicule?null:this.foule.percuterProche(this.player.position,state.transport==='voiture'?1.8:1.45);
         const collision=chocVehicule??chocPersonnage?.position;
@@ -210,17 +240,23 @@ export class Monde {
           const recul=new T.Vector2(avant.x-collision.x,avant.z-collision.z);
           if(recul.lengthSq()>.001){recul.normalize().multiplyScalar(chocPersonnage?2.1:3.5);this.player.position.set(collision.x+recul.x,.15,collision.z+recul.y);}
           this.accident=2.7;this.keys.clear();this.axesManette.x=this.axesManette.z=0;
-          this.onAccident?.(chocPersonnage?'personnage':'vehicule');
+          this.onAccident?.(chocPersonnage?'personnage':'vehicule',true);
         }
       }
       // La circulation autonome obéit à la même règle : si un piéton se trouve
       // sur sa trajectoire, il tombe et le véhicule impliqué s'immobilise.
       if(!state.paused)for(const vehicule of this.rues.vehiculesPourCollisions(this.player.position.z)){
         const choc=this.foule.percuterProche(vehicule.objet.position,vehicule.type==='voiture'?1.8:1.4);
-        if(choc&&this.rues.accidenterVehicule(vehicule.objet)&&choc.position.distanceTo(this.player.position)<28)this.onAccident?.('personnage');
+        if(choc&&this.rues.accidenterVehicule(vehicule.objet)&&choc.position.distanceTo(this.player.position)<28)this.onAccident?.('personnage',false);
       }
       if(this.accident>0)this.accident=Math.max(0,this.accident-dt);
       if(!state.paused){
+        if(this.heureAutomatique)this.heure=(this.heure+dt*.055)%24;
+        this.meteo.actualiser(dt,this.player,this.heure);
+        const soleilJour=Math.max(.08,Math.sin((this.heure-5.5)/14*Math.PI));
+        this.soleil.intensity=(this.meteo.etat==='Pluie tropicale'?1.05:2.25)*soleilJour;
+        this.cielLumiere.intensity=.35+1.6*soleilJour;
+        this.soleil.color.set(this.heure>17||this.heure<7?'#ffb36c':'#ffe4b5');
         this.foule.reagirAuJoueur(this.player.position,!!state.transport,mouvement.moving);
         this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);
       }
@@ -229,6 +265,7 @@ export class Monde {
       const transportVisuel=state.transport??(transition?.sens==='descente'?transition.type:null);
       const progression=transition?transition.temps/transition.duree:0;
       if(transition)this.foule.animerTransitionTransport(transition.type,transition.sens,progression);
+      if(this.porteVoiture){const anime=transition?.type==='voiture';this.porteVoiture.visible=anime;this.porteVoiture.rotation.y=anime?Math.sin(progression*Math.PI)*1.18:0;}
       this.player.visible=!state.transport||enTransition;
       const angle=state.transport==='voiture'?.14:1.28;
       const chute=this.accident>0?angle*Math.min(1,(2.7-this.accident)/.24)*Math.min(1,this.accident/.55):0;
@@ -238,14 +275,19 @@ export class Monde {
         if(embarque){
           const direction=new T.Vector3(Math.sin(this.player.rotation.y),0,Math.cos(this.player.rotation.y));
           this.passagerMoto.position.copy(this.player.position).addScaledVector(direction,-.62);
-          this.passagerMoto.position.y+=.27;this.passagerMoto.rotation.y=this.player.rotation.y;this.passagerMoto.rotation.z=chute;
+          this.passagerMoto.position.y+=.27+Math.sin(time*.012)*.012*Math.min(1,this.vitesseReelle/5);this.passagerMoto.rotation.y=this.player.rotation.y;this.passagerMoto.rotation.z=chute;
         }
       }
       this.soleil.position.set(this.player.position.x-25,45,this.player.position.z+22);this.soleil.target.position.copy(this.player.position);
       target.copy(this.player.position);target.y+=1.3;
       // La caméra s’abaisse à mesure que le joueur lève les yeux, pour dégager le ciel
       // et le sommet des monuments, hauts de vingt-cinq à trente-cinq mètres.
-      const recul=12,hauteur=2.4+Math.max(0,-this.pitch)*10;
+      if(state.transport&&mouvement.moving){
+        const cibleYaw=this.player.rotation.y-Math.PI,ecart=Math.atan2(Math.sin(cibleYaw-this.yaw),Math.cos(cibleYaw-this.yaw));
+        this.yaw+=ecart*(1-Math.exp(-dt*2.2));
+      }
+      const recul=state.transport==='voiture'?14:state.transport==='zemidjan'?12.8:12;
+      const hauteur=(state.transport?3.25:2.4)+Math.max(0,-this.pitch)*10;
       desired.set(target.x+Math.sin(this.yaw)*recul,target.y+hauteur,target.z+Math.cos(this.yaw)*recul);
       // Champ de vision et mouvement de caméra progressifs selon l'allure.
       const fovCible=mouvement.moving?(state.transport==='voiture'?58:state.transport==='zemidjan'?55:state.running?52:49):48;

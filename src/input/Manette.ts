@@ -1,5 +1,9 @@
 export type LectureManette = {
   id: string;
+  index: number;
+  mapping: string;
+  nombreAxes: number;
+  nombreBoutons: number;
   deplacementX: number;
   deplacementZ: number;
   regardX: number;
@@ -39,6 +43,20 @@ export class Manette {
     this.boutonsPrecedents = gamepad.buttons.map(() => false);
   }
 
+  private estUtilisable(gamepad: Gamepad | null): gamepad is ManetteHaptique {
+    return !!gamepad && gamepad.connected !== false && gamepad.axes.length >= 2 && gamepad.buttons.length >= 4;
+  }
+
+  private score(gamepad: Gamepad) {
+    const id = gamepad.id.toLowerCase();
+    let score = gamepad.axes.length + gamepad.buttons.length / 10;
+    if (gamepad.mapping === 'standard') score += 20;
+    if (/dualsense|wireless controller|playstation|sony/.test(id)) score += 40;
+    if (/xbox|xinput/.test(id)) score += 30;
+    if (gamepad.timestamp > 0) score += 5;
+    return score;
+  }
+
   deconnecter(gamepad: Gamepad) {
     if (this.index !== gamepad.index) return;
     this.index = null;
@@ -51,7 +69,10 @@ export class Manette {
     const gamepads = navigator.getGamepads?.();
     if (!gamepads) return this.derniereManette;
     const connue = this.index === null ? null : gamepads[this.index];
-    return (connue ?? Array.from(gamepads).find(Boolean) ?? this.derniereManette) as ManetteHaptique | null;
+    if (this.estUtilisable(connue)) return connue;
+    const disponibles = Array.from(gamepads).filter(gamepad => this.estUtilisable(gamepad));
+    disponibles.sort((a, b) => this.score(b) - this.score(a));
+    return disponibles[0] ?? (this.estUtilisable(this.derniereManette) ? this.derniereManette : null);
   }
 
   private actionneur() {
@@ -122,18 +143,35 @@ export class Manette {
       this.boutonsPrecedents = [];
       return null;
     }
+    if (this.index !== gamepad.index) this.boutonsPrecedents = gamepad.buttons.map(() => false);
     this.index = gamepad.index;
     this.derniereManette = gamepad;
 
-    const boutons = gamepad.buttons.map(bouton => bouton.pressed);
+    // Safari et quelques pilotes Bluetooth remplissent `value` sans toujours
+    // mettre `pressed` à true. Les deux informations doivent donc être lues.
+    const boutons = gamepad.buttons.map(bouton => bouton.pressed || bouton.value > .35);
     const precedents = this.boutonsPrecedents;
-    const appuye = (index: number) => !!boutons[index] && !precedents[index];
+    const playStationBrute = gamepad.mapping !== 'standard'
+      && /dualsense|wireless controller|playstation|sony/i.test(gamepad.id);
+    // Dans le rapport HID PlayStation brut : Carré=0, Croix=1, Rond=2.
+    // L'API standard attend Croix=0, Rond=1, Carré=2.
+    const indexBrut = (index: number) => playStationBrute
+      ? ([1, 2, 0, 3] as number[])[index] ?? index
+      : index;
+    const appuye = (index: number) => {
+      const brut = indexBrut(index);
+      return !!boutons[brut] && !precedents[brut];
+    };
     const axe = (index: number) => zoneMorte(gamepad!.axes[index] ?? 0);
     let deplacementX = axe(0), deplacementZ = axe(1);
     if (!deplacementX) deplacementX = Number(boutons[15]) - Number(boutons[14]);
     if (!deplacementZ) deplacementZ = Number(boutons[13]) - Number(boutons[12]);
     const lecture = {
       id: gamepad.id,
+      index: gamepad.index,
+      mapping: gamepad.mapping || (playStationBrute ? 'PlayStation direct' : 'direct'),
+      nombreAxes: gamepad.axes.length,
+      nombreBoutons: gamepad.buttons.length,
       deplacementX,
       deplacementZ,
       regardX: axe(2),
