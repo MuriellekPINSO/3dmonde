@@ -10,6 +10,7 @@ import {guides,lieux,zoneActuelle} from './content/zones.ts';
 import * as T from 'three';
 import {placerModele} from './entities/Placement.ts';
 import {zoneMorte} from './input/Manette.ts';
+import {Joueur} from './entities/Joueur.ts';
 test('transport : paiement unique, descente, solde insuffisant',()=>{
  const p=new Partie();assert.equal(p.monter(new Zemidjan()),true);assert.equal(p.balance,9800);
  assert.equal(p.monter(new Voiture()),false);assert.equal(p.balance,9800);p.descendre();
@@ -42,6 +43,11 @@ test('manette : zone morte et amplitude analogique',()=>{
  assert.equal(zoneMorte(.1),0);assert.equal(zoneMorte(-.16),0);
  assert.equal(zoneMorte(1),1);assert.equal(zoneMorte(-1),-1);
  assert.ok(zoneMorte(.5)>.35&&zoneMorte(.5)<.45);
+});
+test('la promenade bloque le joueur avant le bord de mer',()=>{
+ const joueur=new Joueur(),touches=new Set(['q']);
+ for(let i=0;i<80;i++)joueur.deplacer(touches,0,1/30,4,false,[],false);
+ assert.ok(joueur.objet.position.x>-7.7);assert.equal(joueur.objet.position.z,12);
 });
 test('sauvegarde, énergie et récompenses de missions',()=>{
  const p=new Partie(),v=new Vendeuse();p.signalerAccident();p.signalerAccident();

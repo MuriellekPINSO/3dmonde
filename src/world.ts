@@ -76,7 +76,9 @@ export class Monde {
     this.renderer.setPixelRatio(facteur);this.renderer.shadowMap.enabled=niveau!=='basse';this.renderer.setSize(innerWidth,innerHeight);
   }
   restaurerPosition(x:number,z:number){
-    if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-25,23),.15,T.MathUtils.clamp(z,-406,24));
+    // Les sauvegardes créées avant le rapprochement de l'océan peuvent avoir
+    // une coordonnée x sur l'ancienne plage. On les replace sur la promenade.
+    if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-7.65,23),.15,T.MathUtils.clamp(z,-406,24));
   }
   personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb'){
     this.foule.personnaliserJoueur(couleur,corps);

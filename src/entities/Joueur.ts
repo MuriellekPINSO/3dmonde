@@ -57,7 +57,9 @@ export class Joueur extends Personnage {
     const p=this.objet.position;
     const rayon=vehicule?.85:.3;
     const can=(x:number,z:number)=>{
-      const ouest=z>-96?-27:-8, est=24;
+      // La mer rejoint maintenant le garde-corps à x=-8 : l'ancienne plage
+      // située jusqu'à x=-27 n'est plus une surface praticable.
+      const ouest=-8, est=24;
       return x>ouest+rayon&&x<est-rayon&&z>-407&&z<25
         &&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+rayon&&Math.abs(z-o.z)<o.d/2+rayon);
     };

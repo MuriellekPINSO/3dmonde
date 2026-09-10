@@ -64,6 +64,8 @@ export class Foule {
   private clipCourse?: T.AnimationClip;
   private hauteurModele = 1.78;
   private baseModele = 0;
+  private centreXModele = 0;
+  private centreZModele = 0;
   private readonly habitants: Habitant[] = [];
   private joueur?: Habitant;
   private static readonly DUREE_CHUTE = 3.4;
@@ -116,8 +118,11 @@ export class Foule {
     this.clipCourse = coureur?.animations[0];
     // Mettre le personnage à taille humaine, pieds à l’origine.
     const boite = new T.Box3().setFromObject(this.modele);
+    const centre = boite.getCenter(new T.Vector3());
     this.hauteurModele = boite.max.y - boite.min.y || 1;
     this.baseModele = boite.min.y;
+    this.centreXModele = centre.x;
+    this.centreZModele = centre.z;
     this.modele.traverse(n => {
       const m = n as T.Mesh;
       if (!m.isMesh) return;
@@ -212,8 +217,8 @@ export class Foule {
       const facteur = echelle / this.hauteurModele;
       corps.scale.setScalar(facteur);
       // Les silhouettes construites reposent à .15 : le modèle rejoint le sol,
-      // en tenant compte de la position de son origine.
-      corps.position.y = -.15 - this.baseModele * facteur;
+      // et son centre visuel rejoint exactement le point logique du personnage.
+      corps.position.set(-this.centreXModele*facteur,-.15-this.baseModele*facteur,-this.centreZModele*facteur);
       const matiere = this.matiere(personnage.couleur);
       corps.traverse(n => { const m = n as T.Mesh; if (m.isMesh) m.material = matiere; });
       personnage.objet.add(corps);
@@ -262,13 +267,14 @@ export class Foule {
   /** Pose une silhouette debout dans un personnage : pieds au sol, face au sud. */
   private poserDebout(personnage: Personnage, choix: T.Object3D,hauteurCible=1.74,base=.0) {
     const boite = new T.Box3().setFromObject(choix);
+    const centre = boite.getCenter(new T.Vector3());
     const hauteur = boite.max.y - boite.min.y || 1;
     const echelle = hauteurCible / hauteur;
     const corps = choix.clone();
     corps.scale.setScalar(echelle);
     // L'origine de ces modèles est au centre du corps : sans compensation, la
-    // silhouette s'enfonce d'un mètre sous le trottoir.
-    corps.position.y = base-.15 - boite.min.y * echelle;
+    // silhouette peut s'enfoncer ou apparaître plusieurs mètres à côté.
+    corps.position.set(-centre.x*echelle,base-.15-boite.min.y*echelle,-centre.z*echelle);
     personnage.objet.add(corps);
     return corps;
   }
