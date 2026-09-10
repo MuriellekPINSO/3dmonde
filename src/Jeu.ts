@@ -6,6 +6,7 @@ import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from 
 import { DialogueVocal } from './ui/DialogueVocal';
 import { Manette, type LectureManette } from './input/Manette';
 import { demanderIA } from './ui/DialogueIA';
+import type { CorpsJoueur, StyleTenue } from './entities/Foule';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
 
@@ -25,6 +26,9 @@ export class Jeu {
   private zoneId='';
   private sauvegardeTemps=0;
   private tenue='#f3b94f';
+  private corpsJoueur:CorpsJoueur='personnage1.glb';
+  private styleTenue:StyleTenue='ville';
+  private nomJoueur='Mika';
   private get panel(){return $<HTMLDialogElement>('panel');}
   private get accueil(){return $<HTMLDialogElement>('welcome');}
 
@@ -59,7 +63,7 @@ export class Jeu {
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
-    <dialog id="welcome"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Une ville.<br>Mille rencontres.</h2><p>De la Corniche à l’Étoile Rouge, découvre cinq lieux à pied, en zémidjan ou en voiture. Discute avec Aïcha et fais une pause sportive.</p><div class="loading-city"><span></span></div><p class="note">La ville se charge progressivement · progression sauvegardée automatiquement · clavier, écran tactile ou manette compatible.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></dialog>
+    <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton apparence avant de partir de la Corniche vers les grands lieux de Cotonou.</p><div id="avatar-preview" class="avatar-preview" data-style="ville"><div class="preview-head"></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-legs"></div></div><p id="avatar-summary" class="avatar-summary">Mika · Koffi · Tenue de ville</p></div><div class="character-creator"><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Personnage</legend><div class="avatar-options"><button type="button" data-avatar="personnage1.glb" aria-pressed="true"><span>01</span>Koffi</button><button type="button" data-avatar="perso2.glb" aria-pressed="false"><span>02</span>Awa</button><button type="button" data-avatar="go2.glb" aria-pressed="false"><span>03</span>Sessi</button></div></fieldset><fieldset><legend>Style vestimentaire</legend><div class="style-options"><button type="button" data-clothing="ville" aria-pressed="true">Ville</button><button type="button" data-clothing="sport" aria-pressed="false">Sport</button><button type="button" data-clothing="wax" aria-pressed="false">Wax</button></div></fieldset><fieldset><legend>Couleur des habits</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
   }
   private notifier(text:string){
@@ -80,7 +84,7 @@ export class Jeu {
     {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
   ];}
   private sauvegarder(){
-    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue}));}catch{}
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,styleTenue:this.styleTenue,nomJoueur:this.nomJoueur}));}catch{}
   }
   private chargerSauvegarde(){
     try{
@@ -88,7 +92,11 @@ export class Jeu {
       const data=JSON.parse(brut);if(data?.partie)this.partie.restaurer(data.partie);
       this.sport.termine=!!data?.sport?.termine;
       if(data?.position)this.monde.restaurerPosition(Number(data.position.x),Number(data.position.z));
-      if(typeof data?.tenue==='string'){this.tenue=data.tenue;this.monde.personnaliserJoueur(this.tenue);}
+      if(typeof data?.tenue==='string')this.tenue=data.tenue;
+      if(['personnage1.glb','perso2.glb','go2.glb'].includes(data?.corpsJoueur))this.corpsJoueur=data.corpsJoueur;
+      if(['ville','sport','wax'].includes(data?.styleTenue))this.styleTenue=data.styleTenue;
+      if(typeof data?.nomJoueur==='string'&&data.nomJoueur.trim())this.nomJoueur=data.nomJoueur.slice(0,16);
+      this.appliquerApparence();
       $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
     }catch{localStorage.removeItem('cotonou-sauvegarde-v2');}
   }
@@ -110,7 +118,8 @@ export class Jeu {
     // `close` est émis de façon différée par le navigateur. Effacer les touches ici
     // pouvait supprimer un mouvement pressé juste après la fermeture du guide.
     this.panel.addEventListener('close',()=>{this.voix.arreter();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
-    $('begin').onclick=()=>{this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());
+    this.initialiserCreateur();
+    $('begin').onclick=()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.appliquerApparence();this.sauvegarder();this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());
     $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
@@ -134,6 +143,26 @@ export class Jeu {
       b.onpointerdown=e=>{this.monde.keys.add(b.dataset.key!);b.setPointerCapture(e.pointerId);};
       b.onpointerup=b.onpointercancel=()=>this.monde.keys.delete(b.dataset.key!);
     });
+  }
+  private initialiserCreateur(){
+    $<HTMLInputElement>('player-name').value=this.nomJoueur;
+    $('player-name').addEventListener('input',()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.mettreAJourCreateur();});
+    document.querySelectorAll<HTMLButtonElement>('[data-avatar]').forEach(b=>b.onclick=()=>{this.corpsJoueur=b.dataset.avatar as CorpsJoueur;this.appliquerApparence();});
+    document.querySelectorAll<HTMLButtonElement>('[data-clothing]').forEach(b=>b.onclick=()=>{this.styleTenue=b.dataset.clothing as StyleTenue;this.appliquerApparence();});
+    document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.color!;this.appliquerApparence();});
+    this.appliquerApparence();
+  }
+  private appliquerApparence(){this.monde.personnaliserJoueur(this.tenue,this.corpsJoueur,this.styleTenue);this.mettreAJourCreateur();}
+  private mettreAJourCreateur(){
+    if(!$('avatar-preview'))return;
+    const noms:Record<CorpsJoueur,string>={'personnage1.glb':'Koffi','perso2.glb':'Awa','go2.glb':'Sessi'};
+    const styles:Record<StyleTenue,string>={ville:'Tenue de ville',sport:'Tenue de sport',wax:'Tenue wax'};
+    $('avatar-preview').dataset.style=this.styleTenue;$('avatar-preview').dataset.avatar=this.corpsJoueur;
+    $('avatar-preview').style.setProperty('--outfit',this.tenue);
+    $('avatar-summary').textContent=`${this.nomJoueur} · ${noms[this.corpsJoueur]} · ${styles[this.styleTenue]}`;
+    document.querySelectorAll<HTMLButtonElement>('[data-avatar]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.avatar===this.corpsJoueur)));
+    document.querySelectorAll<HTMLButtonElement>('[data-clothing]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.clothing===this.styleTenue)));
+    document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===this.tenue)));
   }
   private elementsManette(dialogue:HTMLDialogElement){
     return Array.from(dialogue.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled)'))
@@ -203,12 +232,12 @@ export class Jeu {
     if($('summary'))$('summary').onclick=()=>{this.panel.close();this.bilan();};
   }
   private ouvrirMenu(){
-    this.ouvrir('Pause','RÉGLAGES ET SAUVEGARDE',`<div class="settings"><label>Qualité graphique<select id="quality"><option value="normale">Normale</option><option value="basse">Basse</option><option value="haute">Haute</option></select></label><label>Météo<select id="weather-setting"><option value="auto">Dynamique</option><option value="soleil">Ciel clair</option><option value="pluie">Pluie tropicale</option></select></label><label>Heure<select id="time-setting"><option value="auto">Cycle automatique</option><option value="matin">Matin</option><option value="jour">Journée</option><option value="soir">Soirée</option></select></label><label>Volume ambiance<input id="volume-setting" type="range" min="0" max="100" value="58"></label></div><h3>Tenue du personnage</h3><div class="outfits"><button data-outfit="#f3b94f">Jaune</button><button data-outfit="#287b72">Vert</button><button data-outfit="#9c4058">Bordeaux</button><button data-outfit="#365f8c">Bleu</button></div><p class="note">La progression et la position sont enregistrées automatiquement sur cet appareil.</p><button id="save-now" class="primary">Sauvegarder maintenant</button> <button id="reset-save">Nouvelle partie</button>`);
+    this.ouvrir('Pause','RÉGLAGES ET SAUVEGARDE',`<div class="settings"><label>Qualité graphique<select id="quality"><option value="normale">Normale</option><option value="basse">Basse</option><option value="haute">Haute</option></select></label><label>Météo<select id="weather-setting"><option value="auto">Dynamique</option><option value="soleil">Ciel clair</option><option value="pluie">Pluie tropicale</option></select></label><label>Heure<select id="time-setting"><option value="auto">Cycle automatique</option><option value="matin">Matin</option><option value="jour">Journée</option><option value="soir">Soirée</option></select></label><label>Volume ambiance<input id="volume-setting" type="range" min="0" max="100" value="58"></label></div><h3>${this.nomJoueur}</h3><p class="note">Tu peux changer de personnage, de style ou de couleur pendant la partie.</p><button id="edit-character">Modifier mon personnage</button><p class="note">La progression et la position sont enregistrées automatiquement sur cet appareil.</p><button id="save-now" class="primary">Sauvegarder maintenant</button> <button id="reset-save">Nouvelle partie</button>`);
     $<HTMLSelectElement>('quality').onchange=e=>this.monde.reglerQualite((e.target as HTMLSelectElement).value as 'basse'|'normale'|'haute');
     $<HTMLSelectElement>('weather-setting').onchange=e=>this.monde.reglerMeteo((e.target as HTMLSelectElement).value as 'auto'|'soleil'|'pluie');
     $<HTMLSelectElement>('time-setting').onchange=e=>this.monde.reglerHeure((e.target as HTMLSelectElement).value as 'auto'|'matin'|'jour'|'soir');
     $<HTMLInputElement>('volume-setting').oninput=e=>this.ambiance.reglerVolume(Number((e.target as HTMLInputElement).value)/100);
-    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-outfit]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.outfit!;this.monde.personnaliserJoueur(this.tenue);this.sauvegarder();});
+    $('edit-character').onclick=()=>{this.panel.close();this.mettreAJourCreateur();this.accueil.showModal();};
     $('save-now').onclick=()=>{this.sauvegarder();this.notifier('Progression sauvegardée.');this.panel.close();};
     $('reset-save').onclick=()=>{if(confirm('Effacer la progression et recommencer ?')){localStorage.removeItem('cotonou-sauvegarde-v2');location.reload();}};
   }

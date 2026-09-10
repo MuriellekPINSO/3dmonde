@@ -37,6 +37,9 @@ type Habitant = {
   bulle?:T.Sprite;
 };
 
+export type StyleTenue = 'ville'|'sport'|'wax';
+export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb';
+
 /** Teinte et saturation d’une couleur, pour reconnaître les habits dans l’atlas. */
 function versHsl(r: number, v: number, b: number) {
   const max = Math.max(r, v, b), min = Math.min(r, v, b), delta = max - min;
@@ -80,7 +83,8 @@ export class Foule {
   private varie = false;
   private couleurJoueur='#f3b94f';
   private temps=0;
-  private accessoireJoueur?:T.Mesh;
+  private accessoiresJoueur?:T.Group;
+  private styleJoueur:StyleTenue='ville';
 
   constructor(private readonly scene: T.Object3D) {}
 
@@ -195,7 +199,7 @@ export class Foule {
         const estVendeuse=personnage.objet.name.startsWith('vendeuse-');
         const corps = this.poserDebout(personnage, silhouetteDebout,estVendeuse?1.3:1.74,estVendeuse ? .46 : 0);
         if (estVendeuse) corps.name = 'modele-vendeuse';
-        else corps.name = 'corps-personnage';
+        else {corps.name = 'corps-personnage';corps.userData.avatar=this.corpsJoueur;}
         for (const piece of personnage.pieces) piece.visible = false;
         const mixeur = new T.AnimationMixer(corps);
         const habitant:Habitant={personnage, corps, mixeur, marche: mixeur.clipAction(this.clipMarche),
@@ -231,14 +235,40 @@ export class Foule {
     }
     return habilles;
   }
-  personnaliserJoueur(couleur:string){this.couleurJoueur=couleur;this.appliquerCouleurJoueur();}
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,style:StyleTenue=this.styleJoueur){
+    const corpsChange=corps!==this.corpsJoueur;
+    this.couleurJoueur=couleur;this.corpsJoueur=corps;this.styleJoueur=style;
+    if(corpsChange)this.changerCorpsJoueur();
+    this.appliquerCouleurJoueur();
+  }
+  private changerCorpsJoueur(){
+    const h=this.joueur,choix=this.corpsJoueur?this.debout.get(this.corpsJoueur):undefined;
+    if(!h||!choix||!this.clipMarche)return;
+    h.mixeur.stopAllAction();h.corps.removeFromParent();
+    h.corps=this.poserDebout(h.personnage,choix);h.corps.name='corps-personnage';h.corps.userData.avatar=this.corpsJoueur;
+    h.mixeur=new T.AnimationMixer(h.corps);h.marche=h.mixeur.clipAction(this.clipMarche);
+    h.course=undefined;h.fige=true;h.bouge=true;h.reposY=h.corps.position.y;
+  }
   private appliquerCouleurJoueur(){
     const h=this.joueur;if(!h||!this.matiereOrigine)return;
-    if(!this.accessoireJoueur){
-      const accent=new T.Mesh(new T.PlaneGeometry(.24,.72),new T.MeshStandardMaterial({color:this.couleurJoueur,roughness:.72,side:T.DoubleSide}));
-      accent.name='accent-tenue-joueur';accent.position.set(.04,1.2,.19);accent.rotation.z=-.3;h.personnage.objet.add(accent);this.accessoireJoueur=accent;
+    this.accessoiresJoueur?.removeFromParent();
+    const groupe=new T.Group();groupe.name=`tenue-joueur-${this.styleJoueur}`;
+    const tissu=new T.MeshStandardMaterial({color:this.couleurJoueur,roughness:.78,side:T.DoubleSide});
+    const clair=new T.MeshStandardMaterial({color:new T.Color(this.couleurJoueur).lerp(new T.Color('#f8df9c'),.38),roughness:.82,side:T.DoubleSide});
+    const piece=(geometrie:T.BufferGeometry,matiere:T.Material,x:number,y:number,z:number)=>{const m=new T.Mesh(geometrie,matiere);m.position.set(x,y,z);m.castShadow=true;groupe.add(m);return m;};
+    if(this.styleJoueur==='ville'){
+      const veste=piece(new T.CylinderGeometry(.255,.22,.53,12),tissu,0,1.22,.005);veste.scale.z=.72;
+      piece(new T.BoxGeometry(.3,.055,.025),clair,0,1.2,.18);
+    }else if(this.styleJoueur==='sport'){
+      const maillot=piece(new T.CylinderGeometry(.225,.205,.48,12),tissu,0,1.23,.006);maillot.scale.z=.7;
+      piece(new T.BoxGeometry(.08,.49,.025),clair,0,1.23,.17);
+      const bandeau=piece(new T.TorusGeometry(.145,.025,6,16),tissu,0,1.82,0);bandeau.rotation.x=Math.PI/2;
+    }else{
+      const pagne=piece(new T.CylinderGeometry(.22,.31,.64,12),tissu,0,.78,0);pagne.scale.z=.78;
+      for(const y of [.56,.76,.96])piece(new T.TorusGeometry(.275,.024,5,18),clair,0,y,0).rotation.x=Math.PI/2;
+      const echarpe=piece(new T.PlaneGeometry(.2,.82),tissu,.04,1.22,.19);echarpe.rotation.z=-.28;
     }
-    (this.accessoireJoueur.material as T.MeshStandardMaterial).color.set(this.couleurJoueur);
+    h.personnage.objet.add(groupe);this.accessoiresJoueur=groupe;
     if(!h.fige){const tenue=this.matiere(this.couleurJoueur);h.corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh)m.material=tenue;});return;}
     // Les silhouettes debout possèdent un autre atlas UV. On conserve leur
     // propre texture et applique seulement une teinte claire.
@@ -286,6 +316,7 @@ export class Foule {
     corps.rotation.x=-.1;
     corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh){m.castShadow=false;m.receiveShadow=true;}});
     const passager=new T.Group();passager.name='passager-joueur-moto';passager.add(corps);passager.visible=false;
+    if(this.accessoiresJoueur){const tenue=this.accessoiresJoueur.clone();tenue.scale.setScalar(.85);passager.add(tenue);}
     return passager;
   }
   /** Fait entrer ou sortir visuellement le corps du joueur par le côté du véhicule. */

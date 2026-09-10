@@ -4,6 +4,8 @@
 
 Un jeu de découverte urbaine en 3D dans le navigateur. Le joueur explore Cotonou à pied, emprunte des transports payants, discute avec des vendeuses par écrit ou par voix et découvre les lieux avec des guides écrits et audio.
 
+Avant le départ, le joueur crée son personnage : prénom, choix entre trois silhouettes 3D, style de ville, sport ou wax, puis couleur des habits. Cette apparence est visible à pied et sur le zémidjan, peut être modifiée depuis le menu Pause et est sauvegardée avec la progression.
+
 Le dossier était vide au démarrage. Le cadrage ci-dessous décrit le MVP cible ; les quatre zones et les cinq lieux sont maintenant implémentés, et leurs décors sont repris d’après des photographies des lieux réels (voir « Prototype disponible » et [docs/REFERENCES.md](docs/REFERENCES.md)).
 
 ## Parcours de la démo

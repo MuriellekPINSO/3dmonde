@@ -5,6 +5,7 @@ import { Batisseur } from './entities/Batisseur';
 import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, etoileRouge, figures, vehicule } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
+import type { CorpsJoueur, StyleTenue } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
 import { Meteo, type ModeMeteo } from './entities/Meteo';
@@ -76,7 +77,13 @@ export class Monde {
   restaurerPosition(x:number,z:number){
     if(Number.isFinite(x)&&Number.isFinite(z))this.player.position.set(T.MathUtils.clamp(x,-25,23),.15,T.MathUtils.clamp(z,-406,24));
   }
-  personnaliserJoueur(couleur:string){this.foule.personnaliserJoueur(couleur);}
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb',style:StyleTenue='ville'){
+    this.foule.personnaliserJoueur(couleur,corps,style);
+    this.player.userData.apparenceJoueur={couleur,corps,style};
+    if(this.passagerMoto){this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
+    const passager=this.foule.creerPassagerMoto();
+    if(passager){this.passagerMoto=passager;this.scene.add(passager);}
+  }
 
   /** Oriente la caméra avec le joystick droit, en radians par seconde. */
   regarderManette(x:number,y:number,dt:number){
