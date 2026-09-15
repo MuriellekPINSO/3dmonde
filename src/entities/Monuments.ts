@@ -409,15 +409,28 @@ function tambour(b: Batisseur, x: number, z: number, rBas: number, rHaut: number
  */
 export function etoileRouge(b: Batisseur) {
   const x = -28, z = -364;
-  b.sol(64, 96, b.tex('sable', 32, 48, '#c6bda4'), -42, z, .02);
+  b.sol(76, 96, b.tex('sable', 38, 48, '#c6bda4'), -48, z, .02);
   b.cyl(16.5, 16.5, .3, 40, b.tex('beton', 10, 10), x, .12, z).castShadow = false;
-  b.anneau(17.2, 23, b.tex('asphalte', 6, 1), x, .06, z, Math.PI * .35, Math.PI * 1.35);
-  b.anneau(16.8, 17.2, '#e6e0d0', x, .08, z, Math.PI * .35, Math.PI * 1.35);
-  // Cinq voies convergentes, évoquées par des amorces de chaussée.
+  // Chaussée annulaire complète : la place est un carrefour giratoire, la
+  // circulation en fait le tour. L'anneau ne couvrait qu'un peu plus d'un
+  // demi-tour, ce qui la réduisait à un parvis bordé d'un bout de route.
+  b.anneau(17.2, 25.5, b.tex('asphalte', 8, 1), x, .06, z);
+  b.anneau(16.8, 17.2, '#e6e0d0', x, .08, z);
+  b.anneau(25.5, 25.9, '#e6e0d0', x, .08, z);
+  for (let i = 0; i < 36; i++) {
+    const a = i * Math.PI / 18;
+    const trait = b.boite(1.9, .03, .26, '#e8e3d2', x + Math.cos(a) * 21.3, .09, z + Math.sin(a) * 21.3);
+    trait.rotation.y = -a; trait.castShadow = false;
+  }
+  // La promenade débouche sur l'anneau : deux traversées marquent la rencontre,
+  // sinon la chaussée semblait recouvrir le dallage par accident.
+  for (const zt of [-348.5, -379.5]) for (let px = -8; px < -2.2; px += 1.3)
+    b.boite(.72, .035, 2.6, '#f0ece0', px, .1, zt).castShadow = false;
+  // Cinq voies convergentes, prolongées jusqu'au tissu bâti qui ceinture la place.
   for (let i = 0; i < 5; i++) {
     const a = Math.PI * .5 + i * Math.PI * 2 / 5;
     if (Math.cos(a) > .55) continue;
-    const r = 31, voie = b.boite(9, .2, 18, b.tex('asphalte', 1, 2), x + Math.cos(a) * r, .05, z + Math.sin(a) * r);
+    const r = 38, voie = b.boite(9.5, .2, 26, b.tex('asphalte', 1, 3), x + Math.cos(a) * r, .05, z + Math.sin(a) * r);
     voie.rotation.y = -a; voie.castShadow = false;
   }
   // Pylône, étoile et statue : cèdent la place au modèle etoile-rouge.glb.
@@ -459,20 +472,21 @@ export function etoileRouge(b: Batisseur) {
     statueEtoile(b, x, socle + 33.5, z);
   });
   b.panneau('PLACE DE L’ÉTOILE ROUGE', x, 8.5, z + 13, 10);
-  // Abords : arbres étalés, mâts d’éclairage, garde-corps vert et boutiques.
-  for (let i = 0; i < 7; i++) {
-    const a = Math.PI * .45 + i * Math.PI * .17;
-    b.arbre(x + Math.cos(a) * 21, z + Math.sin(a) * 21);
+  // L'île est couverte d'un collier dense de grands arbres, entre la pointe de
+  // l'étoile et la bordure : sept arbres sur un arc laissaient le terre-plein nu.
+  // Le collier se tient au bord de l'île, au-delà des pointes de l'étoile : plus
+  // au centre et à pleine taille, les couronnes se soudaient en un seul dôme et
+  // masquaient complètement l'étoile et le pied du pylône.
+  for (let i = 0; i < 16; i++) {
+    const a = i * Math.PI / 8;
+    b.arbre(x + Math.cos(a) * 16.2, z + Math.sin(a) * 16.2, .64 + varie(i, 3) * .16);
   }
-  b.matEclairage(-17, -342); b.matEclairage(-47, -385);
+  // Le mât nord se tenait au milieu de la nouvelle chaussée annulaire.
+  b.matEclairage(-14.5, -337); b.matEclairage(-47, -385);
   b.boite(.1, .5, 26, '#2f6b45', -10.5, .8, -364).castShadow = false;
   for (let zp = -352; zp >= -376; zp -= 6) b.boite(.3, .9, .3, '#2f6b45', -10.5, .45, zp);
   b.cyl(.09, .11, 5.5, 8, '#e0b83c', -11.9, 2.75, -357);
-  for (let i = 0; i < 4; i++) {
-    const zb = -344 - i * 12;
-    b.boite(9, 3.4, 8, b.tex('boutique', 2, 1, ['#e8c063', '#dcae7c', '#cfd0b4', '#e2b48f'][i]), -52, 1.7, zb);
-    b.boite(10, .35, 9, b.tex('tole', 4, 4), -52, 3.6, zb);
-  }
+  villeEtoileRouge(b, x, z);
   b.panneau('Fin de la promenade', 0, 4, -403);
 }
 
@@ -503,6 +517,183 @@ function statueEtoile(b: Batisseur, x: number, y: number, z: number) {
     b.cyl(.035, .04, 1.6, 6, bronze, -.42 + Math.cos(a) * .1, .8, .5 + Math.sin(a) * .1, g).rotation.z = (varie(i, a) - .5) * .12;
   }
   for (const yl of [.55, 1.15]) b.maillage(new T.TorusGeometry(.14, .022, 5, 10), bronze, -.42, yl, .5, g).rotation.x = Math.PI / 2;
+}
+
+/**
+ * Tissu bâti qui ceinture la place de l'Étoile Rouge, relevé sur TOUR.mp4 à
+ * 38 s : la place est un vrai carrefour giratoire, serré de toutes parts par un
+ * bâti bas de deux à quatre niveaux — façades bleues, ocre, rouges et roses,
+ * boutiques et auvents au rez-de-chaussée, toits de tôle — avec une gare
+ * routière de cars sur un côté. Le jeu n'y posait que quatre boutiques isolées
+ * à vingt-quatre mètres, sur du sable nu : la place flottait au lieu d'être un
+ * carrefour de quartier.
+ *
+ * Le secteur est reste ouvert : c'est par là qu'arrive la promenade, et boucler
+ * la ceinture y ferait buter les immeubles dans le boulevard.
+ */
+function villeEtoileRouge(b: Batisseur, cx: number, cz: number) {
+  const teintes = ['#3f6f96', '#c4553f', '#d9ac48', '#c2879a', '#b5613c', '#e2ddcd', '#5f8087'];
+  const accents = ['#2b5878', '#a63f2c', '#bf9034', '#a76a7c', '#95492c', '#c6bfa9', '#48656b'];
+  let index = 0;
+  for (const [rang, pas] of [[32, 13], [46, 15]] as const) {
+    for (let deg = 58; deg <= 302; deg += pas, index++) {
+      const a = deg * Math.PI / 180;
+      const bx = cx + Math.cos(a) * rang, bz = cz + Math.sin(a) * rang;
+      // La caméra recule de quatorze mètres derrière un joueur qui longe la
+      // promenade à x=-7,7 : rien de bâti ne peut s'avancer à l'est de x=-24
+      // sans qu'elle finisse dedans. Le demi-diagonale d'un bloc vaut 8,5 m,
+      // d'où ce seuil. Le secteur est de la place reste donc ouvert — c'est la
+      // conséquence directe du monument posé à côté du boulevard, pas dessus.
+      if (bx > -32.5) continue;
+      if (rang === 46 && deg > 203 && deg < 247) continue;      // emprise de la gare routière
+      immeubleEtoile(b, bx, bz, Math.PI - a, 2 + (index * 7) % 3,
+        teintes[index % teintes.length], accents[index % accents.length], rang === 32);
+    }
+  }
+  // Gare routière : deux rangées de cars à l'arrêt, au sud-ouest de la place.
+  for (let rangee = 0; rangee < 2; rangee++) for (let c = 0; c < 4; c++) {
+    const bx = -68 + c * 4.4, bz = -396 - rangee * 11;
+    b.boite(2.5, 2.7, 9.4, ['#e6e2d4', '#cfd6d2', '#dcc9a8', '#d8dbd4'][c % 4], bx, 1.55, bz);
+    b.boite(2.6, .95, 8.6, '#4a5f66', bx, 2.5, bz).castShadow = false;
+    b.boite(2.6, .28, 9.6, '#b8bdb6', bx, 2.95, bz).castShadow = false;
+  }
+  b.panneau('GARE ROUTIÈRE', -61, 7.5, -390, 7);
+}
+
+/** Petit immeuble du tissu de l'Étoile Rouge, boutique et auvent au rez-de-chaussée. */
+function immeubleEtoile(b: Batisseur, x: number, z: number, orientation: number, niveaux: number,
+  teinte: string, accent: string, devanture: boolean) {
+  const g = new T.Group(); g.name = `immeuble-etoile-${Math.round(x)}-${Math.round(z)}`;
+  g.position.set(x, 0, z); g.rotation.y = orientation; b.racine.add(g);
+  const h = 3.2 * niveaux, profondeur = 9, largeur = 11 + (niveaux % 2) * 3;
+  b.boite(profondeur, h, largeur, teinte, 0, h / 2, 0, g);
+  b.boite(profondeur + .7, .3, largeur + .7, b.tex('tole', 4, 4), 0, h + .15, 0, g);
+  for (let n = 1; n < niveaux; n++) {
+    b.boite(profondeur + .2, .22, largeur + .2, accent, 0, n * 3.2, 0, g).castShadow = false;
+    for (let dz = -largeur / 2 + 1.6; dz < largeur / 2 - 1; dz += 2.6)
+      b.boite(.14, 1.5, 1.5, '#39484a', profondeur / 2 + .06, n * 3.2 + 1.5, dz, g).castShadow = false;
+  }
+  if (devanture) {
+    b.boite(.16, 2.5, largeur - 1.4, '#2f3c3c', profondeur / 2 + .08, 1.4, 0, g).castShadow = false;
+    const auvent = b.boite(2.3, .12, largeur, accent, profondeur / 2 + 1.15, 2.95, 0, g);
+    auvent.rotation.z = .09; auvent.castShadow = false;
+    for (const dz of [-largeur / 2 + .4, largeur / 2 - .4])
+      b.cyl(.05, .05, 2.9, 5, '#8b8778', profondeur / 2 + 2.2, 1.45, dz, g);
+  }
+  return g;
+}
+
+/**
+ * Quartier de marchés entre le Palais des Congrès et l'Étoile Rouge, relevé sur
+ * TOUR.mp4 (≈ 42 s et 46 s) : la halle de Ganhi coiffée d'une toiture blanche
+ * en éventail plissé percée d'un oculus, sa base en brique à arcades et ses
+ * sheds vitrés, puis les grands hangars de tôle de Dantokpa en rangées
+ * parallèles et un bâtiment ocre à l'extrémité du parvis.
+ *
+ * Ce côté du boulevard était nu sur quarante mètres, de z=-277 à z=-316 : rien
+ * à traverser entre les deux monuments, ce qui faisait paraître l'Étoile Rouge
+ * bien plus loin qu'elle n'est — elle n'est qu'à cent vingt mètres du Congrès.
+ *
+ * Deux contraintes fixent l'implantation. La façade de la halle ne descend pas
+ * à l'est de x=-24 : la caméra recule jusqu'à quatorze mètres derrière le
+ * joueur, qui peut longer le bord ouest de la promenade à x=-7,7, et elle
+ * entrait dans le volume de brique dès qu'on tournait le regard. Et la halle
+ * reste basse et en retrait pour que le pylône de l'Étoile continue de dépasser
+ * au-dessus des toitures depuis tout le secteur du Congrès.
+ */
+export function quartierMarches(b: Batisseur) {
+  const centre = -296;
+  // Voie de desserte saturée de motos, puis le parvis de marché en béton usé.
+  b.sol(15, 38, b.tex('asphalte', 1, 5, '#6d6e6a'), -15.6, centre, .015).name = 'desserte-marches';
+  b.sol(57, 38, b.tex('beton', 26, 17, '#b5ae9e'), -51.5, centre, .008).name = 'parvis-marches';
+  for (let z = -280; z >= -312; z -= 2.6) b.boite(.14, .03, 1.9, '#e8e3d4', -8.6, .03, z).castShadow = false;
+
+  halleGanhi(b, -36, centre);
+  for (const x of [-60, -72]) hangarTole(b, x, centre, 10, 24);
+
+  // Bâtiment ocre à deux niveaux qui ferme le parvis au sud.
+  b.boite(14, 6.4, 6, '#d9ac48', -38, 3.2, -312);
+  b.boite(15, .35, 7, b.tex('tole', 5, 3), -38, 6.6, -312).castShadow = false;
+  for (let dx = -5; dx <= 5; dx += 2.5) b.boite(1.5, 1.5, .14, '#4e5a4e', -38 + dx, 4.2, -309.05);
+  // Mur d'enceinte bas et arbres dans la bande nord, entre parvis et Congrès.
+  b.boite(40, 1.9, .38, '#cdc5b3', -50, .95, -280);
+  for (const x of [-33, -47, -61]) b.boite(.5, 2.3, .5, '#a9a08d', x, 1.15, -280);
+  for (const [x, z] of [[-30, -279], [-44, -276], [-68, -279]] as const) b.arbre(x, z, .7);
+
+  // Rang de zémidjans en attente le long de la desserte : le nom les fait passer
+  // au modèle détaillé et les range dans le masquage à distance de Rues.
+  for (let i = 0; i < 7; i++) {
+    const moto = vehicule(b, 'zemidjan');
+    moto.position.set(-11.4, .1, -285 - i * 3.4);
+    moto.rotation.y = Math.PI / 2 + varie(i, 4) * .3;
+    moto.name = `moto-borne-ganhi-${i}`; b.racine.add(moto);
+  }
+  for (const [x, z] of [[-19, -278], [-19, -313]] as const) {
+    const gare = vehicule(b, 'voiture'); gare.position.set(x, .08, z); gare.rotation.y = Math.PI / 2; b.racine.add(gare);
+  }
+  for (const z of [-282, -300, -314]) b.lampadaireSimple(-10.8, z, -1);
+  b.panneau('MARCHÉ GANHI', -27, 16, -296, 8);
+  b.panneau('Grand marché · Dantokpa', -66, 11.5, -296, 7);
+}
+
+/**
+ * Halle de Ganhi : socle de brique à galerie d'arcades, sheds à lanterneaux au
+ * nord et au sud, toiture en éventail plissé percée d'un oculus.
+ */
+function halleGanhi(b: Batisseur, x: number, z: number) {
+  // Socle de brique, avec une travée centrale en retrait qui creuse la façade.
+  b.boite(24, 6.4, 28, '#a05340', x, 3.2, z);
+  b.boite(24.6, 6.6, 8, '#964c3a', x - .3, 3.3, z);
+  b.boite(.3, 3.6, 25, '#31383a', x + 11.9, 2.2, z).castShadow = false;
+  for (let dz = -12; dz <= 12; dz += 2.5) b.boite(1.1, 6.4, 1.1, '#b76a52', x + 12.3, 3.2, z + dz);
+  b.boite(25, .85, 29, '#8b4633', x, 6.8, z);
+  // Enseigne plaquée sur la façade : mince selon x, développée selon z.
+  b.boite(.22, 1.2, 9.5, '#e6dcc4', x + 12.95, 5.1, z).castShadow = false;
+
+  // Sheds à lanterneaux qui flanquent l'éventail, au nord et au sud de la halle.
+  for (const dz of [-13.1, -10.7, 10.7, 13.1]) {
+    const pan = b.boite(21, .24, 2.3, b.tex('tole', 6, 1, '#dcdfd9'), x, 7.5, z + dz);
+    pan.rotation.x = -.4; pan.castShadow = false;
+    b.boite(21, .72, .16, '#7d9aa0', x, 7.78, z + dz + 1.05).castShadow = false;
+  }
+
+  // Tambour vitré qui porte l'éventail au-dessus de l'acrotère : sans lui, la
+  // toiture restait cachée derrière la rive de brique depuis la promenade, là
+  // où le joueur marche, alors que c'est la signature du bâtiment.
+  b.cyl(9.4, 9.6, 2.6, 16, '#e7e4d9', x, 8.5, z, undefined, true);
+  for (let i = 0; i < 16; i++) {
+    const a = i * Math.PI / 8;
+    b.boite(.4, 2.6, .4, '#cbc5b4', x + Math.cos(a) * 9.5, 8.5, z + Math.sin(a) * 9.5).castShadow = false;
+  }
+  b.cyl(10.1, 10.1, .3, 16, '#d7d2c2', x, 9.9, z).castShadow = false;
+
+  // Toiture en éventail : seize plis qui se chevauchent comme une étoffe pliée,
+  // retombant vers la rive, et un tambour ajouré au centre.
+  for (let i = 0; i < 16; i++) {
+    const a = i * Math.PI / 8, pair = i % 2 === 0;
+    const pli = b.boite(8.4, .3, 3.4, pair ? '#f7f5ee' : '#d8d4c5', x + Math.cos(a) * 6.1, pair ? 10.5 : 10.62, z + Math.sin(a) * 6.1);
+    pli.rotation.y = -a; pli.rotation.z = -.21; pli.castShadow = false;
+  }
+  b.cyl(3.05, 3.05, 2.1, 16, '#eeebe1', x, 12.2, z, undefined, true);
+  b.cyl(2.85, 2.85, .18, 16, '#2c3130', x, 11.3, z).castShadow = false;
+  b.cyl(3.35, 3.35, .24, 16, '#f6f4ed', x, 13.35, z).castShadow = false;
+}
+
+/** Hangar de tôle de Dantokpa : grande toiture à quatre pans sur poteaux, côtés ouverts. */
+function hangarTole(b: Batisseur, x: number, z: number, largeur: number, longueur: number) {
+  const g = new T.Group(); g.name = `hangar-dantokpa-${Math.round(x)}`; g.position.set(x, 0, z); b.racine.add(g);
+  for (const dx of [-largeur / 2 + .7, largeur / 2 - .7])
+    for (let dz = -longueur / 2 + 2; dz <= longueur / 2 - 2; dz += 4.6)
+      b.cyl(.17, .21, 4.8, 6, '#b3b6b0', dx, 2.4, dz, g);
+  b.boite(largeur, .3, longueur, '#c4c7c1', 0, 4.9, 0, g).castShadow = false;
+  const toit = b.cone(largeur * .74, 2.5, 4, b.tex('tole', 6, 6, '#dfe2dd'), 0, 6.3, 0, g);
+  toit.rotation.y = Math.PI / 4; toit.scale.set(1, 1, longueur / largeur); toit.castShadow = false;
+  // Étals bâchés alignés sous la charpente.
+  for (let dz = -longueur / 2 + 3; dz <= longueur / 2 - 3; dz += 3.8) {
+    b.boite(largeur - 3, .12, 1.5, '#9a7a52', 0, .95, dz, g).castShadow = false;
+    b.boite(largeur - 4, .7, 1.1, ['#2f7b6e', '#b0652f', '#8d4557'][Math.abs(Math.round(dz)) % 3], 0, .5, dz, g).castShadow = false;
+  }
+  return g;
 }
 
 /** Front bâti du boulevard : boutiques basses et petits immeubles. */

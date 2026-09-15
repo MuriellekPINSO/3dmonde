@@ -19,7 +19,7 @@ test('rues habitées : circulation, pause, son facultatif et captures',async({pa
  const z=()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('circulation-1').position.z;});
  const before=await z();await expect.poll(z).not.toBe(before);
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s?.getObjectByName('circulation-1')?.getObjectByName('vehicule-modele');}),{timeout:60000}).toBe(true);
- await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('circulation-minibus-1')&&!!s.getObjectByName('circulation-velo-1')&&s.children.filter((o:any)=>o.name==='feu-carrefour-amazone').length;})).toBe(4);
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return !!s.getObjectByName('circulation-minibus-1')&&s.children.filter((o:any)=>o.name==='feu-carrefour-amazone').length;})).toBe(4);
  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s?.children.filter((o:any)=>o.name.startsWith('zem-supplementaire-')).length;}),{timeout:60000}).toBe(5);
  const limitesSol=await page.evaluate(async()=>{const T=await import('/node_modules/three/build/three.module.js');const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const sol=s.getObjectByName('chaussee-continue');const boite=new T.Box3().setFromObject(sol);return{min:boite.min.z,max:boite.max.z};});
  expect(limitesSol.min).toBeLessThan(-421);expect(limitesSol.max).toBeGreaterThan(43);

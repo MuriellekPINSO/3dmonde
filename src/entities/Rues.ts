@@ -15,7 +15,7 @@ const commerces = [
   ['FRUITS DE SAISON','ANANAS · ORANGES · BANANES','#477d4d'],
 ];
 
-type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus'|'velo';accident?:number;chuteDirection?:number;voieCible?:number};
+type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number};
 export class Rues {
   private readonly mouvements:Passage[]=[];
   private readonly feux:{groupe:T.Group;rouge:T.MeshStandardMaterial;orange:T.MeshStandardMaterial;vert:T.MeshStandardMaterial}[]=[];
@@ -504,14 +504,6 @@ export class Rues {
       const sens=i?1:-1;objet.position.set(sens>0?18.3:13.6,0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
     }
-    for(let i=0;i<3;i++){
-      const objet=new T.Group();objet.name=`circulation-velo-${i+1}`;
-      const matRoue=new T.MeshStandardMaterial({color:'#252a28',roughness:.9}),matCadre=new T.MeshStandardMaterial({color:['#b24d38','#3f7771','#d0a23e'][i],roughness:.55});
-      for(const z of [-.62,.62]){const roue=new T.Mesh(new T.TorusGeometry(.35,.045,7,16),matRoue);roue.position.set(0,.42,z);roue.rotation.y=Math.PI/2;objet.add(roue);}
-      const cadre=new T.Mesh(new T.CylinderGeometry(.035,.035,1.18,6),matCadre);cadre.position.set(0,.61,0);cadre.rotation.x=Math.PI/2.8;objet.add(cadre);
-      const sens=i%2?1:-1;objet.position.set(sens>0?20.15:11.75,0,-42-i*126);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
-      this.mouvements.push({objet,debut:-421,fin:153,vitesse:4.1+i*.22,sens,phase:90+i,type:'velo',portee:100,voieCible:objet.position.x});
-    }
   }
   /**
    * Gabarit normalisé du zémidjan détaillé : origine au centre de la moto, au
@@ -601,7 +593,7 @@ export class Rues {
   /** Volumes des véhicules visibles, utilisés comme obstacles par le joueur. */
   obstaclesVehicules(zJoueur:number){
     return this.mouvements.filter(p=>!p.personne&&Math.abs(p.objet.position.z-zJoueur)<55)
-      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'?2.2:p.type==='velo'?0.8:1.9,d:p.type==='minibus'?4.8:p.type==='velo'?1.7:3.4}));
+      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'?2.2:1.9,d:p.type==='minibus'?4.8:3.4}));
   }
   /** Cherche autour de la borne un emplacement qui laisse quatre mètres libres. */
   placeLibreSurVoie(z:number,voie=14){

@@ -2,7 +2,7 @@ import * as T from 'three';
 import { Rues } from './entities/Rues';
 import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
-import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, etoileRouge, figures, vehicule } from './entities/Monuments';
+import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
@@ -147,7 +147,7 @@ export class Monde {
 
     const batisseur=new Batisseur(this.scene,this.obstacles);
     boulevard(batisseur);this.mer=corniche(batisseur);esplanadeAmazone(batisseur);citeMinisterielle(batisseur);
-    palaisMarina(batisseur);palaisCongres(batisseur);etoileRouge(batisseur);
+    palaisMarina(batisseur);palaisCongres(batisseur);quartierMarches(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
     this.vie=new VieUrbaine(this.scene);
     this.meteo=new Meteo(this.scene);

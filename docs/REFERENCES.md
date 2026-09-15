@@ -224,6 +224,24 @@ Les vidéos locales `CORNICHE .mp4` et `TOUR.mp4` ont été parcourues sur toute
 
 `CORNICHE .mp4` montre une chaussée sombre large, plusieurs files séparées par des pointillés blancs, le bord d'eau très proche, une bande de promenade bleu-gris, un garde-corps métallique, des jardinières espacées et un front bâti bas côté ville. `TOUR.mp4` montre les jardins géométriques autour de l'Amazone, une allée blanche sinueuse, de grands îlots verts, la Cité ministérielle, le Palais des Congrès et des quartiers résidentiels composés de villas claires à toits orangés, jardins clos et piscines.
 
+Relecture de `TOUR.mp4` image par image — 50,6 s, 720 × 1280, 30 i/s, treize images de contrôle réparties sur toute la durée. Ce n'est pas un survol continu mais un montage « THIS IS COTONOU » qui enchaîne des plans distincts, et la description ci-dessus n'en couvrait qu'une partie. Relevé complet :
+
+| ≈ | Plan |
+| --- | --- |
+| 0–8 s | Amazone de face au drone : bronze gris anthracite, socle rocheux, emmarchement, plaque sombre, massifs fleuris de part et d'autre, dallage à bandes claires convergentes, pelouse puis la plage et l'océan juste derrière |
+| 8 s | Statue équestre en bronze doré, cavalier au sabre sur cheval cabré, socle de granit noir poli sur un rond-point, pylône télécom et palmiers |
+| 16 s | Amazone de trois-quarts arrière devant un long bâtiment bas à colonnade |
+| 19 s | Quartier de villas vu du ciel : très dense, toits terracotta et vert foncé, murs de clôture blancs, piscines, palmiers, un petit immeuble de trois niveaux |
+| 27 s | Boulevard rectiligne vu du ciel, quartier bas à toits plats des deux côtés, le port et ses grues rouges au fond |
+| 31 s | Port de Cotonou : portiques à conteneurs rouges, piles de conteneurs multicolores, navire, cavaliers gerbeurs |
+| 35 s | Promenade en chaîne de plateformes lobées : dalles sable en forme d'amibe, chacune cerclée d'une bordure blanche, en zigzag dans la pelouse, hôtel, piscine, parking, haies en courbes |
+| 38 s | Tour de dix-huit niveaux, crème à arêtes terracotta, sur un boulevard saturé de zémidjans, immeuble colonial à volets verts et arcades commerçantes |
+| 42 s | Dantokpa : grands hangars de tôle argentée en rangées parallèles, galerie ouverte au sol, bâtiment ocre jaune, rotonde terracotta à tambour |
+| 46 s | Marché Ganhi : toiture blanche en éventail plissé percée d'un oculus central, halle en brique rouge à arcades, ailes en sheds, rangée de motos |
+| 50 s | Amazone de dos : Cité ministérielle à bandeaux marqués, pylône télécom rouge et blanc, grue de chantier, massifs de fleurs rouges |
+
+Écart relevé et non corrigé : l'allée sinueuse de `jardinAerienAmazone` est construite comme un ruban continu, alors que le plan de 35 s montre une chaîne de plateformes lobées séparées, chacune bordée de blanc.
+
 Corrections réalisées : l'océan rejoint désormais la promenade de la Corniche ; ses vagues et son écume restent animées mais plus discrètes. La promenade reçoit sa bande bleu-gris, sa rambarde et ses jardinières. Le boulevard est élargi et son marquage suggère quatre files. Un jardin aérien avec allée courbe prolonge l'Esplanade et un arrière-plan de villas végétalisées complète le côté ville.
 
 ## Front de ville face à la plage ouverte `IMG_6202–6207`
@@ -231,3 +249,28 @@ Corrections réalisées : l'océan rejoint désormais la promenade de la Cornich
 Vue depuis la chaussée, côté ville, à hauteur du premier tronçon de la Corniche. Les six clichés montrent une clôture continue de propriétés : soubassement, panneaux blancs, pilastres et couronnements bleu-gris, rangée de claustras ajourés au sommet, et un portail métallique bleu à deux battants. Des bacs à ordures verts sont alignés au pied du mur, sur un trottoir clair bordé d'un caniveau. Derrière la clôture : des cocotiers, une paillote, un petit bâtiment de béton patiné à acrotère bleu. Au second plan, un complexe vert menthe à toitures en pente, un immeuble pâle à trois niveaux de balcons filants, un long bâtiment clair à bandeaux coiffé d'une tourelle cylindrique. Au fond, un terrain sableux ceint d'un mur ajouré sombre, des immeubles saumon et beige, et un pylône télécom en treillis. La chaussée neuve est jalonnée d'une forêt de mâts solaires, des deux côtés, et coupée de passages piétons.
 
 Corrections réalisées : ce côté du boulevard était entièrement vide sur tout le premier tronçon — le regard partait droit dans le ciel depuis la promenade. Le front bâti ci-dessus le comble, du trottoir jusqu'au pylône. Le sol lointain de l'est est par ailleurs élargi jusqu'à la rangée d'immeubles d'horizon, qui flottait au-dessus de la ligne de sable, et cette rangée est prolongée vers le nord pour couvrir la plage ouverte.
+
+## Quartier de marchés entre le Congrès et l'Étoile Rouge
+
+Le côté ville du boulevard était nu sur quarante mètres, de z=-277 à z=-316 : un passant et un panneau, rien à traverser entre les deux monuments. L'Étoile Rouge n'est pourtant qu'à cent vingt mètres du Palais des Congrès — moins que la Corniche de l'Amazone, qui en fait deux cent quarante — et son pylône est déjà visible à la sortie du Congrès. C'est le vide latéral, et non la distance, qui la faisait paraître lointaine.
+
+Les plans de 42 s et 46 s de `TOUR.mp4` donnent ce qui occupe réellement cette portion : le marché Ganhi et Dantokpa. `quartierMarches` les bâtit sur ce parvis, avec la halle de brique à galerie d'arcades, sa toiture en éventail plissé sur tambour vitré, ses sheds à lanterneaux, deux hangars de tôle à quatre pans sur poteaux, un bâtiment ocre, un mur d'enceinte bas et un rang de zémidjans en attente le long de la desserte.
+
+Deux contraintes fixent l'implantation, et les deux viennent de la caméra plus que du relevé : la façade ne descend pas à l'est de x=-24, parce que la caméra recule de quatorze mètres derrière un joueur qui peut longer la promenade à x=-7,7 et entrait sinon dans le volume de brique ; et la toiture en éventail est portée deux mètres plus haut que le relevé ne l'impose, parce qu'elle restait autrement cachée derrière l'acrotère depuis la promenade, là où le joueur marche.
+
+## Place de l'Étoile Rouge : un carrefour, pas un parvis
+
+Relecture de `TOUR.mp4` à 38,1 s, à la verticale de la place. Le plan ne dure que deux secondes et l'échantillonnage initial à treize images l'avait entièrement manqué ; il faut descendre à moins de deux secondes d'intervalle pour le trouver.
+
+Ce qu'il montre : la place est un **carrefour giratoire en pleine activité**. Une large chaussée annulaire fait le tour complet, parcourue de voitures et de motos dans les deux files. L'île centrale est couverte d'un **collier dense de grands arbres** qui laisse au centre une clairière pavée où repose l'**étoile rouge à cinq branches**, à plat, cerclée d'une bordure peinte et portant une inscription blanche sur ses bras ; le **pylône** s'élève en son milieu. Cinq voies rayonnent. Et surtout, un **tissu bas serré la ceinture de tous côtés** : deux à quatre niveaux, façades bleues, rouges, ocre, roses et blanches, boutiques et auvents au rez-de-chaussée, toits de tôle, une **gare routière** avec ses rangées de cars sur un côté, un chantier à nu sur un autre.
+
+Le jeu en faisait un parvis : anneau d'un peu plus d'un demi-tour, sept arbres sur un arc de cent vingt degrés, quatre boutiques isolées à vingt-quatre mètres, sable nu partout ailleurs.
+
+Corrections réalisées : chaussée annulaire complète avec marquage médian, voies rayonnantes prolongées jusqu'au bâti, collier de seize arbres au bord de l'île, et `villeEtoileRouge` qui déploie deux rangs d'immeubles colorés à boutiques et auvents plus une gare routière. Les quatre boutiques isolées sont absorbées par cette ceinture.
+
+Deux limites assumées, toutes deux dues au fait que le monument est posé **à côté** du boulevard et non dessus :
+
+- le secteur est de la place reste ouvert. La caméra recule de quatorze mètres derrière un joueur qui peut longer la promenade à x=-7,7 : aucun volume bâti ne peut s'avancer à l'est de x=-24 sans qu'elle finisse à l'intérieur. Un anneau complet d'immeubles viendrait de toute façon buter dans la chaussée ;
+- la chaussée annulaire recouvre le dallage de la promenade sur une trentaine de mètres, entre z=-348 et z=-380. Deux traversées piétonnes marquent la rencontre plutôt que de laisser un raccord brut.
+
+Ce qui reste à faire, et qui demande de toucher aux systèmes et non au décor : la circulation de `Rues` avance en ligne le long de l'axe z à des voies de x fixes, et le joueur est borné à x>-8. Personne ne tourne donc réellement autour de l'anneau. Faire du giratoire un carrefour praticable suppose un modèle de déplacement circulaire pour les véhicules et le déplacement du monument sur l'axe du boulevard.
