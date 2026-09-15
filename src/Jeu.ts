@@ -6,6 +6,7 @@ import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from 
 import { DialogueVocal } from './ui/DialogueVocal';
 import { Manette, type LectureManette } from './input/Manette';
 import { demanderIA } from './ui/DialogueIA';
+import { ApercuAvatar, AVATARS } from './ui/ApercuAvatar';
 import type { CorpsJoueur } from './entities/Foule';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
@@ -26,7 +27,10 @@ export class Jeu {
   private zoneId='';
   private sauvegardeTemps=0;
   private tenue='#f3b94f';
-  private corpsJoueur:CorpsJoueur='personnage1.glb';
+  private sexeJoueur:'homme'|'femme'='homme';
+  private peauJoueur='#79513b';
+  private get corpsJoueur():CorpsJoueur{return AVATARS[this.sexeJoueur];}
+  private apercu?:ApercuAvatar;
   private nomJoueur='Mika';
   private get panel(){return $<HTMLDialogElement>('panel');}
   private get accueil(){return $<HTMLDialogElement>('welcome');}
@@ -62,7 +66,7 @@ export class Jeu {
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
-    <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton personnage et sa couleur avant de partir à la découverte de Cotonou.</p><div id="avatar-preview" class="avatar-preview"><div class="preview-head"></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-legs"></div></div><p id="avatar-summary" class="avatar-summary">Mika · Koffi</p></div><div class="character-creator"><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Personnage</legend><div class="avatar-options"><button type="button" data-avatar="personnage1.glb" aria-pressed="true"><span>01</span>Koffi</button><button type="button" data-avatar="perso2.glb" aria-pressed="false"><span>02</span>Awa</button><button type="button" data-avatar="go2.glb" aria-pressed="false"><span>03</span>Sessi</button></div></fieldset><fieldset><legend>Couleur du personnage</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
+    <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton sexe, ton prénom et tes couleurs avant de partir à la découverte de Cotonou.</p><div id="avatar-preview" class="avatar-preview" aria-label="Aperçu du personnage"><div id="avatar-3d" class="preview-3d"></div><div class="preview-forme"><div class="preview-ear preview-ear-left"></div><div class="preview-ear preview-ear-right"></div><div class="preview-neck"></div><div class="preview-head"><span class="preview-eyes"></span><span class="preview-nose"></span><span class="preview-smile"></span></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-arm preview-arm-left"><i></i></div><div class="preview-arm preview-arm-right"><i></i></div><div class="preview-legs"><i></i><i></i></div></div></div><p id="avatar-summary" class="avatar-summary">Mika · Homme</p></div><div class="character-creator"><fieldset><legend>Sexe</legend><div class="avatar-options"><button type="button" data-sex="homme" aria-pressed="true">Homme</button><button type="button" data-sex="femme" aria-pressed="false">Femme</button></div></fieldset><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Couleur de peau</legend><div class="color-options skin-options">${[['#f6d5be','Très claire'],['#dfae88','Claire'],['#bd875e','Dorée'],['#9b6746','Mate'],['#79513b','Brune'],['#462c23','Foncée']].map(([c,n])=>`<button type="button" data-skin="${c}" style="--swatch:${c}" aria-label="Peau ${n.toLowerCase()}" aria-pressed="${c===this.peauJoueur}"></button>`).join('')}</div></fieldset><fieldset><legend>Couleur des vêtements</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
   }
   private notifier(text:string){
@@ -83,7 +87,7 @@ export class Jeu {
     {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
   ];}
   private sauvegarder(){
-    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,nomJoueur:this.nomJoueur}));}catch{}
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,sexeJoueur:this.sexeJoueur,peauJoueur:this.peauJoueur,nomJoueur:this.nomJoueur}));}catch{}
   }
   private chargerSauvegarde(){
     try{
@@ -93,7 +97,8 @@ export class Jeu {
       this.sport.termine=!!data?.sport?.termine;
       if(data?.position)this.monde.restaurerPosition(Number(data.position.x),Number(data.position.z));
       if(typeof data?.tenue==='string')this.tenue=data.tenue;
-      if(['personnage1.glb','perso2.glb','go2.glb'].includes(data?.corpsJoueur))this.corpsJoueur=data.corpsJoueur;
+      this.sexeJoueur=data?.sexeJoueur==='femme'||(!data?.sexeJoueur&&data?.corpsJoueur==='go2.glb')?'femme':'homme';
+      if(typeof data?.peauJoueur==='string'&&/^#[0-9a-f]{6}$/i.test(data.peauJoueur))this.peauJoueur=data.peauJoueur;
       if(typeof data?.nomJoueur==='string'&&data.nomJoueur.trim())this.nomJoueur=data.nomJoueur.slice(0,16);
       this.appliquerApparence();
       $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
@@ -118,7 +123,7 @@ export class Jeu {
     // pouvait supprimer un mouvement pressé juste après la fermeture du guide.
     this.panel.addEventListener('close',()=>{this.voix.arreter();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
     this.initialiserCreateur();
-    $('begin').onclick=()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.appliquerApparence();this.sauvegarder();this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());
+    $('begin').onclick=()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.appliquerApparence();this.sauvegarder();this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());this.accueil.addEventListener('close',()=>this.apercu?.arreter());
     $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
@@ -146,18 +151,38 @@ export class Jeu {
   private initialiserCreateur(){
     $<HTMLInputElement>('player-name').value=this.nomJoueur;
     $('player-name').addEventListener('input',()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.mettreAJourCreateur();});
-    document.querySelectorAll<HTMLButtonElement>('[data-avatar]').forEach(b=>b.onclick=()=>{this.corpsJoueur=b.dataset.avatar as CorpsJoueur;this.appliquerApparence();});
+    document.querySelectorAll<HTMLButtonElement>('[data-sex]').forEach(b=>b.onclick=()=>{this.sexeJoueur=b.dataset.sex as 'homme'|'femme';this.appliquerApparence();});
+    document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.onclick=()=>{this.peauJoueur=b.dataset.skin!;this.appliquerApparence();});
     document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.color!;this.appliquerApparence();});
+    this.preparerApercu();
     this.appliquerApparence();
   }
-  private appliquerApparence(){this.monde.personnaliserJoueur(this.tenue,this.corpsJoueur);this.mettreAJourCreateur();}
+  /**
+   * Prépare l’aperçu 3D du créateur. Tant que les avatars ne sont pas là — ou
+   * s’ils n’arrivent jamais — la silhouette dessinée en CSS reste affichée.
+   */
+  private preparerApercu(){
+    let apercu:ApercuAvatar;
+    try{apercu=new ApercuAvatar($('avatar-3d'));}catch(e){console.warn('aperçu 3D indisponible : '+(e instanceof Error?e.message:e));return;}
+    apercu.charger().then(pret=>{
+      if(!pret)return;
+      this.apercu=apercu;
+      $('avatar-preview').classList.add('en-3d');
+      this.mettreAJourCreateur();
+      if(this.accueil.open)apercu.demarrer();
+    }).catch(e=>console.warn('aperçu 3D indisponible : '+(e instanceof Error?e.message:e)));
+  }
+  private appliquerApparence(){this.monde.personnaliserJoueur(this.tenue,this.corpsJoueur,this.peauJoueur);this.mettreAJourCreateur();}
   private mettreAJourCreateur(){
     if(!$('avatar-preview'))return;
-    const noms:Record<CorpsJoueur,string>={'personnage1.glb':'Koffi','perso2.glb':'Awa','go2.glb':'Sessi'};
+    $('avatar-preview').dataset.sex=this.sexeJoueur;
+    $('avatar-preview').style.setProperty('--skin',this.peauJoueur);
     $('avatar-preview').dataset.avatar=this.corpsJoueur;
     $('avatar-preview').style.setProperty('--outfit',this.tenue);
-    $('avatar-summary').textContent=`${this.nomJoueur} · ${noms[this.corpsJoueur]}`;
-    document.querySelectorAll<HTMLButtonElement>('[data-avatar]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.avatar===this.corpsJoueur)));
+    this.apercu?.montrer(this.corpsJoueur,this.tenue,this.peauJoueur);
+    $('avatar-summary').textContent=`${this.nomJoueur} · ${this.sexeJoueur==='femme'?'Femme':'Homme'}`;
+    document.querySelectorAll<HTMLButtonElement>('[data-sex]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sex===this.sexeJoueur)));
+    document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.skin===this.peauJoueur)));
     document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===this.tenue)));
   }
   private elementsManette(dialogue:HTMLDialogElement){
@@ -228,12 +253,12 @@ export class Jeu {
     if($('summary'))$('summary').onclick=()=>{this.panel.close();this.bilan();};
   }
   private ouvrirMenu(){
-    this.ouvrir('Pause','RÉGLAGES ET SAUVEGARDE',`<div class="settings"><label>Qualité graphique<select id="quality"><option value="normale">Normale</option><option value="basse">Basse</option><option value="haute">Haute</option></select></label><label>Météo<select id="weather-setting"><option value="auto">Dynamique</option><option value="soleil">Ciel clair</option><option value="pluie">Pluie tropicale</option></select></label><label>Heure<select id="time-setting"><option value="auto">Cycle automatique</option><option value="matin">Matin</option><option value="jour">Journée</option><option value="soir">Soirée</option></select></label><label>Volume ambiance<input id="volume-setting" type="range" min="0" max="100" value="58"></label></div><h3>${this.nomJoueur}</h3><p class="note">Tu peux changer de personnage ou de couleur pendant la partie.</p><button id="edit-character">Modifier mon personnage</button><p class="note">La progression et la position sont enregistrées automatiquement sur cet appareil.</p><button id="save-now" class="primary">Sauvegarder maintenant</button> <button id="reset-save">Nouvelle partie</button>`);
+    this.ouvrir('Pause','RÉGLAGES ET SAUVEGARDE',`<div class="settings"><label>Qualité graphique<select id="quality"><option value="normale">Normale</option><option value="basse">Basse</option><option value="haute">Haute</option></select></label><label>Météo<select id="weather-setting"><option value="auto">Dynamique</option><option value="soleil">Ciel clair</option><option value="pluie">Pluie tropicale</option></select></label><label>Heure<select id="time-setting"><option value="auto">Cycle automatique</option><option value="matin">Matin</option><option value="jour">Journée</option><option value="soir">Soirée</option></select></label><label>Volume ambiance<input id="volume-setting" type="range" min="0" max="100" value="58"></label></div><h3>${this.nomJoueur}</h3><p class="note">Tu peux modifier ton sexe, ton prénom et tes couleurs pendant la partie.</p><button id="edit-character">Modifier mon personnage</button><p class="note">La progression et la position sont enregistrées automatiquement sur cet appareil.</p><button id="save-now" class="primary">Sauvegarder maintenant</button> <button id="reset-save">Nouvelle partie</button>`);
     $<HTMLSelectElement>('quality').onchange=e=>this.monde.reglerQualite((e.target as HTMLSelectElement).value as 'basse'|'normale'|'haute');
     $<HTMLSelectElement>('weather-setting').onchange=e=>this.monde.reglerMeteo((e.target as HTMLSelectElement).value as 'auto'|'soleil'|'pluie');
     $<HTMLSelectElement>('time-setting').onchange=e=>this.monde.reglerHeure((e.target as HTMLSelectElement).value as 'auto'|'matin'|'jour'|'soir');
     $<HTMLInputElement>('volume-setting').oninput=e=>this.ambiance.reglerVolume(Number((e.target as HTMLInputElement).value)/100);
-    $('edit-character').onclick=()=>{this.panel.close();this.mettreAJourCreateur();this.accueil.showModal();};
+    $('edit-character').onclick=()=>{this.panel.close();this.mettreAJourCreateur();this.accueil.showModal();this.apercu?.demarrer();};
     $('save-now').onclick=()=>{this.sauvegarder();this.notifier('Progression sauvegardée.');this.panel.close();};
     $('reset-save').onclick=()=>{if(confirm('Effacer la progression et recommencer ?')){localStorage.removeItem('cotonou-sauvegarde-v2');location.reload();}};
   }

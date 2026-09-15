@@ -83,10 +83,11 @@ export class Monde {
       this.player.position.set(T.MathUtils.clamp(x,minimumX,23),.15,positionZ);
     }
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb'){
-    this.foule.personnaliserJoueur(couleur,corps);
-    this.player.userData.apparenceJoueur={couleur,corps};
-    if(this.passagerMoto){this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb',peau='#79513b'){
+    this.joueur.personnaliser(couleur,peau,corps==='go2.glb');
+    this.foule.personnaliserJoueur(couleur,corps,peau);
+    this.player.userData.apparenceJoueur={couleur,corps,peau};
+    if(this.passagerMoto){this.foule.libererApparence(this.passagerMoto);this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
     const passager=this.foule.creerPassagerMoto();
     if(passager){this.passagerMoto=passager;this.scene.add(passager);}
   }

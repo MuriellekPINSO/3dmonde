@@ -4,7 +4,7 @@
 
 Un jeu de découverte urbaine en 3D dans le navigateur. Le joueur explore Cotonou à pied, emprunte des transports payants, discute avec des vendeuses par écrit ou par voix et découvre les lieux avec des guides écrits et audio.
 
-Avant le départ, le joueur choisit son prénom, une des trois silhouettes 3D et sa couleur. La teinte s’applique directement au modèle, sans ajouter de vêtement géométrique. Cette apparence est visible à pied et sur le zémidjan, peut être modifiée depuis le menu Pause et est sauvegardée avec la progression.
+Avant le départ, le joueur choisit son sexe (Homme ou Femme), puis son prénom libre, sa couleur de peau parmi six teintes et la couleur de ses vêtements. Le sexe détermine la silhouette 3D ; la peau et les vêtements sont recolorés séparément dans la texture du modèle. Le créateur affiche cet avatar en vraie 3D — le modèle même que le joueur incarnera, tourné lentement sous une lumière de studio — et non une silhouette dessinée ; celle-ci ne reste là qu’en secours, si le rendu ou les modèles font défaut. Cette apparence est visible à pied et sur le zémidjan, peut être modifiée depuis le menu Pause et est sauvegardée avec la progression. Captures : [créateur](docs/audit/createur-personnage.png), [créateur sur mobile](docs/audit/createur-mobile.png).
 
 Le dossier était vide au démarrage. Le cadrage ci-dessous décrit le MVP cible ; les quatre zones et les cinq lieux sont maintenant implémentés, et leurs décors sont repris d’après des photographies des lieux réels (voir « Prototype disponible » et [docs/REFERENCES.md](docs/REFERENCES.md)).
 

@@ -24,10 +24,10 @@ export class Personnage {
     const peau=tenue.peau??'#79513b',bas=tenue.jambes??'#344b50';
     this.objet.position.set(x,.15,z);
     const piece=(geo:T.BufferGeometry,c:string,x:number,y:number,z:number)=>{
-      const m=new T.Mesh(geo,mat(c));m.position.set(x,y,z);m.castShadow=true;
+      const m=new T.Mesh(geo,mat(c));m.position.set(x,y,z);m.castShadow=true;m.userData.region=c===peau?'peau':c===couleur?'habit':'autre';
       this.objet.add(m);this.pieces.push(m);return m;
     };
-    const torse=piece(new T.CylinderGeometry(.23,.18,.65,8),couleur,0,1.12,0);torse.scale.z=.65;
+    const torse=piece(new T.CylinderGeometry(.23,.18,.65,8),couleur,0,1.12,0);torse.scale.z=.65;torse.name='torse';
     piece(new T.CylinderGeometry(.07,.08,.15,8),peau,0,1.53,0);
     const tete=piece(sphere,peau,0,1.77,0);tete.scale.set(.18,.23,.17);
     const cheveux=piece(sphere,tenue.casque??'#292720',0,1.88,-.025);cheveux.scale.set(.185,.14,.17);
@@ -38,8 +38,8 @@ export class Personnage {
     for(const sens of [-1,1]){
       const jambe=piece(membre,bas,sens*.13,.43,0);this.jambes.push(jambe);
       const chaussure=piece(sphere,'#424b43',sens*.13,.105,.06);chaussure.scale.set(.105,.08,.19);
-      const bras=piece(membre,peau,sens*.29,1.04,0);bras.rotation.z=sens*.07;
-      const manche=piece(new T.CylinderGeometry(.105,.095,.24,7),couleur,sens*.29,1.3,0);manche.rotation.z=sens*.07;
+      const bras=piece(membre,peau,sens*.29,1.04,0);bras.rotation.z=sens*.07;bras.name='bras';
+      const manche=piece(new T.CylinderGeometry(.105,.095,.24,7),couleur,sens*.29,1.3,0);manche.rotation.z=sens*.07;manche.name='manche';
     }
   }
 }
@@ -47,6 +47,14 @@ export class Joueur extends Personnage {
   private phase = 0;
   private vitesseVehicule = 0;
   constructor() { super('#f3b94f',1.5,132); this.objet.name = 'joueur'; }
+  personnaliser(couleur:string,peau:string,feminin:boolean){
+    for(const piece of this.pieces){
+      if(piece.userData.region==='peau')piece.material=mat(peau);
+      if(piece.userData.region==='habit')piece.material=mat(couleur);
+      if(piece.name==='torse')piece.scale.x=feminin?.82:1;
+      if(piece.name==='bras'||piece.name==='manche')piece.position.x=Math.sign(piece.position.x)*(feminin?.25:.29);
+    }
+  }
   deplacer(keys: Set<string>, yaw:number, dt:number, vitesse:number, paused:boolean, obstacles:Obstacle[], vehicule:boolean, analog={x:0,z:0}) {
     const clavierX=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('q')||keys.has('a')||keys.has('arrowleft'));
     const clavierZ=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('z')||keys.has('w')||keys.has('arrowup'));

@@ -3,7 +3,7 @@ test('Corniche : marche, guide, discussion et achat confirmé',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
   await page.getByRole('button',{name:'Commencer la balade'}).click();
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('#world canvas')).toBeVisible();
   await page.keyboard.down('z');
   await expect(page.locator('#interaction')).toHaveText('E · Rencontrer le guide',{timeout:20000});
   await page.keyboard.up('z');
@@ -24,4 +24,12 @@ test('Corniche : marche, guide, discussion et achat confirmé',async({page})=>{
   await page.screenshot({path:'docs/prototype-desktop.png'});
   expect(errors).toEqual([]);
 });
-test('Accueil sur petit écran',async({page})=>{await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(page.getByRole('button',{name:'Commencer la balade'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);});
+test('Accueil sur petit écran',async({page})=>{
+  test.setTimeout(90000); // Le créateur attend ses deux avatars 3D.
+  await page.setViewportSize({width:390,height:844});await page.goto('/');
+  await expect(page.getByRole('button',{name:'Commencer la balade'})).toBeVisible();
+  // L'aperçu 3D remplace la silhouette dessinée sans élargir la page.
+  await expect(page.locator('#avatar-preview')).toHaveClass(/en-3d/,{timeout:60000});
+  await page.screenshot({path:'docs/audit/createur-mobile.png'});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Personnage } from './Joueur';
+import { versHsl, depuisHsl, teinterCorps, libererApparence } from './Teinte';
 
 /**
  * Habille la scène de personnages articulés. Un seul modèle — 3 126 triangles,
@@ -39,25 +40,6 @@ type Habitant = {
 
 export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb';
 
-/** Teinte et saturation d’une couleur, pour reconnaître les habits dans l’atlas. */
-function versHsl(r: number, v: number, b: number) {
-  const max = Math.max(r, v, b), min = Math.min(r, v, b), delta = max - min;
-  const l = (max + min) / 510;
-  if (!delta) return {h: 0, s: 0, l};
-  const s = delta / (255 - Math.abs(max + min - 255));
-  let h: number;
-  if (max === r) h = ((v - b) / delta + (v < b ? 6 : 0)) * 60;
-  else if (max === v) h = ((b - r) / delta + 2) * 60;
-  else h = ((r - v) / delta + 4) * 60;
-  return {h, s, l};
-}
-function depuisHsl(h: number, s: number, l: number) {
-  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
-  const t: [number, number, number] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
-    : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
-  return t.map(v => Math.round((v + m) * 255));
-}
-
 export class Foule {
   private modele?: T.Object3D;
   private clipMarche?: T.AnimationClip;
@@ -83,6 +65,7 @@ export class Foule {
   private images = 0;
   private varie = false;
   private couleurJoueur='#f3b94f';
+  private peauJoueur='#79513b';
   private temps=0;
 
   constructor(private readonly scene: T.Object3D) {}
@@ -197,6 +180,7 @@ export class Foule {
       const silhouetteDebout = personnage.objet.name === 'joueur' && this.corpsJoueur
         ? this.debout.get(this.corpsJoueur)
         : personnage.objet.name.startsWith('vendeuse-') ? this.debout.get('vendeuse.glb') : undefined;
+      if(personnage.objet.name==='joueur'&&!silhouetteDebout)continue;
       if (silhouetteDebout) {
         const estVendeuse=personnage.objet.name.startsWith('vendeuse-');
         const corps = this.poserDebout(personnage, silhouetteDebout,estVendeuse?1.3:1.74,estVendeuse ? .46 : 0);
@@ -237,16 +221,16 @@ export class Foule {
     }
     return habilles;
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur){
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,peau='#79513b'){
     const corpsChange=corps!==this.corpsJoueur;
-    this.couleurJoueur=couleur;this.corpsJoueur=corps;
+    this.couleurJoueur=couleur;this.corpsJoueur=corps;this.peauJoueur=peau;
     if(corpsChange)this.changerCorpsJoueur();
     this.appliquerCouleurJoueur();
   }
   private changerCorpsJoueur(){
     const h=this.joueur,choix=this.corpsJoueur?this.debout.get(this.corpsJoueur):undefined;
     if(!h||!choix||!this.clipMarche)return;
-    h.mixeur.stopAllAction();h.corps.removeFromParent();
+    h.mixeur.stopAllAction();this.libererApparence(h.corps);h.corps.removeFromParent();
     h.corps=this.poserDebout(h.personnage,choix);h.corps.name='corps-personnage';h.corps.userData.avatar=this.corpsJoueur;
     h.mixeur=new T.AnimationMixer(h.corps);h.marche=h.mixeur.clipAction(this.clipMarche);
     h.course=undefined;h.fige=true;h.bouge=true;h.reposY=h.corps.position.y;
@@ -256,14 +240,9 @@ export class Foule {
     if(!h.fige){const tenue=this.matiere(this.couleurJoueur);h.corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh)m.material=tenue;});return;}
     this.teinterCorps(h.corps);
   }
-  private teinterCorps(corps:T.Object3D){
-    // Les silhouettes debout possèdent leur propre atlas UV. La matière est
-    // clonée et teintée directement, sans ajouter de volumes autour du corps.
-    const teinte=new T.Color(this.couleurJoueur).lerp(new T.Color('#ffffff'),.58);
-    corps.traverse(n=>{const m=n as T.Mesh;if(!m.isMesh||!(m.material instanceof T.MeshStandardMaterial))return;
-      const origine=(m.userData.matiereTenueOrigine as T.MeshStandardMaterial|undefined)??m.material;
-      m.userData.matiereTenueOrigine=origine;const matiere=origine.clone();matiere.color.copy(origine.color).multiply(teinte);m.material=matiere;});
-  }
+  /** Libère uniquement les matières et textures créées pour le joueur. */
+  libererApparence(corps:T.Object3D){libererApparence(corps);}
+  private teinterCorps(corps:T.Object3D){teinterCorps(corps,this.peauJoueur,this.couleurJoueur);}
   /** Pose une silhouette debout dans un personnage : pieds au sol, face au sud. */
   private poserDebout(personnage: Personnage, choix: T.Object3D,hauteurCible=1.74,base=.0) {
     const boite = new T.Box3().setFromObject(choix);

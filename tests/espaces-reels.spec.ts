@@ -22,7 +22,7 @@ test('repères photographiés : Corniche, fresque, Cité et secteur institutionn
     const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));s.getObjectByName('joueur').position.set(px,.15,pz);
   },[x,z]);await page.waitForTimeout(800);};
   const tourner=async(deplacement:number)=>{
-    const canvas=page.locator('canvas'),box=await canvas.boundingBox();if(!box)throw new Error('canvas absent');
+    const canvas=page.locator('#world canvas'),box=await canvas.boundingBox();if(!box)throw new Error('canvas absent');
     const x=box.x+box.width/2,y=box.y+box.height/2;
     await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+deplacement,y,{steps:8});await page.mouse.up();await page.waitForTimeout(600);
   };
