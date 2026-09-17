@@ -52,7 +52,9 @@ export class Monde {
   onAccident?:(type:'vehicule'|'personnage',responsable?:boolean)=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
-  private pitch = -.3;
+  // Vue de départ au niveau du torse : l'ancien angle regardait le sol et
+  // cachait le personnage dès les premiers pas.
+  private pitch = -.1;
   private heure=7.5;
   private heureAutomatique=true;
   private vitesseReelle=0;
@@ -83,10 +85,10 @@ export class Monde {
       this.player.position.set(T.MathUtils.clamp(x,minimumX,23),.15,positionZ);
     }
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur='personnage1.glb',peau='#79513b'){
-    this.joueur.personnaliser(couleur,peau,corps==='go2.glb');
-    this.foule.personnaliserJoueur(couleur,corps,peau);
-    this.player.userData.apparenceJoueur={couleur,corps,peau};
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur='avatar-homme-meshy-opt.glb',peau='#79513b',chaussures=''){
+    this.joueur.personnaliser(couleur,peau,corps==='go2.glb'||corps==='avatar-femme-meshy-opt.glb');
+    this.foule.personnaliserJoueur(couleur,corps,peau,chaussures);
+    this.player.userData.apparenceJoueur={couleur,corps,peau,chaussures};
     if(this.passagerMoto){this.foule.libererApparence(this.passagerMoto);this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
     const passager=this.foule.creerPassagerMoto();
     if(passager){this.passagerMoto=passager;this.scene.add(passager);}
@@ -302,8 +304,8 @@ export class Monde {
         const cibleYaw=this.player.rotation.y-Math.PI,ecart=Math.atan2(Math.sin(cibleYaw-this.yaw),Math.cos(cibleYaw-this.yaw));
         this.yaw+=ecart*(1-Math.exp(-dt*2.2));
       }
-      const recul=state.transport==='voiture'?14:state.transport==='zemidjan'?12.8:12;
-      const hauteur=(state.transport?3.25:2.4)+Math.max(0,-this.pitch)*10;
+      const recul=state.transport==='voiture'?14:state.transport==='zemidjan'?12.8:8.2;
+      const hauteur=(state.transport?3.25:3.1)+Math.max(0,-this.pitch)*10;
       desired.set(target.x+Math.sin(this.yaw)*recul,target.y+hauteur,target.z+Math.cos(this.yaw)*recul);
       // Champ de vision et mouvement de caméra progressifs selon l'allure.
       const fovCible=mouvement.moving?(state.transport==='voiture'?58:state.transport==='zemidjan'?55:state.running?52:49):48;
@@ -311,8 +313,12 @@ export class Monde {
       if(mouvement.moving&&!state.transport){const cadence=state.running?12:8,ampleur=state.running?.1:.045;desired.y+=Math.sin(time/1000*cadence)*ampleur;desired.x+=Math.cos(time/1000*cadence*.5)*ampleur*.32;}
       if(this.accident>0){const force=Math.min(1,this.accident/.45)*Math.min(1,(2.7-this.accident)/.12);desired.x+=Math.sin(time*.075)*.2*force;desired.y+=Math.cos(time*.09)*.12*force;}
       this.camera.position.lerp(desired,1-Math.exp(-dt*6));
-      regard.set(-Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),-Math.cos(this.yaw)*Math.cos(this.pitch))
-        .multiplyScalar(25).add(this.camera.position);
+      // Le point de regard part du torse du joueur : même après un glissement
+      // de souris vers le bas, la caméra ne peut plus se verrouiller sur la route.
+      // Un point de visée proche garde tout le corps dans le cadre. À 10 m devant
+      // lui, le personnage était systématiquement repoussé hors de l'écran.
+      regard.copy(target);
+      regard.y=Math.max(target.y-.15,regard.y+Math.sin(this.pitch)*4);
       this.camera.lookAt(regard);this.renderer.render(this.scene,this.camera);
     });
   }

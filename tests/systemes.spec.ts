@@ -19,8 +19,8 @@ test('sauvegarde, météo, réglages, carte et missions',async({page})=>{
   await expect(page.locator('.preview-forme')).toBeHidden();
   await page.screenshot({path:'docs/audit/createur-personnage.png'});
   await page.getByRole('button',{name:'Commencer la balade'}).click();
-  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('joueur').userData.apparenceJoueur;})).toEqual({couleur:'#9c4058',corps:'go2.glb',peau:'#dfae88'});
-  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur');return {avatar:j.getObjectByName('corps-personnage')?.userData.avatar,surcouche:j.children.some((v:any)=>v.name.startsWith('tenue-joueur-'))};}),{timeout:20000}).toEqual({avatar:'go2.glb',surcouche:false});
+  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));return s.getObjectByName('joueur').userData.apparenceJoueur;})).toEqual({couleur:'#9c4058',corps:'avatar-femme-meshy-opt.glb',peau:'#dfae88',chaussures:''});
+  await expect.poll(()=>page.evaluate(()=>{const s=(window as any).__scenes.find((v:any)=>v.getObjectByName('joueur'));const j=s.getObjectByName('joueur');return {avatar:j.getObjectByName('corps-personnage')?.userData.avatar,surcouche:j.children.some((v:any)=>v.name.startsWith('tenue-joueur-'))};}),{timeout:20000}).toEqual({avatar:'avatar-femme-meshy-opt.glb',surcouche:false});
   expect([200,502,503]).toContain(await page.evaluate(async()=>{const r=await fetch('/api/dialogue',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message:'Bonjour',historique:[]})});return r.status;}));
   await page.getByRole('button',{name:'Pause et réglages'}).click();
   await page.getByLabel('Météo').selectOption('pluie');await page.getByLabel('Heure').selectOption('soir');

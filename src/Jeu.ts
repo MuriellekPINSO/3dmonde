@@ -29,6 +29,8 @@ export class Jeu {
   private tenue='#f3b94f';
   private sexeJoueur:'homme'|'femme'='homme';
   private peauJoueur='#79513b';
+  /** Vide : les chaussures du scan sont gardées telles quelles. */
+  private chaussures='';
   private get corpsJoueur():CorpsJoueur{return AVATARS[this.sexeJoueur];}
   private apercu?:ApercuAvatar;
   private nomJoueur='Mika';
@@ -37,11 +39,19 @@ export class Jeu {
 
   constructor(){
     this.interface();this.accueil.showModal();
+    this.voix=new DialogueVocal($<HTMLButtonElement>('sound'));
+    this.ambiance=new Ambiance($<HTMLButtonElement>('ambiance'));
+    this.commandes();
+    // La ville est lourde à bâtir : on laisse d'abord le navigateur peindre le
+    // créateur de personnage, puis on construit le monde pendant que le joueur
+    // choisit son apparence. Le bouton « Commencer » reste donc utilisable bien
+    // avant que la construction soit finie.
+    requestAnimationFrame(()=>requestAnimationFrame(()=>this.construireMonde()));
+  }
+  private construireMonde(){
     try{this.monde=new Monde($('world'));}catch{
       this.accueil.innerHTML='<h2>La 3D ne peut pas démarrer.</h2><p>Essaie un navigateur avec WebGL 2 et l’accélération graphique activée, puis recharge la page.</p>';return;
     }
-    this.voix=new DialogueVocal($<HTMLButtonElement>('sound'));
-    this.ambiance=new Ambiance($<HTMLButtonElement>('ambiance'));
     this.chargerSauvegarde();
     this.monde.onAccident=(type,responsable=true)=>{
       this.manette.vibrer('collision');
@@ -50,7 +60,10 @@ export class Jeu {
         ?'Accident ! Un personnage a été percuté. Le véhicule s’arrête pendant qu’il se relève.'
         :'Collision ! Les motos et leurs passagers sont tombés. Reprends la route après le choc.');
     };
-    this.commandes();this.monde.start(dt=>this.actualiser(dt));
+    this.monde.start(dt=>this.actualiser(dt));
+    // Si le joueur a déjà validé son apparence pendant la construction,
+    // la ville la rattrape à sa naissance.
+    this.appliquerApparence();
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
@@ -66,7 +79,7 @@ export class Jeu {
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
-    <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton sexe, ton prénom et tes couleurs avant de partir à la découverte de Cotonou.</p><div id="avatar-preview" class="avatar-preview" aria-label="Aperçu du personnage"><div id="avatar-3d" class="preview-3d"></div><div class="preview-forme"><div class="preview-ear preview-ear-left"></div><div class="preview-ear preview-ear-right"></div><div class="preview-neck"></div><div class="preview-head"><span class="preview-eyes"></span><span class="preview-nose"></span><span class="preview-smile"></span></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-arm preview-arm-left"><i></i></div><div class="preview-arm preview-arm-right"><i></i></div><div class="preview-legs"><i></i><i></i></div></div></div><p id="avatar-summary" class="avatar-summary">Mika · Homme</p></div><div class="character-creator"><fieldset><legend>Sexe</legend><div class="avatar-options"><button type="button" data-sex="homme" aria-pressed="true">Homme</button><button type="button" data-sex="femme" aria-pressed="false">Femme</button></div></fieldset><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Couleur de peau</legend><div class="color-options skin-options">${[['#f6d5be','Très claire'],['#dfae88','Claire'],['#bd875e','Dorée'],['#9b6746','Mate'],['#79513b','Brune'],['#462c23','Foncée']].map(([c,n])=>`<button type="button" data-skin="${c}" style="--swatch:${c}" aria-label="Peau ${n.toLowerCase()}" aria-pressed="${c===this.peauJoueur}"></button>`).join('')}</div></fieldset><fieldset><legend>Couleur des vêtements</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
+    <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton sexe, ton prénom et tes couleurs avant de partir à la découverte de Cotonou.</p><div id="avatar-preview" class="avatar-preview" aria-label="Aperçu du personnage"><div id="avatar-3d" class="preview-3d"></div><div class="preview-forme"><div class="preview-ear preview-ear-left"></div><div class="preview-ear preview-ear-right"></div><div class="preview-neck"></div><div class="preview-head"><span class="preview-eyes"></span><span class="preview-nose"></span><span class="preview-smile"></span></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-arm preview-arm-left"><i></i></div><div class="preview-arm preview-arm-right"><i></i></div><div class="preview-legs"><i></i><i></i></div></div></div><p id="avatar-summary" class="avatar-summary">Mika · Homme</p></div><div class="character-creator"><fieldset><legend>Sexe</legend><div class="avatar-options"><button type="button" data-sex="homme" aria-pressed="true">Homme</button><button type="button" data-sex="femme" aria-pressed="false">Femme</button></div></fieldset><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Couleur de peau</legend><div class="color-options skin-options">${[['#f6d5be','Très claire'],['#dfae88','Claire'],['#bd875e','Dorée'],['#9b6746','Mate'],['#79513b','Brune'],['#462c23','Foncée']].map(([c,n])=>`<button type="button" data-skin="${c}" style="--swatch:${c}" aria-label="Peau ${n.toLowerCase()}" aria-pressed="${c===this.peauJoueur}"></button>`).join('')}</div></fieldset><fieldset><legend>Couleur des vêtements</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><fieldset><legend>Couleur des chaussures</legend><div class="color-options">${[['','D’origine'],['#f4f1e8','Blanches'],['#2a2b30','Noires'],['#b4453c','Rouges'],['#2f5f9e','Bleues'],['#e0b23f','Jaunes']].map(([c,n])=>`<button type="button" data-shoe="${c}" style="--swatch:${c||'#f7f4ec'}" aria-label="Chaussures ${n.toLowerCase()}" aria-pressed="${c===this.chaussures}"></button>`).join('')}</div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
   }
   private notifier(text:string){
@@ -87,7 +100,8 @@ export class Jeu {
     {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
   ];}
   private sauvegarder(){
-    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,sexeJoueur:this.sexeJoueur,peauJoueur:this.peauJoueur,nomJoueur:this.nomJoueur}));}catch{}
+    if(!this.monde)return;
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,sexeJoueur:this.sexeJoueur,peauJoueur:this.peauJoueur,chaussures:this.chaussures,nomJoueur:this.nomJoueur}));}catch{}
   }
   private chargerSauvegarde(){
     try{
@@ -99,6 +113,7 @@ export class Jeu {
       if(typeof data?.tenue==='string')this.tenue=data.tenue;
       this.sexeJoueur=data?.sexeJoueur==='femme'||(!data?.sexeJoueur&&data?.corpsJoueur==='go2.glb')?'femme':'homme';
       if(typeof data?.peauJoueur==='string'&&/^#[0-9a-f]{6}$/i.test(data.peauJoueur))this.peauJoueur=data.peauJoueur;
+      if(typeof data?.chaussures==='string'&&/^(#[0-9a-f]{6})?$/i.test(data.chaussures))this.chaussures=data.chaussures;
       if(typeof data?.nomJoueur==='string'&&data.nomJoueur.trim())this.nomJoueur=data.nomJoueur.slice(0,16);
       this.appliquerApparence();
       $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
@@ -123,37 +138,45 @@ export class Jeu {
     // pouvait supprimer un mouvement pressé juste après la fermeture du guide.
     this.panel.addEventListener('close',()=>{this.voix.arreter();if(this.dernierFocus?.isConnected)this.dernierFocus.focus();});
     this.initialiserCreateur();
-    $('begin').onclick=()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.appliquerApparence();this.sauvegarder();this.accueil.close();if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;};this.accueil.addEventListener('cancel',e=>e.preventDefault());this.accueil.addEventListener('close',()=>this.apercu?.arreter());
+    $('begin').onclick=()=>{
+      this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';
+      this.accueil.close();this.apercu?.arreter();this.appliquerApparence();this.sauvegarder();
+      if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;
+    };this.accueil.addEventListener('cancel',e=>e.preventDefault());this.accueil.addEventListener('close',()=>this.apercu?.arreter());
     $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
     addEventListener('keydown',e=>{
-      if(this.panel.open||this.accueil.open)return;
+      if(this.panel.open||this.accueil.open||!this.monde)return;
       const key=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
       this.monde.keys.add(key);if(e.repeat)return;
       if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();if(key==='h'&&this.partie.transport)this.ambiance.klaxonner();
       if(key==='escape'||key==='p')this.ouvrirMenu();if(key==='m')this.ouvrirParcours();if(key==='i')this.ouvrirSac();
     });
-    addEventListener('keyup',e=>this.monde.keys.delete(e.key.toLowerCase()));
+    addEventListener('keyup',e=>{if(this.monde)this.monde.keys.delete(e.key.toLowerCase());});
     addEventListener('gamepadconnected',e=>this.manette.connecter(e.gamepad));
     addEventListener('gamepaddisconnected',e=>{
       this.manette.deconnecter(e.gamepad);this.manetteId='';
-      this.monde.axesManette.x=this.monde.axesManette.z=0;
+      if(this.monde){this.monde.axesManette.x=this.monde.axesManette.z=0;}
       $('controller-status').hidden=true;
     });
-    const pause=()=>{this.monde.keys.clear();this.voix.arreter();this.manette.arreterVibrations();};addEventListener('blur',pause);
+    const pause=()=>{if(this.monde)this.monde.keys.clear();this.voix.arreter();this.manette.arreterVibrations();};addEventListener('blur',pause);
     document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
     document.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(b=>{
-      b.onpointerdown=e=>{this.monde.keys.add(b.dataset.key!);b.setPointerCapture(e.pointerId);};
-      b.onpointerup=b.onpointercancel=()=>this.monde.keys.delete(b.dataset.key!);
+      b.onpointerdown=e=>{if(!this.monde)return;this.monde.keys.add(b.dataset.key!);b.setPointerCapture(e.pointerId);};
+      b.onpointerup=b.onpointercancel=()=>{if(this.monde)this.monde.keys.delete(b.dataset.key!);};
     });
   }
   private initialiserCreateur(){
     $<HTMLInputElement>('player-name').value=this.nomJoueur;
     $('player-name').addEventListener('input',()=>{this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';this.mettreAJourCreateur();});
-    document.querySelectorAll<HTMLButtonElement>('[data-sex]').forEach(b=>b.onclick=()=>{this.sexeJoueur=b.dataset.sex as 'homme'|'femme';this.appliquerApparence();});
-    document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.onclick=()=>{this.peauJoueur=b.dataset.skin!;this.appliquerApparence();});
-    document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.color!;this.appliquerApparence();});
+    // Pendant la création, seule l'aperçu 3D est reteinté : la ville et le
+    // passager moto ne suivent qu'au départ, sinon chaque couleur ferait
+    // teinter trois corps à chaque clic et le créateur deviendrait lent.
+    document.querySelectorAll<HTMLButtonElement>('[data-sex]').forEach(b=>b.onclick=()=>{this.sexeJoueur=b.dataset.sex as 'homme'|'femme';this.mettreAJourCreateur();});
+    document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.onclick=()=>{this.peauJoueur=b.dataset.skin!;this.mettreAJourCreateur();});
+    document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.onclick=()=>{this.tenue=b.dataset.color!;this.mettreAJourCreateur();});
+    document.querySelectorAll<HTMLButtonElement>('[data-shoe]').forEach(b=>b.onclick=()=>{this.chaussures=b.dataset.shoe!;this.mettreAJourCreateur();});
     this.preparerApercu();
     this.appliquerApparence();
   }
@@ -164,6 +187,12 @@ export class Jeu {
   private preparerApercu(){
     let apercu:ApercuAvatar;
     try{apercu=new ApercuAvatar($('avatar-3d'));}catch(e){console.warn('aperçu 3D indisponible : '+(e instanceof Error?e.message:e));return;}
+    apercu.surPremierModele(()=>{
+      this.apercu=apercu;
+      $('avatar-preview').classList.add('en-3d');
+      this.mettreAJourCreateur();
+      if(this.accueil.open)apercu.demarrer();
+    });
     apercu.charger().then(pret=>{
       if(!pret)return;
       this.apercu=apercu;
@@ -172,18 +201,19 @@ export class Jeu {
       if(this.accueil.open)apercu.demarrer();
     }).catch(e=>console.warn('aperçu 3D indisponible : '+(e instanceof Error?e.message:e)));
   }
-  private appliquerApparence(){this.monde.personnaliserJoueur(this.tenue,this.corpsJoueur,this.peauJoueur);this.mettreAJourCreateur();}
+  private appliquerApparence(){if(this.monde)this.monde.personnaliserJoueur(this.tenue,this.corpsJoueur,this.peauJoueur,this.chaussures);this.mettreAJourCreateur();}
   private mettreAJourCreateur(){
     if(!$('avatar-preview'))return;
     $('avatar-preview').dataset.sex=this.sexeJoueur;
     $('avatar-preview').style.setProperty('--skin',this.peauJoueur);
     $('avatar-preview').dataset.avatar=this.corpsJoueur;
     $('avatar-preview').style.setProperty('--outfit',this.tenue);
-    this.apercu?.montrer(this.corpsJoueur,this.tenue,this.peauJoueur);
+    this.apercu?.montrer(this.corpsJoueur,this.tenue,this.peauJoueur,this.chaussures);
     $('avatar-summary').textContent=`${this.nomJoueur} · ${this.sexeJoueur==='femme'?'Femme':'Homme'}`;
     document.querySelectorAll<HTMLButtonElement>('[data-sex]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sex===this.sexeJoueur)));
     document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.skin===this.peauJoueur)));
     document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===this.tenue)));
+    document.querySelectorAll<HTMLButtonElement>('[data-shoe]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shoe===this.chaussures)));
   }
   private elementsManette(dialogue:HTMLDialogElement){
     return Array.from(dialogue.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled)'))

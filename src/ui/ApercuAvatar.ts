@@ -5,7 +5,7 @@ import { teinterCorps } from '../entities/Teinte';
 import type { CorpsJoueur } from '../entities/Foule';
 
 /** Les deux avatars humains proposés au départ. */
-export const AVATARS: Record<'homme'|'femme', CorpsJoueur> = {homme: 'personnage1.glb', femme: 'go2.glb'};
+export const AVATARS: Record<'homme'|'femme', CorpsJoueur> = {homme: 'avatar-homme-meshy-opt.glb', femme: 'avatar-femme-meshy-opt.glb'};
 
 /**
  * Aperçu du créateur de personnage : les deux avatars humains du jeu, rendus en
@@ -50,8 +50,9 @@ export class ApercuAvatar {
   }
 
   /**
-   * Charge les deux avatars. Renvoie faux si aucun n’arrive : l’appelant garde
-   * alors la silhouette dessinée en CSS.
+   * Charge les deux avatars, sans bloquer l’affichage sur le second : l’aperçu
+   * apparaît dès que le premier est là, le complète en arrière-plan. Renvoie
+   * faux si aucun n’arrive : l’appelant garde la silhouette dessinée en CSS.
    */
   async charger(base = '/modeles/') {
     const integres = (globalThis as {__modeles?: Record<string, string>}).__modeles;
@@ -60,20 +61,28 @@ export class ApercuAvatar {
       try {
         const lot = await chargeur.loadAsync(integres?.[nom] ?? base + nom);
         this.avatars.set(nom, this.poser(lot.scene));
+        this.pret?.();
       } catch (erreur) {
         console.warn(`aperçu ${nom} indisponible : ${erreur instanceof Error ? erreur.message : erreur}`);
       }
     }));
+    // Préchauffage : le masque du tissu, calcul lourd partagé par l'aperçu et la
+    // ville, est payé ici plutôt qu'au premier clic du joueur.
+    for (const avatar of this.avatars.values()) teinterCorps(avatar, '#79513b', '#f3b94f');
     return this.avatars.size > 0;
   }
 
-  /** Montre un avatar avec la peau et les vêtements demandés. */
-  montrer(fichier: string, vetements: string, peau: string) {
+  /** Appelé à chaque avatar qui arrive : l’aperçu s’affiche sans tout attendre. */
+  surPremierModele(estPret: () => void) {this.pret = estPret;}
+  private pret?: () => void;
+
+  /** Montre un avatar avec la peau, les vêtements et les chaussures demandés. */
+  montrer(fichier: string, vetements: string, peau: string, chaussures = '') {
     const choix = this.avatars.get(fichier);
     if (!choix) return false;
     if (choix !== this.corps) {this.corps?.removeFromParent(); this.corps = choix; this.plateau.add(choix); this.apparence = '';}
-    const apparence = `${fichier}|${vetements}|${peau}`;
-    if (apparence !== this.apparence) {this.apparence = apparence; teinterCorps(choix, peau, vetements);}
+    const apparence = `${fichier}|${vetements}|${peau}|${chaussures}`;
+    if (apparence !== this.apparence) {this.apparence = apparence; teinterCorps(choix, peau, vetements, chaussures);}
     this.dessiner();
     return true;
   }

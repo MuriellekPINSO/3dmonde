@@ -38,7 +38,16 @@ type Habitant = {
   bulle?:T.Sprite;
 };
 
-export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb';
+export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb'|'avatar-homme-meshy-opt.glb'|'avatar-femme-meshy-opt.glb';
+
+/** Les clips Meshy font avancer le bassin dans leur fichier. Le monde s'occupe
+ * déjà du déplacement : enlever cette piste évite que le corps quitte le joueur. */
+function animationSurPlace(clip:T.AnimationClip|undefined){
+  if(!clip)return undefined;
+  const resultat=clip.clone();
+  resultat.tracks=resultat.tracks.filter(piste=>!/(^|[.:])Hips\.position$/i.test(piste.name));
+  return resultat;
+}
 
 export class Foule {
   private modele?: T.Object3D;
@@ -57,15 +66,20 @@ export class Foule {
   /** Silhouettes debout, avec leurs propres habits : elles varient les corps. */
   private readonly silhouettes: T.Object3D[] = [];
   private readonly debout = new Map<string, T.Object3D>();
+  /** Clips natifs des avatars Meshy riggés. */
+  private readonly clipsAvatar = new Map<string, {marche?:T.AnimationClip;course?:T.AnimationClip}>();
   /**
-   * Silhouette à donner au joueur. Ces modèles n'ont pas de squelette : le
-   * personnage ne marche donc pas, il est animé d'un léger balancement.
+   * Silhouette à donner au joueur. Les avatars scannés portent leur propre
+   * squelette et leur marche ; une silhouette sans os reçoit, faute de mieux,
+   * un léger balancement.
    */
-  corpsJoueur: string | null = 'personnage1.glb';
+  corpsJoueur: string | null = 'avatar-homme-meshy-opt.glb';
   private images = 0;
   private varie = false;
   private couleurJoueur='#f3b94f';
   private peauJoueur='#79513b';
+  /** Vide : les chaussures du scan sont gardées telles quelles. */
+  private chaussuresJoueur='';
   private temps=0;
 
   constructor(private readonly scene: T.Object3D) {}
@@ -86,15 +100,20 @@ export class Foule {
       chargeur.loadAsync(url('marcheur.glb')),
       chargeur.loadAsync(url('coureur.glb'))
         .catch(e => { console.warn('course indisponible : ' + (e instanceof Error ? e.message : e)); return undefined; }),
-      ...['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb'].map(n => chargeur.loadAsync(url(n))
+      ...['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb'].map(n => chargeur.loadAsync(url(n))
         .catch(e => { console.warn(`silhouette ${n} indisponible : ${e instanceof Error ? e.message : e}`); return undefined; })),
     ]);
-    const nomsDebout = ['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb'];
+    const nomsDebout = ['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb'];
     debout.forEach((lot, i) => {
       if (!lot) return;
       lot.scene.traverse(n => { const m = n as T.Mesh; if (m.isMesh) { m.castShadow = nomsDebout[i] !== 'vendeuse.glb'; m.receiveShadow = true; } });
-      this.silhouettes.push(lot.scene);
       this.debout.set(nomsDebout[i], lot.scene);
+      // Les avatars scannés sont réservés au joueur : ce sont des corps de
+      // quatre-vingt mille triangles, et la ville n’a pas besoin de sosies. Leur
+      // marche native sert aussi de course, à cadence plus vive, plutôt que de
+      // télécharger un second fichier avant d’afficher le joueur.
+      if (nomsDebout[i].startsWith('avatar-')) this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
+      else this.silhouettes.push(lot.scene);
     });
     this.modele = marcheur.scene;
     this.clipMarche = marcheur.animations[0];
@@ -187,9 +206,11 @@ export class Foule {
         if (estVendeuse) corps.name = 'modele-vendeuse';
         else {corps.name = 'corps-personnage';corps.userData.avatar=this.corpsJoueur;}
         for (const piece of personnage.pieces) piece.visible = false;
-        const mixeur = new T.AnimationMixer(corps);
-        const habitant:Habitant={personnage, corps, mixeur, marche: mixeur.clipAction(this.clipMarche),
-          bouge: true, fige: true, reposY:corps.position.y, precedent: personnage.objet.position.clone()};
+        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):undefined;
+        const marche=mixeur.clipAction(clips?.marche??this.clipMarche);marche.play();
+        const course=clips?.course?mixeur.clipAction(clips.course):undefined;course?.play();if(course)course.weight=0;
+        const habitant:Habitant={personnage, corps, mixeur, marche, course,
+          bouge: true, fige: !clips?.marche, reposY:corps.position.y, precedent: personnage.objet.position.clone()};
         if(personnage.objet.name.startsWith('passant-')&&this.habitants.length%4===0){habitant.bulle=this.creerBulle();personnage.objet.add(habitant.bulle);}
         this.habitants.push(habitant);
         if (personnage.objet.name === 'joueur') {this.joueur = habitant;this.appliquerCouleurJoueur();}
@@ -221,9 +242,9 @@ export class Foule {
     }
     return habilles;
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,peau='#79513b'){
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,peau='#79513b',chaussures=''){
     const corpsChange=corps!==this.corpsJoueur;
-    this.couleurJoueur=couleur;this.corpsJoueur=corps;this.peauJoueur=peau;
+    this.couleurJoueur=couleur;this.corpsJoueur=corps;this.peauJoueur=peau;this.chaussuresJoueur=chaussures;
     if(corpsChange)this.changerCorpsJoueur();
     this.appliquerCouleurJoueur();
   }
@@ -232,24 +253,31 @@ export class Foule {
     if(!h||!choix||!this.clipMarche)return;
     h.mixeur.stopAllAction();this.libererApparence(h.corps);h.corps.removeFromParent();
     h.corps=this.poserDebout(h.personnage,choix);h.corps.name='corps-personnage';h.corps.userData.avatar=this.corpsJoueur;
-    h.mixeur=new T.AnimationMixer(h.corps);h.marche=h.mixeur.clipAction(this.clipMarche);
-    h.course=undefined;h.fige=true;h.bouge=true;h.reposY=h.corps.position.y;
+    h.mixeur=new T.AnimationMixer(h.corps);const clips=this.clipsAvatar.get(this.corpsJoueur!);h.marche=h.mixeur.clipAction(clips?.marche??this.clipMarche);h.marche.play();
+    h.course=clips?.course?h.mixeur.clipAction(clips.course):undefined;h.course?.play();if(h.course)h.course.weight=0;h.fige=!clips?.marche;h.bouge=true;h.reposY=h.corps.position.y;
   }
   private appliquerCouleurJoueur(){
-    const h=this.joueur;if(!h||!this.matiereOrigine)return;
+    const h=this.joueur;if(!h)return;
+    // Les avatars Meshy regroupent cheveux, peau et vêtements dans une seule
+    // texture : leur squelette dit où se trouve le tissu, et lui seul.
+    if(this.corpsJoueur?.startsWith('avatar-')){this.teinterCorps(h.corps);return;}
+    if(!this.matiereOrigine)return;
     if(!h.fige){const tenue=this.matiere(this.couleurJoueur);h.corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh)m.material=tenue;});return;}
     this.teinterCorps(h.corps);
   }
   /** Libère uniquement les matières et textures créées pour le joueur. */
   libererApparence(corps:T.Object3D){libererApparence(corps);}
-  private teinterCorps(corps:T.Object3D){teinterCorps(corps,this.peauJoueur,this.couleurJoueur);}
+  private teinterCorps(corps:T.Object3D){teinterCorps(corps,this.peauJoueur,this.couleurJoueur,this.chaussuresJoueur);}
   /** Pose une silhouette debout dans un personnage : pieds au sol, face au sud. */
   private poserDebout(personnage: Personnage, choix: T.Object3D,hauteurCible=1.74,base=.0) {
     const boite = new T.Box3().setFromObject(choix);
     const centre = boite.getCenter(new T.Vector3());
     const hauteur = boite.max.y - boite.min.y || 1;
     const echelle = hauteurCible / hauteur;
-    const corps = choix.clone();
+    // Un clone ordinaire garde le squelette de l’original : le maillage se
+    // déformait alors sur des os restés à l’écart de la scène, et le joueur
+    // n’était plus qu’un amas de texture. `clonerSquelette` rattache les os.
+    const corps = clonerSquelette(choix);
     corps.scale.setScalar(echelle);
     // L'origine de ces modèles est au centre du corps : sans compensation, la
     // silhouette peut s'enfoncer ou apparaître plusieurs mètres à côté.
@@ -270,15 +298,15 @@ export class Foule {
   }
   /**
    * Copie légère du corps choisi par le joueur, utilisée comme passager du
-   * zémidjan. Le GLB n'est pas riggé : une légère inclinaison donne une pose
-   * embarquée sans prétendre plier ses articulations.
+   * zémidjan. Aucune animation ne le tient : une légère inclinaison donne une
+   * pose embarquée sans prétendre plier ses articulations.
    */
   creerPassagerMoto() {
     if (!this.corpsJoueur) return null;
     const choix=this.debout.get(this.corpsJoueur);if(!choix)return null;
     const boite=new T.Box3().setFromObject(choix),centre=boite.getCenter(new T.Vector3());
     const hauteur=boite.max.y-boite.min.y||1,echelle=1.48/hauteur;
-    const corps=choix.clone();corps.scale.setScalar(echelle);
+    const corps=clonerSquelette(choix);corps.scale.setScalar(echelle);
     corps.position.set(-centre.x*echelle,-boite.min.y*echelle,-centre.z*echelle);
     corps.rotation.x=-.1;
     this.teinterCorps(corps);
