@@ -8,6 +8,7 @@ import { Foule } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
+import { Cinema } from './ui/Cinema';
 import { Meteo, type ModeMeteo } from './entities/Meteo';
 
 /**
@@ -41,12 +42,34 @@ export class Monde {
   private readonly cielLumiere = new T.HemisphereLight('#fff5dd','#648979',1.9);
   private readonly vehicules: Record<'zemidjan'|'voiture',T.Group>;
   private readonly rues: Rues;
+  private batisseur!: import('./entities/Batisseur').Batisseur;
   private readonly foule = new Foule(this.scene);
   private readonly mer: MerAnimee;
   private readonly vie: VieUrbaine;
   private readonly meteo:Meteo;
   private passagerMoto?: T.Group;
   private porteVoiture?:T.Group;
+  /** Habillage cinéma : instancié après le renderer, dans le constructeur. */
+  cinema?: Cinema;
+  /** Grande intro : survol du parcours, bandes 2.35:1, skippable. */
+  private intro = {active:false,temps:0,duree:15};
+  /** Vrai tant que l'intro survole la ville : l'UI de jeu reste masquée. */
+  get introActive(){return this.intro.active;}
+  get tempsIntro(){return this.intro.temps;}
+  get dureeIntro(){return this.intro.duree;}
+  /** L'intro ne joue qu'une fois par partie ; le clic ou une touche la saut. */
+  lancerIntro(){this.intro.active=true;this.intro.temps=0;}
+  sauterIntro(){this.intro.active=false;this.intro.temps=0;}
+  /** Points de passage du survol d'ouverture, du sud (Corniche) au nord (Étoile Rouge). */
+  private readonly introEtapes:[
+    {x:number;y:number;z:number;regardZ:number;titre:string;sous:string;}[]
+  ]=[[
+    {x:14,y:16,z:120,regardZ:60,titre:'COTONOU',sous:'UNE VILLE À RENCONTRER'},
+    {x:10,y:11,z:60,regardZ:20,titre:'LA CORNICHE',sous:'AU FIL DE LA LAGUNE'},
+    {x:6,y:9,z:0,regardZ:-40,titre:"L'ESPLANADE DE L'AMAZONE",sous:'FIERTÉ ET MÉMOIRE'},
+    {x:2,y:10,z:-120,regardZ:-160,titre:'LE PALAIS DES CONGRÈS',sous:'LA VOIX DU BÉNIN'},
+    {x:2,y:14,z:-260,regardZ:-430,titre:"L'ÉTOILE ROUGE",sous:'LE CŒUR DE LA VILLE'},
+  ]];
   private accident=0;
   private transitionTransport?:TransitionTransport;
   onAccident?:(type:'vehicule'|'personnage',responsable?:boolean)=>void;
@@ -76,6 +99,7 @@ export class Monde {
   reglerQualite(niveau:'basse'|'normale'|'haute'){
     const facteur=niveau==='basse'?.75:niveau==='haute'?Math.min(devicePixelRatio,2):Math.min(devicePixelRatio,1.5);
     this.renderer.setPixelRatio(facteur);this.renderer.shadowMap.enabled=niveau!=='basse';this.renderer.setSize(innerWidth,innerHeight);
+    if(this.cinema)this.cinema.reglerQualite(niveau);
   }
   restaurerPosition(x:number,z:number){
     // Les sauvegardes créées avant le rapprochement de l'océan peuvent avoir
@@ -143,12 +167,13 @@ export class Monde {
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
     host.append(this.renderer.domElement);this.renderer.domElement.setAttribute('aria-label','Balade 3D dans quatre zones de Cotonou');
+    try{this.cinema=new Cinema(this.renderer,this.scene,this.camera);}catch(e){console.warn('post-traitement indisponible : '+(e instanceof Error?e.message:e));}
     this.scene.add(this.cielLumiere);
     this.soleil.castShadow=true;this.soleil.shadow.mapSize.set(2048,2048);this.soleil.shadow.bias=-.0006;
     Object.assign(this.soleil.shadow.camera,{left:-55,right:55,top:60,bottom:-60,far:150});
     this.scene.add(this.soleil,this.soleil.target);
 
-    const batisseur=new Batisseur(this.scene,this.obstacles);
+    const batisseur=new Batisseur(this.scene,this.obstacles);this.batisseur=batisseur;
     boulevard(batisseur);this.mer=corniche(batisseur);esplanadeAmazone(batisseur);citeMinisterielle(batisseur);
     palaisMarina(batisseur);palaisCongres(batisseur);quartierMarches(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
@@ -206,7 +231,7 @@ export class Monde {
       lastX=e.clientX;lastY=e.clientY;
     });
     canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('pointercancel',()=>drag=false);
-    addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);});
+    addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);if(this.cinema)this.cinema.redimensionner();});
   }
   /**
    * Fait passer tous les zémidjans au modèle détaillé : ceux de la circulation,
@@ -298,6 +323,32 @@ export class Monde {
       }
       this.soleil.position.set(this.player.position.x-25,45,this.player.position.z+22);this.soleil.target.position.copy(this.player.position);
       target.copy(this.player.position);target.y+=1.3;
+      // Grande intro : la caméra vole au-dessus du parcours, l'UI de jeu est
+      // neutralisée (le joueur n'est pas encore « incarné »).
+      if(this.intro.active&&!state.paused){
+        this.intro.temps+=dt;
+        if(this.intro.temps>=this.intro.duree)this.sauterIntro();
+        const etapes=this.introEtapes[0],tranche=Math.min(etapes.length-1,Math.floor(this.intro.temps/(this.intro.duree/etapes.length)));
+        const section=Math.min(etapes.length-2,tranche),local=this.intro.temps/(this.intro.duree/etapes.length);
+        const du=etapes[section],au=etapes[Math.min(etapes.length-1,section+1)];
+        const q=T.MathUtils.clamp(local-section,0,1),e=q*q*(3-2*q);
+        const x=T.MathUtils.lerp(du.x,au.x,e),y=T.MathUtils.lerp(du.y,au.y,e),z=T.MathUtils.lerp(du.z,au.z,e);
+        this.camera.position.set(x,y,z);
+        const rj=T.MathUtils.lerp(du.regardZ,au.regardZ,e);
+        regard.set(x*.2,1.5,rj);
+        this.camera.lookAt(regard);
+        this.camera.fov=52;this.camera.updateProjectionMatrix();
+        if(this.cinema){this.cinema.bandes=T.MathUtils.lerp(0,1,Math.min(1,this.intro.temps/.8));this.cinema.fondu=Math.max(0,1-this.intro.temps/.8);}
+        this.batisseur.panneaux.forEach(p=>p.visible=false);
+        this.renderer.render(this.scene,this.camera);
+        return;
+      }
+      if(this.cinema){
+        this.cinema.bandes=Math.max(0,this.cinema.bandes-dt*1.6);
+        // Fondu d'ouverture : le monde apparaît en douceur après l'intro.
+        this.cinema.fondu=Math.max(0,this.cinema.fondu-dt*.55);
+      }
+      this.batisseur.panneaux.forEach(p=>p.visible=true);
       // La caméra s’abaisse à mesure que le joueur lève les yeux, pour dégager le ciel
       // et le sommet des monuments, hauts de vingt-cinq à trente-cinq mètres.
       if(state.transport&&mouvement.moving){
@@ -319,7 +370,8 @@ export class Monde {
       // lui, le personnage était systématiquement repoussé hors de l'écran.
       regard.copy(target);
       regard.y=Math.max(target.y-.15,regard.y+Math.sin(this.pitch)*4);
-      this.camera.lookAt(regard);this.renderer.render(this.scene,this.camera);
+      this.camera.lookAt(regard);
+      if(this.cinema)this.cinema.rendre(dt);else this.renderer.render(this.scene,this.camera);
     });
   }
 }

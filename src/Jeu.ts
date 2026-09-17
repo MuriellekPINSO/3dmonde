@@ -75,6 +75,7 @@ export class Jeu {
     <div id="mission-hud"><strong>Mission</strong><span id="mission-text">Rencontrer le guide de la Corniche</span></div>
     <div id="tutorial" hidden><button id="tutorial-close" aria-label="Fermer le tutoriel">×</button><strong>Premiers pas</strong><span>ZQSD : marcher · E : interagir · M : carte · P : pause</span><small>Manette : joystick gauche pour conduire, ✕ interagir, ○ descendre, R1 klaxonner et Options mettre en pause.</small></div>
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
+    <div id="intro-cinema" hidden><div class="intro-titres"><h2 id="intro-titre">COTONOU</h2><p id="intro-sous-titre">UNE VILLE À RENCONTRER</p></div><button id="intro-saut" class="intro-saut">Passer l'intro ⏭</button></div>
     <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
@@ -141,13 +142,18 @@ export class Jeu {
     $('begin').onclick=()=>{
       this.nomJoueur=$<HTMLInputElement>('player-name').value.trim().slice(0,16)||'Mika';
       this.accueil.close();this.apercu?.arreter();this.appliquerApparence();this.sauvegarder();
-      if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;
+      // Grande intro uniquement pour une nouvelle partie ; une sauvegarde
+      // reprend directement au milieu de la balade.
+      if(this.monde&&!localStorage.getItem('cotonou-tutoriel-vu')){
+        $('tutorial').hidden=true;this.lancerIntro();
+      }else if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;
     };this.accueil.addEventListener('cancel',e=>e.preventDefault());this.accueil.addEventListener('close',()=>this.apercu?.arreter());
     $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
     addEventListener('keydown',e=>{
       if(this.panel.open||this.accueil.open||!this.monde)return;
+      if(this.monde.introActive){if(e.key==='Escape'||e.key==='Enter')this.cloreIntro();return;}
       const key=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
       this.monde.keys.add(key);if(e.repeat)return;
       if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();if(key==='h'&&this.partie.transport)this.ambiance.klaxonner();
@@ -166,6 +172,7 @@ export class Jeu {
       b.onpointerdown=e=>{if(!this.monde)return;this.monde.keys.add(b.dataset.key!);b.setPointerCapture(e.pointerId);};
       b.onpointerup=b.onpointercancel=()=>{if(this.monde)this.monde.keys.delete(b.dataset.key!);};
     });
+    $('intro-saut').onclick=()=>this.cloreIntro();
   }
   private initialiserCreateur(){
     $<HTMLInputElement>('player-name').value=this.nomJoueur;
@@ -214,6 +221,19 @@ export class Jeu {
     document.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.skin===this.peauJoueur)));
     document.querySelectorAll<HTMLButtonElement>('[data-color]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===this.tenue)));
     document.querySelectorAll<HTMLButtonElement>('[data-shoe]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shoe===this.chaussures)));
+  }
+  private lancerIntro(){
+    if(!this.monde)return;
+    this.monde.lancerIntro();
+    $('intro-cinema').hidden=false;
+    $('app').classList.add('en-intro');
+  }
+  /** Ferme l'intro cinématique et remet le HUD et le tutoriel en place. */
+  private cloreIntro(){
+    $('intro-cinema').hidden=true;
+    $('app').classList.remove('en-intro');
+    this.monde.sauterIntro();
+    localStorage.setItem('cotonou-intro-vue','1');
   }
   private elementsManette(dialogue:HTMLDialogElement){
     return Array.from(dialogue.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled)'))
@@ -366,6 +386,16 @@ export class Jeu {
   private actualiser(dt:number){
     this.commandesManette(dt);
     const p=this.monde.player.position,paused=this.panel.open||this.accueil.open||document.hidden;
+    // L'intro pilote l'écran : titre courant et retour au jeu à sa fin.
+    if(this.monde.introActive){
+      const titre=$('intro-titre'),sous=$('intro-sous-titre');
+      if(titre&&sous){
+        const tranches=[['COTONOU','UNE VILLE À RENCONTRER'],['LA CORNICHE','AU FIL DE LA LAGUNE'],["L'ESPLANADE DE L'AMAZONE",'FIERTÉ ET MÉMOIRE'],['LE PALAIS DES CONGRÈS','LA VOIX DU BÉNIN'],["L'ÉTOILE ROUGE",'LE CŒUR DE LA VILLE']];
+        const index=Math.min(tranches.length-1,Math.floor(this.monde.tempsIntro/this.monde.dureeIntro*tranches.length));
+        const [t,s]=tranches[index];
+        if(titre.textContent!==t){titre.textContent=t;sous.textContent=s;}
+      }
+    }else if($('intro-cinema')&&!$('intro-cinema').hidden)this.cloreIntro();
     const maximum=this.partie.transport?.vitesse??7;
     this.ambiance.actualiser({x:p.x,z:p.z,yaw:this.monde.angleCamera,mode:this.partie.transport?.id??null,intensite:Math.min(1,this.monde.allure/maximum),pluie:this.monde.meteoTexte==='Pluie tropicale'},paused);
     $('clock').textContent=this.monde.heureTexte;$('weather').textContent=this.monde.meteoTexte;

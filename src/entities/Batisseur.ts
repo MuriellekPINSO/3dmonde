@@ -140,6 +140,8 @@ export class Batisseur {
   /** Ensembles construits en code qu’un modèle GLB détaillé peut venir remplacer. */
   readonly groupes = new Map<string, T.Group>();
   private cible: T.Object3D | null = null;
+  /** Panneaux d’interaction masqués d’un coup pendant l’intro cinéma. */
+  readonly panneaux: T.Sprite[] = [];
   /** Là où atterrit ce qui est bâti : l’ensemble en cours, sinon la scène. */
   get racine(): T.Object3D { return this.cible ?? this.scene; }
 
@@ -249,6 +251,7 @@ export class Batisseur {
     const carte = new T.CanvasTexture(toile); carte.colorSpace = T.SRGBColorSpace;
     const sprite = new T.Sprite(new T.SpriteMaterial({map: carte, toneMapped: false}));
     sprite.position.set(x, y, z); sprite.scale.set(largeur, largeur / 6, 1); this.racine.add(sprite);
+    this.panneaux.push(sprite);
     return sprite;
   }
 

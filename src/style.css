@@ -37,3 +37,14 @@ select{width:100%;margin-top:6px;border:1px solid #a9b9a7;border-radius:9px;padd
 #edit-character{margin-bottom:14px}
 .direction-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.direction-options button{text-align:left;padding:15px}.direction-options strong,.direction-options span{display:block}.direction-options span{font-size:10px;color:#647369;margin-top:5px}.direction-options button:hover{background:#dce7db}
 @media(max-width:700px){#welcome{padding:22px;overflow:auto}#welcome[open]{display:block}.welcome-copy>p:not(.eyebrow),.welcome-copy h2{display:none}.avatar-preview{width:105px;height:140px;margin:0 auto 8px;transform:scale(.72);transform-origin:top center;margin-bottom:-32px}.avatar-preview.en-3d{width:134px;height:184px;transform:none;margin:0 auto 6px}.character-creator fieldset{margin:11px 0}.avatar-options button{padding:7px 4px}.color-options{justify-content:center}#welcome .loading-city{display:none}}
+
+/* Intro cinématique : survol de la ville en 2.35:1, titres qui enchaînent. */
+#intro-cinema{position:fixed;inset:0;z-index:40;pointer-events:none}
+#intro-cinema .intro-titres{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);text-align:center;color:#fff9e9;text-shadow:0 2px 22px #000a}
+#intro-cinema h2{font-size:clamp(30px,5.4vw,64px);letter-spacing:.14em;font-weight:800;margin:0;text-transform:uppercase;animation:intro-titre 1.1s cubic-bezier(.22,.9,.3,1) both}
+#intro-cinema p{margin:6px 0 0;font-size:clamp(11px,1.5vw,15px);letter-spacing:.42em;color:#efbd68;text-transform:uppercase;animation:intro-titre 1.1s .18s cubic-bezier(.22,.9,.3,1) both}
+@keyframes intro-titre{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.intro-saut{position:absolute;right:22px;bottom:20px;pointer-events:auto;background:#173f37cc;color:#fff9e9;border:1px solid #ffffff2b;border-radius:22px;padding:9px 18px;font-size:12px;cursor:pointer}
+.intro-saut:hover{background:#173f37}
+/* Pendant l'intro, le HUD de jeu s'efface derrière la mise en scène. */
+#app.en-intro header,#app.en-intro .location,#app.en-intro #world-state,#app.en-intro #mission-hud,#app.en-intro footer,#app.en-intro #touch,#app.en-intro #tutorial{opacity:0;transition:opacity .5s;pointer-events:none}
