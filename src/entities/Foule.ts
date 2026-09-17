@@ -28,6 +28,8 @@ type Habitant = {
   fige?: boolean;
   balancement?: number;
   reposY?: number;
+  /** Temps restant d'affichage d'un mot dit dans la bulle. */
+  bulleTemps?: number;
   /** Renversé : durée écoulée depuis la chute, et place où il est tombé. */
   chute?: number;
   placeChute?: T.Vector3;
@@ -86,9 +88,26 @@ export class Foule {
 
   private creerBulle(){
     const toile=document.createElement('canvas');toile.width=160;toile.height=80;const c=toile.getContext('2d')!;
-    c.fillStyle='rgba(255,250,235,.92)';c.beginPath();c.roundRect(8,8,144,52,22);c.fill();c.fillStyle='#21473d';c.font='bold 32px sans-serif';c.textAlign='center';c.fillText('…',80,45);
+    c.fillStyle='rgba(255,250,235,.92)';c.beginPath();c.roundRect(8,8,144,52,22);c.fill();c.fillStyle='#21473d';c.font='bold 30px sans-serif';c.textAlign='center';c.fillText('…',80,46);
     const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;
     const bulle=new T.Sprite(new T.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));bulle.name='discussion-pnj';bulle.scale.set(1.15,.58,1);bulle.position.set(0,2.35,0);bulle.visible=false;return bulle;
+  }
+
+  /** Salutations du quotidien béninois, tirées au fil des rencontres. */
+  private static readonly SALUTATIONS=['Bonjour !','Ça va ?','Yovo !','Bienvenue !','Bon maténé !','La forme ?'];
+  /** Écrit le mot demandé dans la bulle du personnage et l'affiche un moment. */
+  private dire(h:Habitant,texte:string){
+    if(!h.bulle)return;
+    const carte=(h.bulle.material as T.SpriteMaterial).map;if(!carte)return;
+    const toile=carte.image as HTMLCanvasElement,c=toile.getContext('2d')!;
+    c.clearRect(0,0,toile.width,toile.height);
+    c.fillStyle='rgba(255,250,235,.92)';c.beginPath();c.roundRect(4,4,152,72,22);c.fill();
+    c.fillStyle='#21473d';c.font='bold 26px sans-serif';c.textAlign='center';
+    const mots=texte.split(' ');let ligne='',y=32;
+    for(const mot of mots){if((ligne+' '+mots).trim().length>14){c.fillText(ligne,80,y);y+=22;ligne='';}else ligne+=' '+mots;}
+    if(ligne.trim())c.fillText(ligne.trim(),80,y);
+    carte.needsUpdate=true;
+    h.bulle.visible=true;h.bulleTemps=2.2;
   }
 
   /** Charge le modèle articulé et ses deux animations. */
@@ -340,7 +359,11 @@ export class Foule {
       h.reactionCooldown=Math.max(0,(h.reactionCooldown??0)-dt);
       const position = h.personnage.objet.position;
       const vitesse = position.distanceTo(h.precedent) / dt;
-      if(h.bulle)h.bulle.visible=h.chute===undefined&&!h.reaction&&vitesse<1.5&&Math.sin(this.temps*.42+index*1.7)>.72;
+      // La bulle dit un mot un instant, puis redevient « … » selon son cycle.
+      if(h.bulle){
+        if(h.bulleTemps!==undefined){h.bulleTemps-=dt;if(h.bulleTemps<=0){h.bulleTemps=undefined;h.bulle.visible=false;}}
+        else h.bulle.visible=h.chute===undefined&&!h.reaction&&vitesse<1.5&&Math.sin(this.temps*.42+index*1.7)>.72;
+      }
       h.precedent.copy(position);
       if (h.chute !== undefined) { this.tenirChute(h, dt); continue; }
       if(h.reaction&&h.reactionTemps!==undefined){
@@ -391,6 +414,11 @@ export class Foule {
       if(Math.hypot(monde.x-position.x,monde.z-position.z)>rayon)continue;
       h.reaction=enVehicule?'peur':'salut';h.reactionTemps=enVehicule?2.4:1.8;h.reactionCible=position.clone();
       h.personnage.objet.userData.reactionPNJ=h.reaction;
+      // À pied, un passant dit bonjour : un vrai mot, jamais le même.
+      if(!enVehicule&&h.bulle){
+        const mots=Foule.SALUTATIONS;
+        this.dire(h,mots[Math.floor(Math.random()*mots.length)]);
+      }
     }
   }
   /** Les témoins proches se tournent vers le lieu d'un accident. */
