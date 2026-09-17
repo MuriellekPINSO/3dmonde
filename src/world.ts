@@ -9,6 +9,7 @@ import type { CorpsJoueur } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
 import { Cinema } from './ui/Cinema';
+import { Poussiere } from './entities/Poussiere';
 import { Meteo, type ModeMeteo } from './entities/Meteo';
 
 /**
@@ -49,6 +50,8 @@ export class Monde {
   private readonly meteo:Meteo;
   private passagerMoto?: T.Group;
   private porteVoiture?:T.Group;
+  /** Poussière soulevée par le véhicule du joueur. */
+  private readonly poussiere = new Poussiere(this.scene);
   /** Habillage cinéma : instancié après le renderer, dans le constructeur. */
   cinema?: Cinema;
   /** Grande intro : survol du parcours, bandes 2.35:1, skippable. */
@@ -301,7 +304,7 @@ export class Monde {
         this.cielLumiere.intensity=.35+1.6*soleilJour;
         this.soleil.color.set(this.heure>17||this.heure<7?'#ffb36c':'#ffe4b5');
         this.foule.reagirAuJoueur(this.player.position,!!state.transport,mouvement.moving);
-        this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);
+        this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);this.poussiere.actualiser(dt);
       }
       // Les deux modèles détaillés embarquent leur propre conducteur : le personnage
       // en boîtes s'effacerait sinon derrière lui, ou se superposerait au pilote.
@@ -364,6 +367,12 @@ export class Monde {
       if(mouvement.moving&&!state.transport){const cadence=state.running?12:8,ampleur=state.running?.1:.045;desired.y+=Math.sin(time/1000*cadence)*ampleur;desired.x+=Math.cos(time/1000*cadence*.5)*ampleur*.32;}
       // À moto, la vitesse se sent : frémissement qui monte avec l'allure, plus
       // une inclinaison dans les virages comme une vraie moto penchée.
+      // Le véhicule qui roule laisse un sillage : émission derrière la roue
+      // arrière, cadencée par l'allure réelle.
+      if(state.transport&&this.vitesseReelle>.8){
+        const direction=new T.Vector3(Math.sin(this.player.rotation.y),0,Math.cos(this.player.rotation.y));
+        this.poussiere.emis(this.player.position.x-direction.x*.9,.32,this.player.position.z-direction.z*.9,this.vitesseReelle);
+      }
       if(state.transport==='zemidjan'&&mouvement.moving){
         const allure=Math.min(1,this.vitesseReelle/9);
         desired.y+=Math.sin(time*.105)*.028*allure;desired.x+=Math.cos(time*.083)*.022*allure;
