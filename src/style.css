@@ -61,3 +61,14 @@ select{width:100%;margin-top:6px;border:1px solid #a9b9a7;border-radius:9px;padd
 .minimap-nord,.minimap-sud{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;color:#fff9e9;letter-spacing:.1em}.minimap-nord{top:-15px}.minimap-sud{bottom:-3px}
 /* Avec la minimap affichée, la boussole décorative s'efface. */
 #minimap:not([hidden])~main .compass{display:none}
+/* Mode photo : le cadre du jeu s'efface, l'atelier photo flotte au centre-bas. */
+#app.en-photo header,#app.en-photo .location,#app.en-photo #world-state,#app.en-photo #mission-hud,#app.en-photo footer,#app.en-photo #touch,#app.en-photo #minimap{opacity:0;transition:opacity .4s;pointer-events:none}
+#mode-photo{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:45;display:flex;align-items:center;gap:14px;background:#173f37e8;border-radius:18px;padding:14px 18px;box-shadow:0 14px 44px #0005}
+.photo-filtres{display:flex;gap:7px}
+.photo-filtres button{padding:7px 15px;border-radius:999px;background:#ffffff14;color:#fff9e9;border:1px solid #ffffff2b;font-size:11px}
+.photo-filtres button[aria-pressed=true]{background:#f3b94f;color:#173f37;border-color:#f3b94f;font-weight:800}
+#photo-shoot{padding:9px 22px !important;font-size:13px !important}
+#photo-fermer{background:transparent;border:0;color:#fff9e9b0;font-size:11px;cursor:pointer}
+#photo-fermer:hover{color:#fff9e9}
+/* Ligne du bas : astuce discrète pendant le mode photo. */
+#mode-photo::before{content:'MODE PHOTO';position:absolute;top:-22px;left:50%;transform:translateX(-50%);color:#f3b94f;font-size:9px;font-weight:800;letter-spacing:.3em;text-shadow:0 1px 4px #0008}

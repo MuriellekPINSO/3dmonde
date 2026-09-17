@@ -60,9 +60,12 @@ export class Monde {
   get introActive(){return this.intro.active;}
   get tempsIntro(){return this.intro.temps;}
   get dureeIntro(){return this.intro.duree;}
-  /** L'intro ne joue qu'une fois par partie ; le clic ou une touche la saut. */
+  /** L'intro ne joue qu'une fois par partie ; le clic ou une touche la sauts. */
   lancerIntro(){this.intro.active=true;this.intro.temps=0;}
   sauterIntro(){this.intro.active=false;this.intro.temps=0;}
+  /** Mode photo : la caméra et le monde se figent, le HUD s'efface. */
+  private photoApercu=false;
+  get enPhoto(){return this.photoApercu;}
   /** Points de passage du survol d'ouverture, du sud (Corniche) au nord (Étoile Rouge). */
   private readonly introEtapes:[
     {x:number;y:number;z:number;regardZ:number;titre:string;sous:string;}[]
@@ -78,6 +81,8 @@ export class Monde {
   onAccident?:(type:'vehicule'|'personnage',responsable?:boolean)=>void;
   /** Tonnerre : branché sur l'ambiance sonore par Jeu. */
   onTonnerre?:(puissance:number)=>void;
+  /** Photo prise : reçoit l'image en data URL. */
+  onPhoto?:(image:string)=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
   // Vue de départ au niveau du torse : l'ancien angle regardait le sol et
@@ -105,6 +110,18 @@ export class Monde {
     const facteur=niveau==='basse'?.75:niveau==='haute'?Math.min(devicePixelRatio,2):Math.min(devicePixelRatio,1.5);
     this.renderer.setPixelRatio(facteur);this.renderer.shadowMap.enabled=niveau!=='basse';this.renderer.setSize(innerWidth,innerHeight);
     if(this.cinema)this.cinema.reglerQualite(niveau);
+  }
+  /**
+   * Saisit le rendu courant en image téléchargeable. Le canvas WebGL se vide
+   * hors du tick de rendu : la capture passe donc DANS la boucle — le monde
+   * rend le prochain frame puis s'en sert.
+   */
+  private demandeCapture=false;
+  capturerPhoto(){this.demandeCapture=true;}
+  private consommerCapture():string|null{
+    if(!this.demandeCapture)return null;
+    this.demandeCapture=false;
+    try{return this.renderer.domElement.toDataURL('image/png');}catch{return null;}
   }
   restaurerPosition(x:number,z:number){
     // Les sauvegardes créées avant le rapprochement de l'océan peuvent avoir
@@ -392,6 +409,8 @@ export class Monde {
       regard.y=Math.max(target.y-.15,regard.y+Math.sin(this.pitch)*4);
       this.camera.lookAt(regard);
       if(this.cinema)this.cinema.rendre(dt);else this.renderer.render(this.scene,this.camera);
+      // Une capture demandée : le frame vient d'être peint, on le saisit ici.
+      if(this.demandeCapture){const image=this.consommerCapture();if(image){}this.demandeCapture=false;if(image)this.onPhoto?.(image);}
     });
   }
 }

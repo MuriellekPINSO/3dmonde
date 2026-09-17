@@ -82,6 +82,7 @@ export class Jeu {
     <div id="intro-cinema" hidden><div class="intro-titres"><h2 id="intro-titre">COTONOU</h2><p id="intro-sous-titre">UNE VILLE À RENCONTRER</p></div><button id="intro-saut" class="intro-saut">Passer l'intro ⏭</button></div>
     <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
     <div id="chrono-course" hidden></div>
+    <div id="mode-photo" hidden><div class="photo-filtres"><button data-filtre="0" aria-pressed="true">Doré</button><button data-filtre="1">Rétro</button><button data-filtre="2">Lagune</button></div><button id="photo-shoot" class="primary">📸 Capturer</button><button id="photo-fermer">Fermer · X</button></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
@@ -163,6 +164,7 @@ export class Jeu {
       this.monde.keys.add(key);if(e.repeat)return;
       if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();if(key==='h'&&this.partie.transport)this.ambiance.klaxonner();
       if(key==='escape'||key==='p')this.ouvrirMenu();if(key==='m')this.ouvrirParcours();if(key==='i')this.ouvrirSac();
+      if(key==='x')this.basculerPhoto();
     });
     addEventListener('keyup',e=>{if(this.monde)this.monde.keys.delete(e.key.toLowerCase());});
     addEventListener('gamepadconnected',e=>this.manette.connecter(e.gamepad));
@@ -178,6 +180,9 @@ export class Jeu {
       b.onpointerup=b.onpointercancel=()=>{if(this.monde)this.monde.keys.delete(b.dataset.key!);};
     });
     $('intro-saut').onclick=()=>this.cloreIntro();
+    document.querySelectorAll<HTMLButtonElement>('.photo-filtres [data-filtre]').forEach(b=>b.onclick=()=>this.changerFiltre(Number(b.dataset.filtre) as 0|1|2));
+    $('photo-shoot').onclick=()=>this.prendrePhoto();
+    $('photo-fermer').onclick=()=>this.basculerPhoto();
   }
   private initialiserCreateur(){
     $<HTMLInputElement>('player-name').value=this.nomJoueur;
@@ -379,6 +384,37 @@ export class Jeu {
     if(this.course.actif){this.course.arreter(false);$('chrono-course').hidden=true;this.notifier('Course abandonnée — le record ne s’écrit qu’à l’arrivée.');}
     this.monde.commencerDescente(this.partie.transport.id);this.partie.descendre();this.monde.keys.clear();this.notifier('Tu continues à pied. Une nouvelle montée nécessitera un nouveau paiement.');
   }
+  /** Numéro pour nommer les photos, incrémenté à chaque capture. */
+  private numeroPhoto=0;
+  private filtrePhoto:0|1|2=0;
+  /** Vrai tant que le mode photo est ouvert. */
+  private get photoOuverte(){return !$('mode-photo').hidden;}
+  /** Mode photo : le monde se fige, le HUD s'efface, filtre au choix, X ou le bouton capture. */
+  private basculerPhoto(){
+    const actif=$('mode-photo').hidden;
+    $('mode-photo').hidden=!actif;
+    $('app').classList.toggle('en-photo',actif);
+    if(!actif)return;
+    this.monde.keys.clear();
+    this.monde.cinema?.reglerFiltre(this.filtrePhoto);
+  }
+  /** Prend la photo : le monde fournit l'image du frame courant, on la propose au téléchargement. */
+  private prendrePhoto(){
+    this.monde.onPhoto=image=>{
+      const lien=document.createElement('a');
+      lien.href=image;
+      lien.download=`cotonou-photo-${++this.numeroPhoto}.png`;
+      lien.click();
+      this.manette.vibrer('succes');
+      this.notifier('Photo enregistrée dans tes téléchargements !');
+    };
+    this.monde.capturerPhoto();
+  }
+  private changerFiltre(f:0|1|2){
+    this.filtrePhoto=f;
+    this.monde.cinema?.reglerFiltre(f);
+    document.querySelectorAll<HTMLButtonElement>('.photo-filtres [data-filtre]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filtre===String(f))));
+  }
   private interagir(){
     if(this.panel.open||this.accueil.open||!this.proche)return;
     this.manette.vibrer('interaction');
@@ -441,6 +477,6 @@ export class Jeu {
     }
     $('chrono-course').hidden=!this.course.actif||paused;
     if(this.course.actif)$('chrono-course').textContent=`⏱ ${this.course.temps.toFixed(1)} s / ${this.course.cible} s`;
-    return {paused,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:4)};
+    return {paused:paused||this.photoOuverte,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:4)};
   }
 }

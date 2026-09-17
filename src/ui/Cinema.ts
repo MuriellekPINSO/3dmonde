@@ -37,16 +37,29 @@ export class Cinema {
         uSaturer: {value: 1.09},
         uBandes: {value: 0},
         uFondu: {value: 1},
+        uFiltre: {value: 0},
       },
       vertexShader: /* glsl */`
         varying vec2 vUv;
         void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader: /* glsl */`
         uniform sampler2D tDiffuse;
-        uniform float uVignette,uChaleur,uSaturer,uBandes,uFondu;
+        uniform float uVignette,uChaleur,uSaturer,uBandes,uFondu,uFiltre;
         varying vec2 vUv;
         void main(){
           vec3 c=texture2D(tDiffuse,vUv).rgb;
+          if(uFiltre>1.5){
+            // « Nuit lagunaire » : bleus profonds, starburst sur les lumières.
+            c=mix(vec3(dot(c,vec3(.299,.587,.114))),c,.72);
+            c=pow(c,vec3(.92,.99,1.12));
+            c+=vec3(0.,.01,.035)*smoothstep(.35,1.,dot(c,vec3(.3,.5,.2)));
+          }else if(uFiltre>.5){
+            // « Néon rétro » : magenta/turquoise croisés façon poste de nuit.
+            float lum=dot(c,vec3(.299,.587,.114));
+            c=mix(c,vec3(lum),.35);
+            c.r*=1.09;c.g*=.99;c.b*=1.06;
+            c=mix(c,c.brg*lum,.16);
+          }
           // Ombres tièdes, hautes lumières crème : l'étalonnage golden hour.
           c=pow(c,vec3(.96,.99,1.03));
           c=mix(vec3(dot(c,vec3(.299,.587,.114))),c,uSaturer);
@@ -72,6 +85,11 @@ export class Cinema {
     this.v.uFondu.value = this.fondu;
     this.v.uVignette.value = .2 + this.bandes * .18;
     this.composer.render(dt);
+  }
+
+  /** Filtre de mode photo : 0 = golden hour, 1 = néon rétro, 2 = nuit lagunaire. */
+  reglerFiltre(quel: 0 | 1 | 2) {
+    this.etalonnage.uniforms.uFiltre!.value = quel;
   }
 
   redimensionner() {
