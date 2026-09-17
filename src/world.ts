@@ -76,6 +76,8 @@ export class Monde {
   private accident=0;
   private transitionTransport?:TransitionTransport;
   onAccident?:(type:'vehicule'|'personnage',responsable?:boolean)=>void;
+  /** Tonnerre : branché sur l'ambiance sonore par Jeu. */
+  onTonnerre?:(puissance:number)=>void;
   private yaw = 0;
   /** Inclinaison du regard : négative vers le sol, positive vers le ciel. */
   // Vue de départ au niveau du torse : l'ancien angle regardait le sol et
@@ -182,6 +184,8 @@ export class Monde {
     this.rues=new Rues(batisseur);figures(batisseur);
     this.vie=new VieUrbaine(this.scene);
     this.meteo=new Meteo(this.scene);
+    // Les éclairs déclenchent le grondement du tonnerre côté audio.
+    this.meteo.onTonnerre=puissance=>this.onTonnerre?.(puissance);
     // La scène construite s’affiche tout de suite ; les modèles la remplacent dès qu’ils arrivent.
     const poses:Pose[]=[...POSES,{
       groupe:'kekenon-circulation',fichier:'kekenon.glb',x:13.6,z:18,

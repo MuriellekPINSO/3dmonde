@@ -54,6 +54,8 @@ export class Jeu {
       this.accueil.innerHTML='<h2>La 3D ne peut pas démarrer.</h2><p>Essaie un navigateur avec WebGL 2 et l’accélération graphique activée, puis recharge la page.</p>';return;
     }
     this.chargerSauvegarde();
+    // Chaque éclair de l'orage fait gronder le tonnerre dans l'ambiance 3D.
+    if(this.monde)this.monde.onTonnerre=puissance=>this.ambiance.tonnerre(puissance);
     this.monde.onAccident=(type,responsable=true)=>{
       this.manette.vibrer('collision');
       if(responsable){this.partie.signalerAccident();this.synchroniser();}

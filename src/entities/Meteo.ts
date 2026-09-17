@@ -2,7 +2,7 @@ import * as T from 'three';
 
 export type ModeMeteo='auto'|'soleil'|'pluie';
 
-/** Pluie tropicale légère, flaques et cycle d'heure sans texture distante. */
+/** Pluie tropicale, flaques, éclairs et tonnerre de synthèse, sans texture ni fichier distant. */
 export class Meteo {
   private readonly positions=new Float32Array(900*3);
   private readonly pluie:T.Points;
@@ -10,6 +10,12 @@ export class Meteo {
   private temps=0;
   private mode:ModeMeteo='auto';
   private pleut=false;
+  /** Éclairs : délai aléatoire, force du flash restant et lumière dédiée. */
+  private delaiEclair=8;
+  private flash=0;
+  private eclair?:T.DirectionalLight;
+  /** Tonnerre : ampli fermé tant qu'aucun haut-parleur ne peut parler. */
+  onTonnerre?:(puissance:number)=>void;
 
   constructor(private readonly scene:T.Scene){
     for(let i=0;i<this.positions.length;i+=3){
@@ -39,6 +45,22 @@ export class Meteo {
         if(this.positions[i+1]<.1){this.positions[i]=(Math.random()-.5)*48;this.positions[i+1]=22+Math.random()*8;this.positions[i+2]=(Math.random()-.5)*70;}
       }
       (this.pluie.geometry.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
+      // L'orage dramatise : un éclair frappe au hasard, brûle deux décims de
+      // seconde, le tonnerre gronde un peu plus tard selon la distance.
+      this.flash=Math.max(0,this.flash-dt*3.2);
+      if(this.delaiEclair<=0){
+        this.flash=.85+Math.random()*.35;
+        this.delaiEclair=4+Math.random()*11;
+        const retard=.2+Math.random()*.9;
+        window.setTimeout(()=>this.onTonnerre?.(1-retard),retard*1000);
+      }
+      this.delaiEclair-=dt;
+      if(!this.eclair){this.eclair=new T.DirectionalLight('#eef7ff',0);this.eclair.position.set(joueur.position.x+18,42,joueur.position.z-24);this.scene.add(this.eclair);}
+      this.eclair.intensity=this.flash*4.2;
+      this.eclair.position.set(joueur.position.x+18,42,joueur.position.z-24);
+    }else{
+      this.flash=0;
+      if(this.eclair)this.eclair.intensity=0;
     }
     const nuit=heure<6||heure>19.5,soir=heure>17||heure<7;
     this.scene.fog?.color.set(this.pleut?'#849c9d':nuit?'#162d42':soir?'#bea879':'#d1dfd5');

@@ -89,6 +89,26 @@ export class Ambiance {
     this.gainKlaxon.gain.exponentialRampToValueAtTime(.001,t+.24);
   }
 
+  /**
+   * Grondement du tonnerre : un sursaut de bruit passe-bas qui dévale et
+   * s'évanouit, atténué selon la distance de l'éclair qui l'a déclenché.
+   */
+  tonnerre(puissance:number){
+    if(!this.contexte||!this.active)return;
+    const ctx=this.contexte;
+    const buffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),echantillons=buffer.getChannelData(0);
+    for(let i=0;i<echantillons.length;i++){
+      const v=Math.random()*2-1;
+      // Le grondement : graves dominants, décroissance continue, micro-variations.
+      echantillons[i]=v*.5*Math.pow(1-i/echantillons.length,1.6)*(1+.35*Math.sin(i*.0007));
+    }
+    const source=ctx.createBufferSource();source.buffer=buffer;
+    const filtre=ctx.createBiquadFilter();filtre.type='lowpass';filtre.frequency.value=110+puissance*160;filtre.Q.value=.5;
+    const gain=ctx.createGain();gain.gain.value=Math.max(.04,.12*puissance);
+    source.connect(filtre).connect(gain).connect(this.sortie!);
+    source.start();
+  }
+
   private positionner(panner:PannerNode,x:number,y:number,z:number){
     if(panner.positionX){panner.positionX.value=x;panner.positionY.value=y;panner.positionZ.value=z;}
     else panner.setPosition(x,y,z);
