@@ -47,6 +47,17 @@ select{width:100%;margin-top:6px;border:1px solid #a9b9a7;border-radius:9px;padd
 .intro-saut{position:absolute;right:22px;bottom:20px;pointer-events:auto;background:#173f37cc;color:#fff9e9;border:1px solid #ffffff2b;border-radius:22px;padding:9px 18px;font-size:12px;cursor:pointer}
 .intro-saut:hover{background:#173f37}
 /* Pendant l'intro, le HUD de jeu s'efface derrière la mise en scène. */
-#app.en-intro header,#app.en-intro .location,#app.en-intro #world-state,#app.en-intro #mission-hud,#app.en-intro footer,#app.en-intro #touch,#app.en-intro #tutorial{opacity:0;transition:opacity .5s;pointer-events:none}
+#app.en-intro header,#app.en-intro #minimap,#app.en-intro .location,#app.en-intro #world-state,#app.en-intro #mission-hud,#app.en-intro footer,#app.en-intro #touch,#app.en-intro #tutorial{opacity:0;transition:opacity .5s;pointer-events:none}
 /* Chrono de la course vers l'Étoile Rouge, façon scoreboard d'arcade. */
 #chrono-course{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:30;background:#173f37e6;color:#f3b94f;font-variant-numeric:tabular-nums;font-weight:800;padding:8px 20px;border-radius:999px;border:1px solid #f3b94f55;box-shadow:0 8px 30px #0004;letter-spacing:.06em}
+/* Minimap permanente : ruban vertical du parcours, flèche du joueur qui glisse. */
+#minimap{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:25;width:30px;background:#173f37d9;border-radius:16px;padding:12px 0;box-shadow:0 8px 26px #0003;pointer-events:none}
+.minimap-route{position:relative;height:180px;width:4px;margin:0 auto;background:linear-gradient(to bottom,#f3b94f,#287b72);border-radius:3px}
+.minimap-stop{position:absolute;left:50%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;background:#fffaf0;border:2px solid #496557}
+.minimap-stop.done{background:#2f7452;border-color:#f3b94f}
+::placeholder{content:'';position:absolute;inset:-4px;border-radius:50%;animation:pulsar-arret 1.6s infinite}
+#minimap-joueur{position:absolute;left:50%;transform:translate(-50%,-50%);font-size:13px;color:#d3752e;transition:top .25s linear;text-shadow:0 1px 2px #fff8}
+@keyframes pulsar-arret{0%,100%{box-shadow:0 0 0 0 #f3b94f44}55%{box-shadow:0 0 0 6px #f3b94f00}}
+.minimap-nord,.minimap-sud{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;color:#fff9e9;letter-spacing:.1em}.minimap-nord{top:-15px}.minimap-sud{bottom:-3px}
+/* Avec la minimap affichée, la boussole décorative s'efface. */
+#minimap:not([hidden])~main .compass{display:none}

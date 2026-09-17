@@ -74,6 +74,7 @@ export class Jeu {
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
     <div id="world-state"><span id="clock">07:30</span><span id="weather">Ciel clair</span><span id="health">Énergie 100</span></div>
     <div id="mission-hud"><strong>Mission</strong><span id="mission-text">Rencontrer le guide de la Corniche</span></div>
+    <div id="minimap" aria-label="Minimap du parcours"><div class="minimap-route">${guides.map(g=>`<span class="minimap-stop ${this.partie.visites.has(g.id)?'done':''}" style="top:${Math.max(0,Math.min(100,(132-g.z)/488*100))}%" title="${g.titre}"></span>`).join('')}<span id="minimap-joueur" style="top:100%">➤</span></div><span class="minimap-nord">N</span><span class="minimap-sud">S</span></div>
     <div id="tutorial" hidden><button id="tutorial-close" aria-label="Fermer le tutoriel">×</button><strong>Premiers pas</strong><span>ZQSD : marcher · E : interagir · M : carte · P : pause</span><small>Manette : joystick gauche pour conduire, ✕ interagir, ○ descendre, R1 klaxonner et Options mettre en pause.</small></div>
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
     <div id="intro-cinema" hidden><div class="intro-titres"><h2 id="intro-titre">COTONOU</h2><p id="intro-sous-titre">UNE VILLE À RENCONTRER</p></div><button id="intro-saut" class="intro-saut">Passer l'intro ⏭</button></div>
@@ -409,6 +410,9 @@ export class Jeu {
     $('clock').textContent=this.monde.heureTexte;$('weather').textContent=this.monde.meteoTexte;
     this.sauvegardeTemps+=dt;if(this.sauvegardeTemps>2){this.sauvegardeTemps=0;this.sauvegarder();}
     const zone=zoneActuelle(p.z);
+    // La flèche de la minimap descend du sud (départ) au nord (Étoile Rouge).
+    const joueur=$('minimap-joueur') as HTMLElement|null;
+    if(joueur)joueur.style.top=`${Math.max(0,Math.min(100,(132-p.z)/488*100))}%`;
     if(zone.id!==this.zoneId){this.zoneId=zone.id;$('zone-title').textContent=zone.nom;$('zone-description').textContent=zone.sousTitre;$('zone-kicker').textContent=`BÉNIN / ${zone.id==='corniche'?'AKPAKPA':'COTONOU'}`;this.synchroniser();}
     const guide=guides.find(g=>g.estProche(p.x,p.z));
     this.proche=guide?{type:'guide',guide}:etals.some(z=>Math.hypot(p.x-3,p.z-z)<4.5)?{type:'vendeuse'}:stations.some(z=>Math.hypot(p.x-3,p.z-z)<4.2)?{type:'transport'}:p.x>5&&Math.abs(p.z-8)<5?{type:'sport'}:null;
