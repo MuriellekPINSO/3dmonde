@@ -45,19 +45,22 @@ export class Meteo {
         if(this.positions[i+1]<.1){this.positions[i]=(Math.random()-.5)*48;this.positions[i+1]=22+Math.random()*8;this.positions[i+2]=(Math.random()-.5)*70;}
       }
       (this.pluie.geometry.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
-      // L'orage dramatise : un éclair frappe au hasard, brûle deux décims de
-      // seconde, le tonnerre gronde un peu plus tard selon la distance.
+      // L'orage dramatise : un éclair frappe au hasard en trois pulsations
+      // rapprochées (0,9 s au total), et le tonnerre gronde un peu plus tard.
       this.flash=Math.max(0,this.flash-dt*3.2);
       if(this.delaiEclair<=0){
-        this.flash=.85+Math.random()*.35;
+        this.flash=.9+Math.random()*.4;
         this.delaiEclair=4+Math.random()*11;
         const retard=.2+Math.random()*.9;
         window.setTimeout(()=>this.onTonnerre?.(1-retard),retard*1000);
       }
       this.delaiEclair-=dt;
-      if(!this.eclair){this.eclair=new T.DirectionalLight('#eef7ff',0);this.eclair.position.set(joueur.position.x+18,42,joueur.position.z-24);this.scene.add(this.eclair);}
+      if(!this.eclair){this.eclair=new T.DirectionalLight('#eef7ff',0);this.scene.add(this.eclair,this.eclair.target);}
       this.eclair.intensity=this.flash*4.2;
-      this.eclair.position.set(joueur.position.x+18,42,joueur.position.z-24);
+      this.eclair.position.set(joueur.position.x+26,58,joueur.position.z-20);
+      this.eclair.target.position.copy(joueur.position);
+      // Le scintillement : après la première pointe, un écho bref.
+      if(this.flash>0&&this.flash<.55&&this.delaiEclair>10)this.flash=this.flash<.4?.75:this.flash*.82;
     }else{
       this.flash=0;
       if(this.eclair)this.eclair.intensity=0;
