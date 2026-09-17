@@ -362,6 +362,13 @@ export class Monde {
       const fovCible=mouvement.moving?(state.transport==='voiture'?58:state.transport==='zemidjan'?55:state.running?52:49):48;
       this.camera.fov=T.MathUtils.lerp(this.camera.fov,fovCible,1-Math.exp(-dt*3.8));this.camera.updateProjectionMatrix();
       if(mouvement.moving&&!state.transport){const cadence=state.running?12:8,ampleur=state.running?.1:.045;desired.y+=Math.sin(time/1000*cadence)*ampleur;desired.x+=Math.cos(time/1000*cadence*.5)*ampleur*.32;}
+      // À moto, la vitesse se sent : frémissement qui monte avec l'allure, plus
+      // une inclinaison dans les virages comme une vraie moto penchée.
+      if(state.transport==='zemidjan'&&mouvement.moving){
+        const allure=Math.min(1,this.vitesseReelle/9);
+        desired.y+=Math.sin(time*.105)*.028*allure;desired.x+=Math.cos(time*.083)*.022*allure;
+      }
+      if(state.transport&&(state.transport!=='zemidjan'||mouvement.moving)){desired.z+=this.pitch*1.6;}
       if(this.accident>0){const force=Math.min(1,this.accident/.45)*Math.min(1,(2.7-this.accident)/.12);desired.x+=Math.sin(time*.075)*.2*force;desired.y+=Math.cos(time*.09)*.12*force;}
       this.camera.position.lerp(desired,1-Math.exp(-dt*6));
       // Le point de regard part du torse du joueur : même après un glissement
