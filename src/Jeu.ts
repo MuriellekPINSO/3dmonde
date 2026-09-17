@@ -1,7 +1,7 @@
 import { Ambiance } from './ui/Ambiance';
 import { Monde } from './world';
 import { products } from './game';
-import { Partie, SportJogging, Vendeuse, Zemidjan, Voiture, type Transport } from './core/Partie';
+import { Partie, SportJogging, CourseTransport, Vendeuse, Zemidjan, Voiture, type Transport } from './core/Partie';
 import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from './content/zones';
 import { DialogueVocal } from './ui/DialogueVocal';
 import { Manette, type LectureManette } from './input/Manette';
@@ -16,6 +16,7 @@ export class Jeu {
   readonly sport=new SportJogging();
   readonly vendeuse=new Vendeuse();
   readonly transports:Transport[]=[new Zemidjan(),new Voiture()];
+  readonly course=new CourseTransport();
   private monde!:Monde;
   private voix!:DialogueVocal;
   private ambiance!:Ambiance;
@@ -77,6 +78,7 @@ export class Jeu {
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
     <div id="intro-cinema" hidden><div class="intro-titres"><h2 id="intro-titre">COTONOU</h2><p id="intro-sous-titre">UNE VILLE À RENCONTRER</p></div><button id="intro-saut" class="intro-saut">Passer l'intro ⏭</button></div>
     <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
+    <div id="chrono-course" hidden></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
     <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
@@ -358,7 +360,11 @@ export class Jeu {
         $('confirm-ride').onclick=()=>{
           if(!this.partie.monter(transport)){this.manette.vibrer('erreur');$('ride-confirmation').textContent='Solde insuffisant ou véhicule déjà actif. Tu peux continuer à pied.';return;}
           this.manette.vibrer('montee');this.sport.arreter();this.monde.engagerTransportSurVoie(transport.id,sens);this.synchroniser();this.panel.close();
-          this.notifier(`${transport.nom} orienté vers ${destination} sur la bonne voie. Avance avec Z, ↑ ou le joystick gauche.`);
+          // Cap vers l'Étoile Rouge : la course contre la montre s'ouvre.
+          if(transport.id==='zemidjan'&&sens==='etoile'){
+            this.course.commencer(true,sens);
+            this.notifier(`${this.course.actif?'COURSE ! ':'Rejoins'}l’Étoile Rouge avant ${this.course.cible} s — record : ${this.course.record?Math.round(this.course.record)+' s':'aucun'}. Klaxonne… non, fonce !`);
+          }else this.notifier(`${transport.nom} orienté vers ${destination} sur la bonne voie. Avance avec Z, ↑ ou le joystick gauche.`);
         };
       });
     });
@@ -366,6 +372,8 @@ export class Jeu {
   private descendre(){
     if(!this.partie.transport||this.panel.open||this.accueil.open)return;
     this.manette.vibrer('descente');
+    // Descendre en pleine course annule le pari : pas de gain, chrono effacé.
+    if(this.course.actif){this.course.arreter(false);$('chrono-course').hidden=true;this.notifier('Course abandonnée — le record ne s’écrit qu’à l’arrivée.');}
     this.monde.commencerDescente(this.partie.transport.id);this.partie.descendre();this.monde.keys.clear();this.notifier('Tu continues à pied. Une nouvelle montée nécessitera un nouveau paiement.');
   }
   private interagir(){
@@ -417,6 +425,16 @@ export class Jeu {
     $('sport-label').textContent=`Jogging · ${Math.floor(this.sport.distance)} / 50 m`;
     $('vehicle-status').hidden=!this.partie.transport||paused;
     $('vehicle-label').textContent=this.partie.transport?`${this.partie.transport.nom} · ${Math.round(this.monde.allure*7.2)} km/h · H : klaxon`:'';
+    // Course contre la montre : chrono dans le HUD véhicule, gain à l'arrivée.
+    if(!paused&&this.partie.transport){
+      const etat=this.course.avancer(dt,p.z);
+      if(etat==='arrivee'){
+        const gagne=this.course.temps<=this.course.cible,attente=this.course.arreter(gagne),gain=this.course.gain();
+        if(attente){this.partie.portefeuille.crediter(gain);this.manette.vibrer('succes');this.notifier(`ARRIVÉE en ${this.course.temps.toFixed(1)} s ${this.course.record?`· record ${this.course.record.toFixed(1)} s !`:''} · +${gain} FCFA`);}
+      }
+    }
+    $('chrono-course').hidden=!this.course.actif||paused;
+    if(this.course.actif)$('chrono-course').textContent=`⏱ ${this.course.temps.toFixed(1)} s / ${this.course.cible} s`;
     return {paused,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:4)};
   }
 }

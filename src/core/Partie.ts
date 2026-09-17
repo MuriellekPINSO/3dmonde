@@ -109,3 +109,38 @@ export class SportJogging {
     return 'course';
   }
 }
+
+/**
+ * Pari du zémidjan : rejoindre l'Étoile Rouge en course contre la montre, une
+ * fois par montée. Le chrono court dès la confirmation du tarif ; l'arrivée
+ * dans la zone de l'Étoile Rouge paie le gain selon la vitesse tenue. Descendre
+ * ou un accident met fin au pari sans récompense — le risque fait la saveur.
+ */
+export class CourseTransport {
+  actif = false;
+  temps = 0;
+  /** Record personnel : le meilleur temps jamais signé, sauvegardé avec la partie. */
+  record: number | null = null;
+  /** Limite douce : la gagner reste possible, la battre est la fierté. */
+  readonly cible = 75;
+  commencer(enVehicule: boolean, direction:'etoile'|'corniche') {
+    this.actif = enVehicule && direction === 'etoile';
+    this.temps = 0;
+    return this.actif;
+  }
+  arreter(gagne: boolean) {
+    const finit = this.actif; this.actif = false;
+    if (finit && gagne && (this.record === null || this.temps < this.record)) this.record = this.temps;
+    return finit;
+  }
+  avancer(dt:number, z:number):'course'|'arrivee'|null{
+    if(!this.actif)return null;
+    this.temps+=dt;
+    // L'arrivée est signalée sans couper l'état : seul `arreter` finalise,
+    // sinon le record ne s'écrirait jamais.
+    if(z<=-430)return'arrivee';
+    return'course';
+  }
+  /** Récompense dégressive avec le temps : vite parti, bien payé. */
+  gain(){return Math.max(120,Math.round(420-this.temps*3));}
+}

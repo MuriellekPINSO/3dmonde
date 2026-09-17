@@ -55,3 +55,26 @@ test('sauvegarde, énergie et récompenses de missions',()=>{
  assert.equal(p.recompenser('sport',300),true);assert.equal(p.recompenser('sport',300),false);
  const copie=new Partie();copie.restaurer(p.serialiser());assert.deepEqual(copie.serialiser(),p.serialiser());
 });
+
+import {CourseTransport} from './core/Partie.ts';
+test('course du zémidjan : chrono, record, gain dégressif',()=>{
+ const c=new CourseTransport();
+ assert.equal(c.avancer(.016,0),null), 'inactif : rien';
+ assert.equal(c.commencer(true,'etoile'),true);
+ assert.equal(c.avancer(5,-100),'course');
+ c.temps=72;
+ assert.equal(c.avancer(2,-500),'arrivee');
+ assert.equal(c.arreter(true),true);
+ assert.equal(c.record,74,'record écrit à l arrêt gagnant');
+ const g=c.gain();
+ assert.ok(g>=120&&g<=420,'gain dégressif borné : '+g);
+ assert.equal(c.commencer(true,'etoile'),true,'redémarre pour un nouvel embarquement');
+ assert.equal(c.temps,0);
+ assert.equal(c.commencer(false,'etoile'),false,'pas de course hors véhicule');
+});
+test('abandon de course : aucun record',()=>{
+ const c=new CourseTransport();
+ c.commencer(true,'etoile');c.avancer(10,-50);
+ assert.equal(c.arreter(false),true);
+ assert.equal(c.record,null,'abandon sans record');
+});
