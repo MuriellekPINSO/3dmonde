@@ -48,6 +48,8 @@ export class Monde {
   private readonly mer: MerAnimee;
   private readonly vie: VieUrbaine;
   private readonly meteo:Meteo;
+  /** Petits jetons lumineux des missions : légers, mais repérables dans la ville. */
+  private readonly souvenirsMission = new Map<string, T.Group>();
   private passagerMoto?: T.Group;
   private porteVoiture?:T.Group;
   /** Poussière soulevée par le véhicule du joueur. */
@@ -199,6 +201,7 @@ export class Monde {
     boulevard(batisseur);this.mer=corniche(batisseur);esplanadeAmazone(batisseur);citeMinisterielle(batisseur);
     palaisMarina(batisseur);palaisCongres(batisseur);quartierMarches(batisseur);etoileRouge(batisseur);
     this.rues=new Rues(batisseur);figures(batisseur);
+    this.placerSouvenirsMission();
     this.vie=new VieUrbaine(this.scene);
     this.meteo=new Meteo(this.scene);
     // Les éclairs déclenchent le grondement du tonnerre côté audio.
@@ -257,6 +260,26 @@ export class Monde {
     canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('pointercancel',()=>drag=false);
     addEventListener('resize',()=>{this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);if(this.cinema)this.cinema.redimensionner();});
   }
+  private placerSouvenirsMission(){
+    const points:[string,number,number,string][]=[
+      ['coquillage',-2.5,76,'#f3d383'],['tissu',4.8,43,'#c85a4a'],['lagune',2.8,18,'#4f9ca0'],
+    ];
+    for(const [id,x,z,couleur] of points){
+      const groupe=new T.Group();groupe.name=`souvenir-${id}`;groupe.position.set(x,.7,z);
+      const anneau=new T.Mesh(new T.TorusGeometry(.34,.075,8,16),new T.MeshStandardMaterial({color:couleur,emissive:couleur,emissiveIntensity:.28}));
+      anneau.rotation.x=Math.PI/2;anneau.castShadow=true;groupe.add(anneau);
+      const etoile=new T.Mesh(new T.OctahedronGeometry(.18),new T.MeshStandardMaterial({color:'#fff8d7',emissive:couleur,emissiveIntensity:.45}));etoile.position.y=.18;groupe.add(etoile);
+      this.scene.add(groupe);this.souvenirsMission.set(id,groupe);
+    }
+  }
+  /** Renvoie un souvenir assez proche pour être ramassé, puis le masque. */
+  ramasserSouvenir(position:T.Vector3){
+    for(const [id,objet] of this.souvenirsMission){
+      if(objet.visible&&Math.hypot(position.x-objet.position.x,position.z-objet.position.z)<2.2){objet.visible=false;return id;}
+    }
+    return null;
+  }
+  restaurerSouvenirs(ids:readonly string[]){for(const [id,objet] of this.souvenirsMission)objet.visible=!ids.includes(id);}
   /**
    * Fait passer tous les zémidjans au modèle détaillé : ceux de la circulation,
    * ceux garés aux bornes, et celui que conduit le joueur.

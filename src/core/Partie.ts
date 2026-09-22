@@ -36,6 +36,13 @@ export class Partie {
   accidents = 0;
   readonly transportsUtilises = new Set<string>();
   readonly recompenses = new Set<string>();
+  /** Souvenirs, cartes et anecdotes gagnés pendant les défis urbains. */
+  readonly souvenirs = new Set<string>();
+  readonly photos = new Set<string>();
+  readonly quizReussis = new Set<string>();
+  readonly defisTermines = new Set<string>();
+  readonly debloques = new Set<string>();
+  readonly defis = new Map<string, number>();
   get balance() { return this.portefeuille.balance; }
   get inventory() { return this.inventaire; }
   monter(transport: Transport): boolean {
@@ -58,6 +65,18 @@ export class Partie {
     if(this.recompenses.has(id))return false;
     this.recompenses.add(id);this.portefeuille.crediter(montant);return true;
   }
+  demarrerDefi(id:string,duree:number){
+    if(this.defisTermines.has(id)||this.defis.has(id)||!Number.isFinite(duree))return false;
+    this.defis.set(id,duree);return true;
+  }
+  avancerDefis(dt:number){
+    for(const [id,temps] of this.defis){
+      const restant=Math.max(0,temps-dt);this.defis.set(id,restant);
+      if(!restant)this.defis.delete(id);
+    }
+  }
+  terminerDefi(id:string){if(!this.defis.has(id)&&!this.defisTermines.has(id))return false;this.defis.delete(id);this.defisTermines.add(id);return true;}
+  debloquer(id:string){this.debloques.add(id);}
   restaurer(data:SauvegardePartie){
     this.portefeuille.restaurer(data.balance);
     this.inventaire.splice(0,this.inventaire.length,...data.inventory.slice(0,50));
@@ -66,14 +85,22 @@ export class Partie {
     this.securite=Math.max(0,Math.min(100,data.securite??100));this.accidents=Math.max(0,data.accidents??0);
     this.transportsUtilises.clear();for(const id of data.transportsUtilises??[])this.transportsUtilises.add(id);
     this.recompenses.clear();for(const id of data.recompenses??[])this.recompenses.add(id);
+    this.souvenirs.clear();for(const id of data.souvenirs??[])this.souvenirs.add(id);
+    this.photos.clear();for(const id of data.photos??[])this.photos.add(id);
+    this.quizReussis.clear();for(const id of data.quizReussis??[])this.quizReussis.add(id);
+    this.defisTermines.clear();for(const id of data.defisTermines??[])this.defisTermines.add(id);
+    this.debloques.clear();for(const id of data.debloques??[])this.debloques.add(id);
+    this.defis.clear();for(const [id,temps] of data.defis??[])if(Number.isFinite(temps)&&temps>0)this.defis.set(id,temps);
   }
   serialiser():SauvegardePartie{return {balance:this.balance,inventory:[...this.inventory],visites:[...this.visites],
     vendeuseRencontree:this.vendeuseRencontree,finAnnoncee:this.finAnnoncee,securite:this.securite,accidents:this.accidents,
-    transportsUtilises:[...this.transportsUtilises],recompenses:[...this.recompenses]};}
+    transportsUtilises:[...this.transportsUtilises],recompenses:[...this.recompenses],souvenirs:[...this.souvenirs],photos:[...this.photos],
+    quizReussis:[...this.quizReussis],defisTermines:[...this.defisTermines],debloques:[...this.debloques],defis:[...this.defis]};}
 }
 
 export type SauvegardePartie={balance:number;inventory:string[];visites:string[];vendeuseRencontree:boolean;
-  finAnnoncee:boolean;securite?:number;accidents?:number;transportsUtilises?:string[];recompenses?:string[]};
+  finAnnoncee:boolean;securite?:number;accidents?:number;transportsUtilises?:string[];recompenses?:string[];
+  souvenirs?:string[];photos?:string[];quizReussis?:string[];defisTermines?:string[];debloques?:string[];defis?:[string,number][]};
 
 export class Vendeuse {
   readonly nom = 'Aïcha';

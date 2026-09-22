@@ -751,10 +751,10 @@ export function figures(b: Batisseur) {
 }
 
 /** Zémidjan rouge à conducteur en chemise jaune, ou voiture de course urbaine. */
-export function vehicule(b: Batisseur, type: 'zemidjan' | 'voiture') {
+export function vehicule(b: Batisseur, type: 'zemidjan' | 'voiture', couleur?:string) {
   const g = new T.Group();
   if (type === 'zemidjan') {
-    b.boite(.58, .42, 1.5, '#9e3b32', 0, .88, 0, g);
+    b.boite(.58, .42, 1.5, couleur??'#9e3b32', 0, .88, 0, g);
     b.boite(.5, .22, .55, '#8d8a86', 0, .62, -.1, g);                                // bloc moteur
     b.boite(.54, .14, .92, '#2f6f7a', 0, 1.16, .1, g);                               // selle longue
     for (const z of [-.95, .95]) {
@@ -766,7 +766,7 @@ export function vehicule(b: Batisseur, type: 'zemidjan' | 'voiture') {
     const conducteur = new Personnage('#f2c928', 0, .35, {jambes: '#3f5a86', casque: '#1d2124'}).objet;
     conducteur.position.set(0, .52, -.35); conducteur.scale.setScalar(.82); g.add(conducteur);
   } else {
-    b.boite(1.6, .75, 2.8, '#d4ad61', 0, .8, 0, g);
+    b.boite(1.6, .75, 2.8, couleur??'#d4ad61', 0, .8, 0, g);
     b.boite(1.35, .7, 1.4, '#497675', 0, 1.5, -.2, g);
     for (const x of [-.85, .85]) for (const z of [-.9, .9]) {
       const roue = b.cyl(.35, .35, .18, 12, '#29352f', x, .4, z, g); roue.rotation.z = Math.PI / 2;

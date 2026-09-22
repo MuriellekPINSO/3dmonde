@@ -17,12 +17,20 @@ export class DialogueVocal {
   }
   get disponible(){return 'speechSynthesis' in window;}
   private actualiser(){this.bouton.textContent=`Voix : ${this.active?'activée':'désactivée'}`;this.bouton.setAttribute('aria-pressed',String(this.active));}
-  lire(texte:string,forcer=false){
+  /** Privilégie une voix française naturelle installée sur l’appareil. */
+  private choisirVoix(genre:'homme'|'femme'){
+    const voix=window.speechSynthesis.getVoices().filter(v=>v.lang.toLowerCase().startsWith('fr'));
+    const indices=genre==='homme'?/thomas|henri|remi|rémi|antoine|daniel|male|homme/i:/amelie|amélie|audrey|marie|virginie|female|femme/i;
+    return voix.find(v=>indices.test(v.name))??voix.find(v=>!v.localService)??voix[0];
+  }
+  lire(texte:string,forcer=false,genre:'homme'|'femme'='femme'){
     if(!this.disponible)return;
     if(forcer){this.active=true;this.actualiser();}
     if(!this.active)return;
     this.arreterMicro();window.speechSynthesis.cancel();
-    const utterance=new SpeechSynthesisUtterance(texte);utterance.lang='fr-FR';utterance.rate=.95;window.speechSynthesis.speak(utterance);
+    const utterance=new SpeechSynthesisUtterance(texte);utterance.lang='fr-FR';utterance.rate=.91;utterance.pitch=genre==='homme'?.86:1.04;
+    const voix=this.choisirVoix(genre);if(voix)utterance.voice=voix;
+    window.speechSynthesis.speak(utterance);
   }
   arreterMicro(){this.generation++;this.recognition?.abort();this.recognition=undefined;this.ecoute=false;const bouton=document.getElementById('mic');if(bouton)bouton.textContent='Parler au micro';}
   arreter(){this.arreterMicro();window.speechSynthesis?.cancel();}

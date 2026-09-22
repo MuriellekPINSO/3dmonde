@@ -1,0 +1,32 @@
+{
+  "id": "01a0c92d-8863-70eb-82d9-60a709c21e88",
+  "type": "text-to-3d-refine",
+  "mode": "refine",
+  "name": "",
+  "model_type": "standard",
+  "seed": 1415365464,
+  "prompt": "Game-ready stylized 3D adult Beninese woman pedestrian, full body, standing neutral A-pose, braided hair, modest contemporary colorful West African wax-print blouse and trousers, flat sandals, warm brown skin, relaxed natural posture, clean topology, single character only, no chair, no props, no background, optimized for a real-time Three.js urban exploration game",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1790081599598,
+  "progress": 100,
+  "started_at": 1790081599603,
+  "finished_at": 1790081664610,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/model.glb?Expires=4943635200&Signature=dycXAnsk1hsYJvDpBOjxlDHp5k2Gsn3XAFYxOq~F39tsRdiJb2nQogBpDeNyBz1f~GyLf7QEH2lHFHUkCwoSMdlYXjF9jne7te2CEao2IACZmjOriROBKK6KnoOnLWsWy~96PNSN0OtTokI8TOYnZSzNVBvf5JbnNxT~NhYFqXIrdecLllHvDhas0Em~uhEeaA8vx5No9g2Bxg9vcIWWFA~l-gjyziCrvkEwrrwNbW3xqd2wmjNF4IovsI18CMkz2OI2TPHkmi8wzrnF3vI6NvqqUKsMK3uMTxjl8lbs9unPo-BlNPrKOh-XJiXVvpfpwoFiUziNQRIg8JoONhW5PA__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/preview.png?Expires=4943635200&Signature=jXs2UEZ7k0klCAY0F7Al4vdbgRzQ62JBnxPAXSARxFt37fKtduBApSlRYww2Ewf3YFD89nR974PkSiLA~nPIGB9dl5G0uM7zB2mFLFDnPmNpUYLVHC8lWQRwFUEfk1hJZbekJl4fJcYoBbkUBvYJLV0-i5eunFMXtGhRGpdgw4bZmQI~6XTBjfBJpZ2JvCOnEpTm5jyIBzkoG~Q1VUUSaSuc2Tc66Q-hRlnf8k2mwB3nuYOV2LY0ZXuenuRL-~tC802Li1uC~cARcFelMFWqCLzrd~-2QIo32J6odcLJbXcJtYmkcodhY6VROC6NODLoSYUTMYdNOtqmbcaS6oaVmA__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "texture_urls": [
+    {
+      "base_color": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/texture_0.png?Expires=4943635200&Signature=FRJrb4GwiFdnLHq2~ZdmCTW7pFTa0-fMo8rJ3oC4taRgCteITqMQGGbkwxvV9FzOmqSXUu1O6je~LGYMciZ7i9PjcMfODE-I1~8y~i~UsfLTNRtm1scn5JwgTLJCBxsREM2Iwz9at4Wo~AXUKpjVKaNDZuxEm4bcK0JEDGi-l-nZ7dwUPUeGib1zibny5OxJs7vNm1i0X9LojN4KnAIykm~w8O6TMapW5wi1FL1NUaEvKyQd7FGGH1n9L3T3EnfZTLuJVVP2h12huJ6AZCtixeoOKFxsovq6lgHOSBKxcHZnXqCT9g0zEEP7ugpzMR0NlhL6booqWCqskN8CPxKE4Q__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "metallic": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/texture_0_metallic.png?Expires=4943635200&Signature=pIskd9q67OC87W8yX9ZXEdLmUKr-fOLfPGTgCiXyJ~N0o0gvTuqkc~Ko-mccQc~EBz87NWO07VUjOgGHlk~XsVYUZeH1ANB-flLIywbyv5AVOwT4G1r3Ol~D6Ag3Rq0PrGI49kdgxZvBmqXhrfhojm4hRJKtQZsBnsqAQLrpcLDjRDJOlT5odJtbVEZL5tY3zfkKGXN2YAB3ZjpbGa9lMbtRKK7LENsXTaMAM1szSInvHfpmF0k~z1bUrQgmjdsPXdC~D10tnxe3qyAPXc0J-NTBEGVeJ9efK8PzdUe5rZEVaqiaCDBA4ye5Itsax2ySLRZE2QKWI1lkdcQ4mmys6A__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "roughness": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/texture_0_roughness.png?Expires=4943635200&Signature=orJGvYDjd~4UzRgLcCpxYJowj2lfoJRabJPr441tDPyiGyzwo6xILIwnXK3-35oy83j~5KmSdPA3E~7svGUafelEUXXbjdbRsgyuUvnX18qocwMv0jMXAROuVWEAdHEm~2bJV38C3Hfh~KxxKkTkZd7qWpbtHQooZI8QMG0HZmJ81mlsZ7ykvvQSR0adjiLjJSfnXkH8tb3qZfOSK96aJgE5ZkUKTXeTnDLu3Nm-0dOZZL28Upt4kVegvGr3R7ROaWE9uorcBidkeKrtmkfsoALROP3ZqlVEpE1FKK9Yfsuw4FCWhch1JB3JL5qCTWdb6kf9xYNmY5TwiXLpuVDVMg__&Key-Pair-Id=K1VGYTHIYLM9UM",
+      "normal": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92d-8863-70eb-82d9-60a709c21e88/output/texture_0_normal.png?Expires=4943635200&Signature=Tn~~Rfrz2HIHrFxouATk5cOBXksPsI23KsZhTD~8p9m-LXxotAvW87TfKj7Mw-n9YHadP82Y3G~wBtPJM99VZmT2xpA62QXMIHdykmJCSGOancL3wsmbm6q5ZYHAx1MjLTLQhBRL~1HqXtSxk0Vm059at4BSbnowChqh4PimO~YebOXcC-P9vE1cfsRUIUdZZ3JkIB6L8k0uMOBI7mX7mxtEakWluTXUkYapYldzgupg8mQzIxN-1l3MEdhRJVAC91nlGIkRJjeDOGbQUs2-dIKekeRFQ7CbLQT5mnchoqXVJgzvCoDJjW-PJuiIAs8feYPVUEQfL8Qw-Y9P00eh-A__&Key-Pair-Id=K1VGYTHIYLM9UM"
+    }
+  ],
+  "hd_texture": true,
+  "texture_resolution": "4k",
+  "consumed_credits": 10
+}

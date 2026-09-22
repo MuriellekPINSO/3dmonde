@@ -10,6 +10,7 @@ import { ApercuAvatar, AVATARS } from './ui/ApercuAvatar';
 import type { CorpsJoueur } from './entities/Foule';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
 type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
+const POINT_PHOTO_CORNICHE={x:1.5,z:124};
 
 export class Jeu {
   readonly partie=new Partie();
@@ -70,7 +71,7 @@ export class Jeu {
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
-    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/5</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">10 000 FCFA</span></div></header>
+    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/${guides.length}</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">10 000 FCFA</span></div></header>
     <aside class="location"><p class="eyebrow" id="zone-kicker">BÉNIN / AKPAKPA</p><h1 id="zone-title">La Corniche</h1><p id="zone-description">Au bord de l’eau, Cotonou s’éveille.</p><div class="rule"></div><p class="eyebrow">VOTRE CARNET DE BALADE</p><ol>${zones.map(z=>`<li id="task-${z.id}">${z.nom}${z.id==='amazone'?' & Présidence':''}</li>`).join('')}</ol><p class="note" id="next-objective">Rencontrer le guide de la Corniche.</p><p class="note" id="side-quests">Jogging : à essayer · Aïcha : à rencontrer</p></aside>
     <button id="ambiance" aria-pressed="false">Ambiance : coupée</button>
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
@@ -94,6 +95,8 @@ export class Jeu {
     this.toastTimer=window.setTimeout(()=>$('toast').classList.remove('show'),5500);
   }
   private missionCourante(){
+    const chrono=this.partie.defis.get('arrivee-amazone');
+    if(chrono!==undefined)return `Défi : rejoindre l’Amazone · ${Math.ceil(chrono)} s`;
     const guide=guides.find(g=>!this.partie.visites.has(g.id));
     if(guide)return `Rencontrer le guide : ${guide.titre}`;
     if(!this.partie.vendeuseRencontree)return'Rencontrer Aïcha sur l’esplanade';
@@ -101,7 +104,11 @@ export class Jeu {
     return'Explorer librement Cotonou';
   }
   private missions(){return[
-    {id:'exploration',titre:'Mémoire de Cotonou',detail:'Écouter les cinq guides',gain:600,faite:this.partie.terminee(lieux)},
+    {id:'arrivee-amazone',titre:'Cap sur l’Amazone',detail:'Atteindre l’esplanade en moins de 120 s après le guide de la Corniche',gain:350,faite:this.partie.defisTermines.has('arrivee-amazone'),bonus:'Carte postale · Amazone'},
+    {id:'souvenirs-corniche',titre:'Trésors de la Corniche',detail:`Ramasser les 3 souvenirs de la promenade (${this.partie.souvenirs.size}/3)`,gain:200,faite:this.partie.souvenirs.size>=3,bonus:'Couleur lagune'},
+    {id:'photo-corniche',titre:'Le bon cadrage',detail:'Prendre une photo depuis le point de vue de la Corniche',gain:150,faite:this.partie.photos.has('corniche'),bonus:'Carte postale · Corniche'},
+    {id:'quiz-amazone',titre:'Mémoire de l’Amazone',detail:'Répondre à la question après avoir rencontré le guide',gain:250,faite:this.partie.quizReussis.has('amazone'),bonus:'Anecdote débloquée'},
+    {id:'exploration',titre:'Mémoire de Cotonou',detail:`Écouter les ${guides.length} guides`,gain:600,faite:this.partie.terminee(lieux)},
     {id:'sport',titre:'Matin sportif',detail:'Terminer les 50 m de jogging',gain:300,faite:this.sport.termine},
     {id:'commerce',titre:'Rencontre locale',detail:'Acheter un produit chez Aïcha',gain:150,faite:this.partie.inventory.length>0},
     {id:'mobilite',titre:'Mobilité urbaine',detail:'Essayer le zémidjan et la voiture',gain:250,faite:this.partie.transportsUtilises.has('zemidjan')&&this.partie.transportsUtilises.has('voiture')},
@@ -122,6 +129,7 @@ export class Jeu {
       if(typeof data?.peauJoueur==='string'&&/^#[0-9a-f]{6}$/i.test(data.peauJoueur))this.peauJoueur=data.peauJoueur;
       if(typeof data?.chaussures==='string'&&/^(#[0-9a-f]{6})?$/i.test(data.chaussures))this.chaussures=data.chaussures;
       if(typeof data?.nomJoueur==='string'&&data.nomJoueur.trim())this.nomJoueur=data.nomJoueur.slice(0,16);
+      this.monde.restaurerSouvenirs([...this.partie.souvenirs]);
       this.appliquerApparence();
       $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
     }catch{localStorage.removeItem('cotonou-sauvegarde-v2');}
@@ -132,10 +140,10 @@ export class Jeu {
   }
   private synchroniser(){
     $('wallet').textContent=`${this.partie.balance.toLocaleString('fr-FR')} FCFA`;$('bag').textContent=`Sac · ${this.partie.inventory.length}`;
-    $('map').textContent=`Carte · ${this.partie.visites.size}/5`;
+    $('map').textContent=`Carte · ${this.partie.visites.size}/${guides.length}`;
     for(const zone of zones)$(`task-${zone.id}`).classList.toggle('done',zone.guides.every(g=>this.partie.visites.has(g.id)));
     const suivant=guides.find(g=>!this.partie.visites.has(g.id));
-    $('next-objective').textContent=suivant?`Prochaine découverte : ${suivant.titre}.`:'Les cinq lieux sont découverts !';
+    $('next-objective').textContent=suivant?`Prochaine découverte : ${suivant.titre}.`:'Tous les lieux sont découverts !';
     $('side-quests').textContent=`Jogging : ${this.sport.termine?'terminé':'à essayer'} · Aïcha : ${this.partie.vendeuseRencontree?'rencontrée':'à rencontrer'}`;
     $('health').textContent=`Énergie ${this.partie.securite}`;$('mission-text').textContent=this.missionCourante();this.sauvegarder();
   }
@@ -308,8 +316,8 @@ export class Jeu {
   private ouvrirParcours(){
     const z=this.monde.player.position.z;
     const position=Math.max(0,Math.min(100,(132-z)/488*100));
-    this.ouvrir('Carte et missions','CINQ LIEUX · QUATRE ZONES',`<div class="mini-map"><span class="map-player" style="top:${position}%">●</span>${guides.map(g=>`<span class="map-stop ${this.partie.visites.has(g.id)?'done':''}" style="top:${Math.max(0,Math.min(100,(132-g.z)/488*100))}%">${g.titre}</span>`).join('')}</div><div class="route-list">${guides.map(g=>`<div><strong>${this.partie.visites.has(g.id)?'✓ ':''}${g.titre}</strong><small>${Math.round(Math.abs(g.z-z))} m de jeu · ${g.z<z?'vers le nord':'vers le sud'}</small></div>`).join('')}</div><h3>Missions et récompenses</h3><div class="missions">${this.missions().map(m=>`<div><span><strong>${m.titre}</strong><small>${m.detail} · ${m.gain} FCFA</small></span>${this.partie.recompenses.has(m.id)?'<b>Réclamée</b>':m.faite?`<button data-claim="${m.id}">Réclamer</button>`:'<em>En cours</em>'}</div>`).join('')}</div><p class="note">Les distances sont adaptées au jeu. La position ● suit le joueur.</p>${this.partie.terminee(lieux)?'<button id="summary" class="primary">Voir le bilan</button>':''}`);
-    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-claim]').forEach(b=>b.onclick=()=>{const mission=this.missions().find(m=>m.id===b.dataset.claim);if(mission?.faite&&this.partie.recompenser(mission.id,mission.gain)){this.manette.vibrer('succes');this.synchroniser();this.notifier(`Mission accomplie : +${mission.gain} FCFA`);this.panel.close();}});
+    this.ouvrir('Carte et missions',`${guides.length} LIEUX · QUATRE ZONES`, `<div class="mini-map"><span class="map-player" style="top:${position}%">●</span>${guides.map(g=>`<span class="map-stop ${this.partie.visites.has(g.id)?'done':''}" style="top:${Math.max(0,Math.min(100,(132-g.z)/488*100))}%">${g.titre}</span>`).join('')}</div><div class="route-list">${guides.map(g=>`<div><strong>${this.partie.visites.has(g.id)?'✓ ':''}${g.titre}</strong><small>${Math.round(Math.abs(g.z-z))} m de jeu · ${g.z<z?'vers le nord':'vers le sud'}</small></div>`).join('')}</div><h3>Missions et récompenses</h3><div class="missions">${this.missions().map(m=>`<div><span><strong>${m.titre}</strong><small>${m.detail} · ${m.gain} FCFA${'bonus'in m?` · ${m.bonus}`:''}</small></span>${this.partie.recompenses.has(m.id)?'<b>Réclamée</b>':m.faite?`<button data-claim="${m.id}">Réclamer</button>`:'<em>En cours</em>'}</div>`).join('')}</div><p class="note">Collection : ${this.partie.debloques.size} récompense(s) spéciale(s) débloquée(s). Les distances sont adaptées au jeu.</p>${this.partie.terminee(lieux)?'<button id="summary" class="primary">Voir le bilan</button>':''}`);
+    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-claim]').forEach(b=>b.onclick=()=>{const mission=this.missions().find(m=>m.id===b.dataset.claim),bonus=mission&&'bonus'in mission?mission.bonus:undefined;if(mission?.faite&&this.partie.recompenser(mission.id,mission.gain)){if(bonus)this.partie.debloquer(bonus);this.manette.vibrer('succes');this.synchroniser();this.notifier(`Mission accomplie : +${mission.gain} FCFA${bonus?` · ${bonus}`:''}`);this.panel.close();}});
     if($('summary'))$('summary').onclick=()=>{this.panel.close();this.bilan();};
   }
   private ouvrirMenu(){
@@ -324,13 +332,16 @@ export class Jeu {
   }
   private afficherGuide(guide:Guide){
     this.partie.visiter(guide.id);this.synchroniser();
-    this.ouvrir(guide.titre,'VOTRE GUIDE',`<p>${guide.texte}</p><button id="read" class="primary">Écouter le guide</button>${guide.source?`<p class="note"><a href="${guide.source}" target="_blank" rel="noopener noreferrer">Référence du lieu</a></p>`:''}${this.partie.terminee(lieux)?'<p>Les cinq lieux sont découverts.</p><button id="finish">Terminer la balade</button>':''}`);
-    $('read').onclick=()=>{if(!this.voix.disponible)this.notifier('Lecture vocale indisponible. Le texte reste accessible.');else this.voix.lire(guide.texte,true);};
-    if($('finish'))$('finish').onclick=()=>{this.panel.close();this.bilan();};this.voix.lire(guide.texte);
+    if(guide.id==='corniche'&&this.partie.demarrerDefi('arrivee-amazone',120)){this.synchroniser();this.notifier('Défi lancé : rejoins l’esplanade de l’Amazone en moins de 120 secondes !');}
+    const quiz=guide.id==='amazone'&&!this.partie.quizReussis.has('amazone')?'<div class="quiz"><strong>Question du carnet</strong><p>Quel peuple de guerrières le monument honore-t-il ?</p><button data-quiz="danxome">Les Amazones du Danxomè</button><button data-quiz="autre">Les reines d’Égypte</button></div>':'';
+    this.ouvrir(guide.titre,'VOTRE GUIDE',`<p>${guide.texte}</p><button id="read" class="primary">Écouter le guide</button>${quiz}${guide.source?`<p class="note"><a href="${guide.source}" target="_blank" rel="noopener noreferrer">Référence du lieu</a></p>`:''}${this.partie.terminee(lieux)?'<p>Les cinq lieux sont découverts.</p><button id="finish">Terminer la balade</button>':''}`);
+    $('read').onclick=()=>{if(!this.voix.disponible)this.notifier('Lecture vocale indisponible. Le texte reste accessible.');else this.voix.lire(guide.texte,true,'homme');};
+    if($('finish'))$('finish').onclick=()=>{this.panel.close();this.bilan();};this.voix.lire(guide.texte,false,'homme');
+    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-quiz]').forEach(button=>button.onclick=()=>{if(button.dataset.quiz==='danxome'){this.partie.quizReussis.add('amazone');this.manette.vibrer('succes');this.synchroniser();this.notifier('Bonne réponse ! La mission Mémoire de l’Amazone est prête à être réclamée.');this.panel.close();}else{this.manette.vibrer('erreur');this.notifier('Pas tout à fait. Relis le guide et réessaie.');}});
   }
   private bilan(){
     this.partie.finAnnoncee=true;
-    this.ouvrir('Cotonou, dans ton carnet.','FIN DE LA DÉMO',`<p>Bravo ! Tu as découvert les cinq lieux de cette balade.</p><ul><li>5 lieux visités dans 4 zones</li><li>${this.partie.inventory.length} objet(s) acheté(s)</li><li>${this.partie.balance.toLocaleString('fr-FR')} FCFA restants</li><li>Jogging : ${this.sport.termine?'terminé':'à découvrir'}</li></ul><p>Tu peux fermer ce bilan et continuer à explorer librement.</p>`);
+    this.ouvrir('Cotonou, dans ton carnet.','FIN DE LA DÉMO',`<p>Bravo ! Tu as découvert les ${guides.length} lieux de cette balade.</p><ul><li>${guides.length} lieux visités dans 4 zones</li><li>${this.partie.inventory.length} objet(s) acheté(s)</li><li>${this.partie.balance.toLocaleString('fr-FR')} FCFA restants</li><li>Jogging : ${this.sport.termine?'terminé':'à découvrir'}</li></ul><p>Tu peux fermer ce bilan et continuer à explorer librement.</p>`);
   }
   private renderHistory(){
     const log=$('messages');if(!log)return;log.replaceChildren();
@@ -400,6 +411,10 @@ export class Jeu {
   }
   /** Prend la photo : le monde fournit l'image du frame courant, on la propose au téléchargement. */
   private prendrePhoto(){
+    const p=this.monde.player.position;
+    if(Math.hypot(p.x-POINT_PHOTO_CORNICHE.x,p.z-POINT_PHOTO_CORNICHE.z)<12&&!this.partie.photos.has('corniche')){
+      this.partie.photos.add('corniche');this.synchroniser();this.notifier('Point photo validé : carte postale de la Corniche à réclamer dans la carte !');
+    }
     this.monde.onPhoto=image=>{
       const lien=document.createElement('a');
       lien.href=image;
@@ -459,6 +474,16 @@ export class Jeu {
     // The interaction button remains usable on touch screens while mounted.
     $('interaction').onclick=this.partie.transport?()=>this.descendre():()=>this.interagir();
     if(!paused){
+      this.partie.avancerDefis(dt);
+      $('mission-text').textContent=this.missionCourante();
+      const souvenir=this.monde.ramasserSouvenir(p);
+      if(souvenir&&!this.partie.souvenirs.has(souvenir)){
+        this.partie.souvenirs.add(souvenir);this.manette.vibrer('succes');this.synchroniser();
+        this.notifier(`Souvenir trouvé ! ${this.partie.souvenirs.size}/3 sur la Corniche.`);
+      }
+      if(this.partie.defis.has('arrivee-amazone')&&Math.hypot(p.x+3,p.z+116)<12&&this.partie.terminerDefi('arrivee-amazone')){
+        this.manette.vibrer('succes');this.synchroniser();this.notifier('Défi Cap sur l’Amazone réussi ! Réclame ta récompense dans la carte.');
+      }
       const result=this.sport.avancer(p.x,p.z,dt);
       if(result==='sortie'){this.manette.vibrer('erreur');this.notifier('Reste sur la bande terracotta. Reviens au départ pour réessayer.');}
       if(result==='arrivee'){this.manette.vibrer('succes');this.synchroniser();this.notifier(`Bravo ! Jogging terminé en ${Math.round(this.sport.temps)} secondes.`);}

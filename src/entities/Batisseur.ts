@@ -302,9 +302,12 @@ export class Batisseur {
     const v = varie(x, z);
     const g = new T.Group(); g.position.set(x, 0, z); g.scale.setScalar(echelle * (.85 + v * .35)); this.racine.add(g);
     this.cyl(.4, .6, 4, 7, '#7d6a53', 0, 2, 0, g);
+    // Contreforts et petites branches : la silhouette reste légère mais moins géométrique.
+    for(let i=0;i<5;i++){const a=i*Math.PI*2/5;const racine=this.cyl(.08,.14,1.25,6,'#705d48',Math.cos(a)*.48,.5,Math.sin(a)*.48,g);racine.rotation.z=Math.sin(a)*.72;racine.rotation.x=-Math.cos(a)*.72;}
     const feuillage = this.mat('#3f6b3c');
     this.sphere(3.4, feuillage, 0, 5.1, 0, g).scale.set(1.25, .5, 1.25);
     this.sphere(2.5, feuillage, 1.4, 6, -.8, g).scale.set(1.15, .55, 1.15);
+    this.sphere(2.1, this.mat('#507b45'), -1.45, 5.75, .55, g).scale.set(1.1,.52,1.05);
     this.obstacle(x, z, 1.2, 1.2);
     return g;
   }
@@ -312,16 +315,18 @@ export class Batisseur {
   lampadaireDouble(x: number, z: number) {
     const g = new T.Group(); g.position.set(x, 0, z); this.racine.add(g);
     this.cyl(.11, .17, 9, 8, '#9aa0a2', 0, 4.5, 0, g);
+    this.cyl(.28,.31,.12,10,'#737a78',0,.07,0,g);
     this.boite(3.4, .12, .12, '#9aa0a2', 0, 8.95, 0, g);
-    for (const dx of [-1.5, 1.5]) this.boite(.75, .16, .34, '#e7e3d6', dx, 8.8, 0, g);
+    for (const dx of [-1.5, 1.5]) {this.boite(.75, .16, .34, '#e7e3d6', dx, 8.8, 0, g);this.boite(.55,.035,.24,'#fff4c7',dx,8.69,0,g);}
     return g;
   }
   /** Lampadaire simple du boulevard. */
   lampadaireSimple(x: number, z: number, sens = 1) {
     const g = new T.Group(); g.position.set(x, 0, z); this.racine.add(g);
     this.cyl(.1, .15, 8, 8, '#5d6360', 0, 4, 0, g);
+    this.cyl(.25,.28,.1,10,'#3f4544',0,.06,0,g);
     this.boite(1.8, .12, .12, '#5d6360', sens * .9, 7.95, 0, g);
-    this.boite(.8, .16, .3, '#f0ebda', sens * 1.7, 7.82, 0, g);
+    this.boite(.8, .16, .3, '#f0ebda', sens * 1.7, 7.82, 0, g);this.boite(.6,.03,.22,'#fff4c7',sens*1.7,7.71,0,g);
     return g;
   }
   /** Lanterne à globe des allées de la Présidence. */

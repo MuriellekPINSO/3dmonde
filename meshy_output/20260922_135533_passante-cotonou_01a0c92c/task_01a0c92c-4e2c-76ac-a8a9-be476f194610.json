@@ -1,0 +1,23 @@
+{
+  "id": "01a0c92c-4e2c-76ac-a8a9-be476f194610",
+  "type": "text-to-3d-preview",
+  "mode": "preview",
+  "name": "",
+  "model_type": "standard",
+  "seed": 1415365464,
+  "prompt": "Game-ready stylized 3D adult Beninese woman pedestrian, full body, standing neutral A-pose, braided hair, modest contemporary colorful West African wax-print blouse and trousers, flat sandals, warm brown skin, relaxed natural posture, clean topology, single character only, no chair, no props, no background, optimized for a real-time Three.js urban exploration game",
+  "texture_prompt": "",
+  "texture_image_url": "",
+  "status": "SUCCEEDED",
+  "created_at": 1790081521060,
+  "progress": 100,
+  "started_at": 1790081521075,
+  "finished_at": 1790081565345,
+  "task_error": null,
+  "model_urls": {
+    "glb": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92c-4e2c-76ac-a8a9-be476f194610/output/model.glb?Expires=4943635200&Signature=jxEVHvIbIgA2rTC2pA-X5R4~s4aW7nWXEidJ8d-fCGpSaz6MWqIi6bqeTPAJBUBVLILpwlU9lNiyhbNU13otvebhlyaOYOI9~fa8UgePC02VQp794XbQg8AmT4ZI3b-S6cWfpnx2nBdGfoKF8wpizAy3ndVHoo2em66bVJK50jQdpuqTnVFE9COXxwHxVy6FScXIsjfk3Sx8fdzx5XqSNa9YNcd55JhO34vE10QTVt88ffGzqVlLfFFCk8MkVzrEKPWL2Rw~8T7nHPNd41aP-bKs30kaMI1i2Hj-rRjA8KRv57Jy24gcpAqBNJBtPDGga8i56NUmMWkxV3A4P5MDCQ__&Key-Pair-Id=K1VGYTHIYLM9UM"
+  },
+  "thumbnail_url": "https://assets.meshy.ai/7a530d0c-fc91-402e-8130-29658af898df/tasks/01a0c92c-4e2c-76ac-a8a9-be476f194610/output/preview.png?Expires=4943635200&Signature=JMyh0P0K1bj2CX0pQFAjc7M0TRk1svbVZM5YLL~ivT-OX9cX6fJZiL~Y-uH4VRX2hrgGqyyYQz9DYcD0RWZ4zqEYjbiwgsANcHgym1ZNMrOkNy2lU2Rwt0dBfxYXyUPS89uHmUlnrihMa5P93OFMimcs6ZWSRtXUA8wx1kn7gxRNYeB6i1294wDKp9cTpF6qxEWuqWYC28QoNX9EHAv9tj8sZwhA7h747htkfgQFi~ujw7EynbGOJ69vOSVeKpNkmSXr7xOVGbkvNR6RpYgo8iP1jA~CzPDJBVLIRPWepnbhJOlbOIxAQbO-cG2rWmWQNqlkC4-JyQE4CzZ8MOoVsw__&Key-Pair-Id=K1VGYTHIYLM9UM",
+  "texture_urls": [],
+  "consumed_credits": 20
+}

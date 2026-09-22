@@ -119,10 +119,10 @@ export class Foule {
       chargeur.loadAsync(url('marcheur.glb')),
       chargeur.loadAsync(url('coureur.glb'))
         .catch(e => { console.warn('course indisponible : ' + (e instanceof Error ? e.message : e)); return undefined; }),
-      ...['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb'].map(n => chargeur.loadAsync(url(n))
+      ...['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb', 'passante-cotonou-walk.glb'].map(n => chargeur.loadAsync(url(n))
         .catch(e => { console.warn(`silhouette ${n} indisponible : ${e instanceof Error ? e.message : e}`); return undefined; })),
     ]);
-    const nomsDebout = ['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb'];
+    const nomsDebout = ['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb', 'passante-cotonou-walk.glb'];
     debout.forEach((lot, i) => {
       if (!lot) return;
       lot.scene.traverse(n => { const m = n as T.Mesh; if (m.isMesh) { m.castShadow = nomsDebout[i] !== 'vendeuse.glb'; m.receiveShadow = true; } });
@@ -131,7 +131,7 @@ export class Foule {
       // quatre-vingt mille triangles, et la ville n’a pas besoin de sosies. Leur
       // marche native sert aussi de course, à cadence plus vive, plutôt que de
       // télécharger un second fichier avant d’afficher le joueur.
-      if (nomsDebout[i].startsWith('avatar-')) this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
+      if (nomsDebout[i].startsWith('avatar-')||nomsDebout[i]==='passante-cotonou-walk.glb') this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
       else this.silhouettes.push(lot.scene);
     });
     this.modele = marcheur.scene;
@@ -217,6 +217,7 @@ export class Foule {
       if (!this.dansLaScene(personnage.objet)) continue;
       const silhouetteDebout = personnage.objet.name === 'joueur' && this.corpsJoueur
         ? this.debout.get(this.corpsJoueur)
+        : personnage.objet.name === 'passant-16' ? this.debout.get('passante-cotonou-walk.glb')
         : personnage.objet.name.startsWith('vendeuse-') ? this.debout.get('vendeuse.glb') : undefined;
       if(personnage.objet.name==='joueur'&&!silhouetteDebout)continue;
       if (silhouetteDebout) {
@@ -225,7 +226,7 @@ export class Foule {
         if (estVendeuse) corps.name = 'modele-vendeuse';
         else {corps.name = 'corps-personnage';corps.userData.avatar=this.corpsJoueur;}
         for (const piece of personnage.pieces) piece.visible = false;
-        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):undefined;
+        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):personnage.objet.name==='passant-16'?this.clipsAvatar.get('passante-cotonou-walk.glb'):undefined;
         const marche=mixeur.clipAction(clips?.marche??this.clipMarche);marche.play();
         const course=clips?.course?mixeur.clipAction(clips.course):undefined;course?.play();if(course)course.weight=0;
         const habitant:Habitant={personnage, corps, mixeur, marche, course,
@@ -475,17 +476,21 @@ export class Foule {
     // La silhouette du joueur lui reste réservée : pas de sosie parmi les figurants.
     const reservee = this.corpsJoueur ? this.debout.get(this.corpsJoueur) : undefined;
     const disponibles = this.silhouettes.filter(s => s !== reservee);
-    const feminine = disponibles[disponibles.length - 1] ?? this.silhouettes[this.silhouettes.length - 1];
     const autres = disponibles.length > 1 ? disponibles.slice(0, -1) : disponibles;
     for (const h of this.habitants) {
-      if (h.bouge || h.personnage.objet.name === 'joueur') { mobiles++; continue; }
-      // Une vendeuse en pagne garde une silhouette féminine.
-      const choix = h.personnage.pagne ? feminine : autres[index++ % Math.max(1, autres.length)];
+      if (h.personnage.objet.name === 'joueur') { mobiles++; continue; }
+      // Un passant mobile sur trois prend aussi une silhouette différente.
+      // Sans animation native, son balancement évite l'effet d'un clone qui glisse.
+      const mobileVarie=h.bouge&&index++%3===0;
+      if (h.bouge&&!mobileVarie) { mobiles++; continue; }
+      // Le modèle de vendeuse reste réservé à Aïcha : il ne doit jamais devenir
+      // un passant géant ou assis au milieu du trottoir.
+      const choix = autres[index++ % Math.max(1, autres.length)];
       if (!choix) continue;
       h.mixeur.stopAllAction();
       h.corps.visible = false;
       h.corps = this.poserDebout(h.personnage, choix);
-      h.reposY=h.corps.position.y;
+      h.reposY=h.corps.position.y;h.fige=true;
       varies++;
     }
     console.info(`silhouettes debout posées : ${varies} immobiles variées, ${mobiles} en mouvement gardent la marche`);

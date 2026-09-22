@@ -15,7 +15,7 @@ const commerces = [
   ['FRUITS DE SAISON','ANANAS · ORANGES · BANANES','#477d4d'],
 ];
 
-type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number};
+type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number;xBase?:number};
 export class Rues {
   private readonly mouvements:Passage[]=[];
   private readonly feux:{groupe:T.Group;rouge:T.MeshStandardMaterial;orange:T.MeshStandardMaterial;vert:T.MeshStandardMaterial}[]=[];
@@ -482,7 +482,7 @@ export class Rues {
   private circulation(){
     // Une place reste disponible pour le modèle détaillé kekenon.glb.
     for(let i=1;i<20;i++){
-      const type=i%5===0?'voiture':'zemidjan';const objet=vehicule(this.b,type);
+      const type=i%5===0?'voiture':'zemidjan';const palettes=type==='voiture'?['#d4ad61','#2f6682','#a84f45','#d9ded7']:['#9e3b32','#2d6380','#c8922e','#356f55'];const objet=vehicule(this.b,type,palettes[i%palettes.length]);
       const sens=i%2?1:-1;objet.position.set(sens>0?18.3:13.6,0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
       objet.name=`circulation-${i}`;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:type==='voiture'?6.3:8.2,sens,phase:i,type});
@@ -629,11 +629,11 @@ export class Rues {
     cible.accident=2.7;cible.chuteDirection=1;return true;
   }
   private passants(){
-    const trajets=[[-21.1,58,136],[1.5,42,122],[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325]];
+    const trajets=[[-21.1,58,136],[1.5,42,122],[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325],[-20,25,92],[-2,-22,28],[5,-135,-96],[23,-176,-120],[-4,-252,-230],[24,-244,-205],[-4,-350,-326],[23,-388,-350]];
     trajets.forEach(([x,debut,fin],i)=>{
       const personne=new Personnage(['#c5754a','#447e88','#698756','#995764'][i%4],x,(debut+fin)/2,{pagne:i%3===0});
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);
-      this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.8+i*.06,sens:i%2?1:-1,phase:i,personne});
+      this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.8+(i%7)*.09,sens:i%2?1:-1,phase:i,personne,xBase:x,voieCible:x});
     });
   }
   actualiser(dt:number,paused:boolean,zJoueur:number){
@@ -642,7 +642,16 @@ export class Rues {
     const vehicules=this.mouvements.filter(p=>!p.personne);
     for(const p of this.mouvements){
       if(p.personne){
-        p.objet.position.z+=p.vitesse*p.sens*dt;
+        const prochain=p.objet.position.z+p.vitesse*p.sens*dt;
+        // Les passants contournent un étal, une borne ou un mur plutôt que de
+        // traverser son volume. Ils reviennent ensuite naturellement sur leur trottoir.
+        const obstacle=this.b.obstacles.find(o=>Math.abs(prochain-o.z)<o.d/2+.9&&Math.abs(p.objet.position.x-o.x)<o.w/2+.7);
+        if(obstacle){
+          const gauche=obstacle.x-obstacle.w/2-1.05,droite=obstacle.x+obstacle.w/2+1.05;
+          p.voieCible=Math.abs((p.xBase??p.objet.position.x)-gauche)<Math.abs((p.xBase??p.objet.position.x)-droite)?gauche:droite;
+        }else p.voieCible=p.xBase??p.objet.position.x;
+        p.objet.position.x=T.MathUtils.lerp(p.objet.position.x,p.voieCible,1-Math.exp(-dt*3.8));
+        p.objet.position.z=prochain;
         if(p.objet.position.z<p.debut||p.objet.position.z>p.fin){p.sens*=-1;p.objet.position.z=T.MathUtils.clamp(p.objet.position.z,p.debut,p.fin);}
         p.objet.rotation.y=p.sens>0?0:Math.PI;
         p.personne.jambes.forEach((jambe,i)=>jambe.rotation.x=Math.sin(this.temps*5+p.phase+i*Math.PI)*.22);

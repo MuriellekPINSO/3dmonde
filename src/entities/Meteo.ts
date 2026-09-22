@@ -4,8 +4,9 @@ export type ModeMeteo='auto'|'soleil'|'pluie';
 
 /** Pluie tropicale, flaques, éclairs et tonnerre de synthèse, sans texture ni fichier distant. */
 export class Meteo {
-  private readonly positions=new Float32Array(900*3);
-  private readonly pluie:T.Points;
+  /** Deux sommets par goutte : des traits inclinés, jamais des flocons. */
+  private readonly positions=new Float32Array(900*2*3);
+  private readonly pluie:T.LineSegments;
   private readonly flaques:T.Mesh[]=[];
   private temps=0;
   private mode:ModeMeteo='auto';
@@ -18,12 +19,13 @@ export class Meteo {
   onTonnerre?:(puissance:number)=>void;
 
   constructor(private readonly scene:T.Scene){
-    for(let i=0;i<this.positions.length;i+=3){
-      this.positions[i]=(Math.random()-.5)*48;this.positions[i+1]=Math.random()*28;this.positions[i+2]=(Math.random()-.5)*70;
+    for(let i=0;i<this.positions.length;i+=6){
+      const x=(Math.random()-.5)*48,y=Math.random()*28,z=(Math.random()-.5)*70;
+      this.positions.set([x,y,z,x-.12,y-1.15,z+.18],i);
     }
     const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(this.positions,3));
-    const mat=new T.PointsMaterial({color:'#d6edf1',size:.085,transparent:true,opacity:.72,depthWrite:false,fog:true});
-    this.pluie=new T.Points(geo,mat);this.pluie.name='pluie-tropicale';this.pluie.frustumCulled=false;this.pluie.visible=false;scene.add(this.pluie);
+    const mat=new T.LineBasicMaterial({color:'#b9dbe2',transparent:true,opacity:.68,depthWrite:false,fog:true});
+    this.pluie=new T.LineSegments(geo,mat);this.pluie.name='pluie-tropicale';this.pluie.frustumCulled=false;this.pluie.visible=false;scene.add(this.pluie);
     for(const [x,z,s] of [[15,-35,1],[18,-118,.8],[13,-225,1.15],[17,-340,.9]] as const){
       const flaque=new T.Mesh(new T.CircleGeometry(2.6*s,24),new T.MeshStandardMaterial({color:'#718e8e',roughness:.18,metalness:.1,transparent:true,opacity:.34}));
       flaque.rotation.x=-Math.PI/2;flaque.position.set(x,.035,z);flaque.name='flaque-route';flaque.visible=false;scene.add(flaque);this.flaques.push(flaque);
@@ -40,9 +42,11 @@ export class Meteo {
     this.pluie.visible=this.pleut;for(const f of this.flaques)f.visible=this.pleut;
     if(this.pleut){
       this.pluie.position.set(joueur.position.x,0,joueur.position.z-12);
-      for(let i=0;i<this.positions.length;i+=3){
-        this.positions[i+1]-=dt*(18+(i%17));this.positions[i]+=.8*dt;
+      for(let i=0;i<this.positions.length;i+=6){
+        this.positions[i+1]-=dt*(22+(i%29));this.positions[i]+=.9*dt;
         if(this.positions[i+1]<.1){this.positions[i]=(Math.random()-.5)*48;this.positions[i+1]=22+Math.random()*8;this.positions[i+2]=(Math.random()-.5)*70;}
+        // Trait long et oblique : averses chaudes poussées par le vent.
+        this.positions[i+3]=this.positions[i]-.15;this.positions[i+4]=this.positions[i+1]-1.35;this.positions[i+5]=this.positions[i+2]+.24;
       }
       (this.pluie.geometry.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
       // L'orage dramatise : un éclair frappe au hasard en trois pulsations

@@ -21,9 +21,9 @@ test('vendeuse : inventaire partagé avec le portefeuille du transport',()=>{
  const p=new Partie(),v=new Vendeuse();p.monter(new Voiture());p.descendre();v.acheter(p,'ananas');
  assert.equal(p.balance,9200);assert.deepEqual(p.inventory,['Ananas découpé']);
 });
-test('fin : cinq guides uniques nécessaires, aucun transport requis',()=>{
- const p=new Partie();for(const g of guides.slice(0,4))p.visiter(g.id);p.visiter(guides[0].id);
- assert.equal(p.terminee(lieux),false);p.visiter(guides[4].id);assert.equal(p.terminee(lieux),true);
+test('fin : tous les guides uniques sont nécessaires, aucun transport requis',()=>{
+ const p=new Partie();for(const g of guides.slice(0,-1))p.visiter(g.id);p.visiter(guides[0].id);
+ assert.equal(p.terminee(lieux),false);p.visiter(guides.at(-1)!.id);assert.equal(p.terminee(lieux),true);
  assert.equal(p.balance,10000);assert.equal(zoneActuelle(-220).id,'congres');
 });
 test('sport : départ à pied, sortie de piste et arrivée',()=>{
@@ -54,6 +54,18 @@ test('sauvegarde, énergie et récompenses de missions',()=>{
  assert.equal(p.securite,50);assert.equal(p.balance,9800);v.acheter(p,'eau');assert.equal(p.utiliser(0),'Tu bois l’eau fraîche et récupères 15 points d’énergie.');assert.equal(p.securite,65);
  assert.equal(p.recompenser('sport',300),true);assert.equal(p.recompenser('sport',300),false);
  const copie=new Partie();copie.restaurer(p.serialiser());assert.deepEqual(copie.serialiser(),p.serialiser());
+});
+
+test('défis urbains : chrono, collection et sauvegarde',()=>{
+ const p=new Partie();
+ assert.equal(p.demarrerDefi('arrivee-amazone',120),true);
+ p.avancerDefis(20);assert.equal(p.defis.get('arrivee-amazone'),100);
+ assert.equal(p.terminerDefi('arrivee-amazone'),true);
+ p.souvenirs.add('coquillage');p.photos.add('corniche');p.quizReussis.add('amazone');p.debloquer('Carte postale · Corniche');
+ const copie=new Partie();copie.restaurer(p.serialiser());
+ assert.equal(copie.defisTermines.has('arrivee-amazone'),true);
+ assert.equal(copie.souvenirs.has('coquillage'),true);assert.equal(copie.photos.has('corniche'),true);
+ assert.equal(copie.quizReussis.has('amazone'),true);assert.equal(copie.debloques.has('Carte postale · Corniche'),true);
 });
 
 import {CourseTransport} from './core/Partie.ts';
