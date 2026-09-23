@@ -33,7 +33,7 @@ export class VieUrbaine {
     this.poussiere.name='poussiere-deplacement';this.poussiere.frustumCulled=false;groupe.add(this.poussiere);
     for(let i=0;i<3;i++)this.creerVolee(groupe,i);
     this.creerAnimal(groupe,'chèvre',22.8,-214,-240,-190,'#d8c39d');
-    this.creerAnimal(groupe,'chèvre',-4.5,-330,-370,-302,'#71594a');
+    this.creerAnimal(groupe,'chèvre',-4.5,-318,-336,-302,'#71594a');
     this.creerAnimal(groupe,'chien',22.5,-72,-91,-50,'#9a6f45');
     scene.traverse(objet=>{
       if(objet.name==='palmes'||objet.name==='toile-drapeau'||objet.name.startsWith('nuage-3d-'))

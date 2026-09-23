@@ -2,7 +2,7 @@ import * as T from 'three';
 import { Rues } from './entities/Rues';
 import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
-import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule } from './entities/Monuments';
+import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineArgent, obstaclesIleGiratoire } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
@@ -17,16 +17,17 @@ import { Meteo, type ModeMeteo } from './entities/Meteo';
  * en code, ou s’y ajoute. Un fichier absent laisse la version construite visible.
  */
 const POSES: Pose[] = [
-  {groupe: 'statue-amazone', fichier: 'amazone.glb', x: -19, z: -123, hauteur: 24, base: 2, rotation: Math.PI / 2},
+  {groupe: 'statue-amazone', fichier: 'amazone.glb', x: -19, z: -123, hauteur: 24, base: 2, rotation: Math.PI / 2, apresPose: patineArgent},
   {groupe: 'palais-congres', fichier: 'palais-congres.glb', x: -33, z: -243, largeur: 40, base: .05, rotation: Math.PI / 2},
   // etoile-rouge.glb est ecarte : c'est un diorama sur butte de terre rouge, aux arbres
   // sans feuilles, qui ecrase la place et contredit les photos. La version construite
-  // en code (pylone a bandeaux de brique, etoile rouge, arbres verts) reste en place.
+  // en code (fleche blanche, etoiles rouges imbriquees, massifs d'arbres) reste en place.
   // Passantes en tenue de sport, le long de la piste de mise en forme.
   {groupe: 'joggeuse-bleue', fichier: 'joggeuse-bleue.glb', x: 9.2, z: -12, hauteur: 1.72, rotation: Math.PI, ajout: true},
   {groupe: 'joggeuse-bordeaux', fichier: 'joggeuse-bordeaux.glb', x: 4.7, z: -31, hauteur: 1.68, rotation: Math.PI * .85, ajout: true},
   // Rang de zémidjans de l’autre côté du boulevard.
-  {groupe: 'zemidjans', fichier: 'zemidjans.glb', x: 27, z: -380, largeur: 13, base: -.35, rotation: -Math.PI / 2, ajout: true},
+  // Il stationnait à z=-380, sur ce qui est devenu l'anneau du giratoire.
+  {groupe: 'zemidjans', fichier: 'zemidjans.glb', x: 26.5, z: -331, largeur: 13, base: -.35, rotation: -Math.PI / 2, ajout: true},
 ];
 
 type Frame = {paused:boolean;running:boolean;transport:'zemidjan'|'voiture'|null;speed:number};
@@ -156,7 +157,8 @@ export class Monde {
   engagerTransportSurVoie(type:'zemidjan'|'voiture',direction:DirectionTrajet) {
     this.keys.clear();
     this.axesManette.x = this.axesManette.z = 0;
-    const versEtoile=direction==='etoile',voie=versEtoile?14:18.3;
+    // Circulation à droite : vers l'Étoile sur les voies est, vers la Corniche à l'ouest.
+    const versEtoile=direction==='etoile',voie=versEtoile?18.3:13.6;
     this.player.position.x = voie;
     this.player.position.y = .15;
     this.player.position.z = this.rues.placeLibreSurVoie(this.player.position.z,voie);
@@ -317,7 +319,8 @@ export class Monde {
         }
       }
       const avant=this.player.position.clone(),enAccident=this.accident>0,enTransition=!!transition;
-      const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z)];
+      // En véhicule, l'île du giratoire se contourne ; à pied, on la rejoint.
+      const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z),...(state.transport?obstaclesIleGiratoire:[])];
       const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident||enTransition,obstacles,!!state.transport,this.axesManette);
       this.vitesseReelle=mouvement.vitesse;
       this.rues.actualiser(dt,state.paused,this.player.position.z);

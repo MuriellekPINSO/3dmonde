@@ -6,7 +6,7 @@ import * as T from 'three';
  * Les motifs reprennent les surfaces observées sur les photos de référence
  * listées dans docs/REFERENCES.md.
  */
-export type Motif = 'paves'|'asphalte'|'sable'|'gazon'|'beton'|'eau'|'piste'|'vitrage'|'vitrageSombre'
+export type Motif = 'paves'|'asphalte'|'bitume'|'sable'|'gazon'|'beton'|'eau'|'piste'|'vitrage'|'vitrageSombre'
   |'cannelures'|'pylone'|'claustra'|'tole'|'immeuble'|'boutique'|'drapeau'|'roche';
 
 let graine = 1;
@@ -44,6 +44,12 @@ const dessins: Record<Motif, (c: CanvasRenderingContext2D, t: number) => void> =
     c.fillStyle = '#e6e0d0';
     for (const x of [.25, .49, .75]) c.fillRect(t * x, t * .2, t * .018, t * .6);
     c.fillRect(t * .05, 0, t * .016, t); c.fillRect(t * .935, 0, t * .016, t);
+  },
+  // Même chaussée sans marquage peint, pour l'anneau du giratoire et les voies
+  // rayonnantes : les files de la texture précédente y traçaient des droites.
+  bitume(c, t) {
+    c.fillStyle = '#3a3d3f'; c.fillRect(0, 0, t, t);
+    grain(c, t, 1200, ['#434648', '#2f3234', '#4a4d4f']);
   },
   sable(c, t) { c.fillStyle = '#e0cfa8'; c.fillRect(0, 0, t, t); grain(c, t, 1600, ['#d6c39a', '#e9daba', '#cbb891', '#f0e3c6']); },
   gazon(c, t) { c.fillStyle = '#6d8f4e'; c.fillRect(0, 0, t, t); grain(c, t, 1800, ['#628345', '#7b9d59', '#587a3e', '#86a663'], 3); },

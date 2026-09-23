@@ -273,4 +273,57 @@ Deux limites assumées, toutes deux dues au fait que le monument est posé **à 
 - le secteur est de la place reste ouvert. La caméra recule de quatorze mètres derrière un joueur qui peut longer la promenade à x=-7,7 : aucun volume bâti ne peut s'avancer à l'est de x=-24 sans qu'elle finisse à l'intérieur. Un anneau complet d'immeubles viendrait de toute façon buter dans la chaussée ;
 - la chaussée annulaire recouvre le dallage de la promenade sur une trentaine de mètres, entre z=-348 et z=-380. Deux traversées piétonnes marquent la rencontre plutôt que de laisser un raccord brut.
 
+## Vérification web complémentaire — 23 septembre 2026
+
+- Gouvernement du Bénin, « À la découverte du Monument Amazone » : hauteur de 30 m hors socle, masse de 150 tonnes, implantation entre port, Palais de la Marina et Palais des Congrès ; la galerie et la vidéo confirment l'échelle du parvis et son rôle d'espace public.
+- Programme Bénin Révélé, Corniche Est : linéaire de 2,3 km, chaussée bidirectionnelle, accotements deux-roues, trottoir drainant, piste cyclable/parcours santé et espaces verts.
+- Wikimedia Commons, séries 2025 du Palais des Congrès : large parvis horizontal, grille, stationnement, éclairage bas et végétation encadrant les deux volumes évasés.
+- Wikimedia Commons, catégorie Place de l'Étoile Rouge : pavillon rouge, pylône clair, haubans, couronne d'arbres matures, éclairage et grandes circulations autour de l'île centrale.
+- Sintered Stone, rénovation de la Place de l'Amazone : dalles chaudes de grand format et éclairage formant des nappes régulières sur le parvis.
+
+Corrections issues de cette passe : mobilier piéton et drainage de la Corniche, bancs et bornes sur l'Esplanade, éclairage encastré autour de l'Amazone, parvis paysager du Palais des Congrès, chemins radiaux et éclairage bas à l'Étoile Rouge, puis façades urbaines enrichies de balcons, climatiseurs, descentes d'eau et réservoirs.
+
 Ce qui reste à faire, et qui demande de toucher aux systèmes et non au décor : la circulation de `Rues` avance en ligne le long de l'axe z à des voies de x fixes, et le joueur est borné à x>-8. Personne ne tourne donc réellement autour de l'anneau. Faire du giratoire un carrefour praticable suppose un modèle de déplacement circulaire pour les véhicules et le déplacement du monument sur l'axe du boulevard.
+
+## Vidéos `Download-4` à `Download-10` — 23 septembre 2026
+
+Sept vidéos verticales (576 × 1024) ajoutées dans `public/espace`, soit environ 232 s au total. Elles ont été parcourues en entier, avec 158 images de contrôle espacées de 1,5 s, puis des images pleine résolution aux instants clés. Comme les autres médias du dossier, elles servent de modèle d'observation uniquement : rien n'est repris en texture.
+
+| Fichier | Durée | Contenu |
+| --- | --- | --- |
+| `Download-4.mp4` | 16 s | Corniche au drone : chaussée sur digue le long du chenal, talus d'enrochement, pont au fond, giratoire à île pavée, épi de roches noires dans les vagues |
+| `Download-5.mp4` | 32 s | Corniche en voiture : 2 × 2 voies, lampadaires solaires, giratoire, bordures, plage et front bâti bas |
+| `Download-6.mp4` | 57 s | Corniche au drone : trottoir pavé et garde-corps côté eau, bande de sable plantée de jeunes badamiers, blocs blancs servant d'assises, giratoire à sept palmiers, flèche de sable à l'embouchure, hôtel à piscine, skatepark en béton clair |
+| `Download-7.mp4` | 64 s | Étoile Rouge au drone, dont une vue zénithale (31 s) et la statue de près (44–46 s) |
+| `Download-8.mp4` | 10 s | Étoile Rouge — **marquée « AI-generated » dans l'image : écartée comme référence** |
+| `Download-9.mp4` | 23 s | Amazone au sol et au drone : patine gris argent, socle sombre, parvis, jardins |
+| `Download-10.mp4` | 29 s | Amazone au drone : parvis à dallage géométrique, haies courbes, pelouse, plage et océan juste derrière |
+
+Corrections réalisées :
+
+- **Étoile Rouge.** La vue zénithale montre deux étoiles rouges imbriquées, en murets bas, sur un dallage gris où l'on circule. Au centre : un socle pentagonal clair, une flèche blanche lisse à pied évasé, puis la statue. L'auvent rouge sur dix poteaux, les bandeaux de brique et les huit haubans ont été retirés : aucune de ces vidéos ne les montre. L'anneau régulier de seize arbres devient cinq massifs, un dans chaque creux entre deux branches, et les pointes restent dégagées jusqu'à la bordure. La statue perd son calot et son fusil, garde la houe brandie et serre contre son flanc une gerbe d'où sort une flamme rouge. Sa patine passe au vert-de-gris.
+- **Amazone.** Le modèle `amazone.glb` est texturé en bronze cuivré ; en plein soleil, le monument est gris argent. `patineArgent` ramène la texture à sa luminance, sans toucher aux reliefs.
+- **Océan et parvis de l'Amazone.** La nappe d'eau de la Corniche passait par-dessus la moitié ouest du parvis, dont seuls quelques îlots dépassaient. Au sud de z = -99, la ligne d'eau recule désormais de 50 m, et une plage rejoint la mer derrière le muret, dans l'ordre parvis, pelouse, sable, mer.
+- **Corniche.** La digue reçoit son parement et un talus d'enrochement jusqu'à l'eau. Le premier tronçon reçoit deux épis de roches noires avec écume, six jeunes badamiers à couronne étagée, des blocs d'assise en béton blanc et une placette lobée cerclée de blanc, avec son skatepark.
+
+Captures de contrôle : `docs/audit/download-amazone-parvis.png`, `download-corniche.png`.
+
+Écarts relevés, non corrigés : les giratoires plantés de palmiers de la Corniche (`Download-5`, `Download-6`) ; l'hôtel à piscine et la flèche de sable de l'embouchure, hors du parcours jouable.
+
+### L'Étoile Rouge devient un giratoire sur la route
+
+`Download-7.mp4` le montre sans ambiguïté : l'Étoile Rouge est un rond-point. L'île centrale est entourée d'un anneau de chaussée dont voitures et motos font le tour, et le boulevard le traverse. Le jeu posait le monument à 40 m à côté de la chaussée (x = -28) ; la circulation passait tout droit sans jamais le contourner.
+
+Ce qui change :
+
+- **Emplacement.** Le giratoire est centré sur l'axe du boulevard (x = 16, z = -364). Ses dimensions sont réunies dans `GIRATOIRE` (`Monuments.ts`) : île de 12,2 m de rayon, anneau de chaussée de 12,8 à 21 m à deux files séparées par un tireté, trottoir circulaire jusqu'à 24 m. L'étoile, la flèche et les massifs d'arbres sont ramenés à l'échelle de l'île.
+- **Voies.** Le boulevard arrive par le sud et repart vers le nord ; trois voies rayonnent à l'ouest, à l'est et au nord-est. Le trottoir s'interrompt à chaque débouché. Des passages piétons traversent l'anneau jusqu'aux deux pointes ouest de l'étoile et les deux approches du boulevard.
+- **Circulation.** Arrivé à 34 m du centre, un véhicule quitte sa voie droite pour une trajectoire lissée (Catmull-Rom) autour de l'île, puis reprend sa voie de l'autre côté. Il ralentit sur l'anneau et cède le passage à ce qui se trouve dans le couloir de sa trajectoire. Un véhicule sur quatre fait un tour complet de plus avant de sortir. Simulation de 90 s : 25 véhicules, 5 à 6 en moyenne sur l'anneau, aucun ne traverse l'île.
+- **Sens de circulation.** On roule à droite au Bénin, et l'on tourne donc dans le sens antihoraire sur un rond-point. Le jeu faisait rouler tout le trafic à gauche (x = 13,6 vers l'Étoile, x = 18,3 vers la Corniche) : les voies sont inversées, de même que la voie où s'engage le joueur en zémidjan ou en voiture et la position des feux du carrefour de l'Amazone. Les feux de l'Étoile, inutiles sur un giratoire, sont retirés.
+- **Joueur.** Il peut sortir du couloir du boulevard pour faire le tour de l'anneau. En véhicule, l'île est un obstacle et se contourne ; à pied, on la rejoint par les passages piétons. Le guide de l'Étoile attend sur l'île, à la pointe tournée vers la promenade, et son texte ne décrit plus le pylône à bandeaux de brique.
+- **Abords.** La ceinture d'immeubles colorés et la gare routière sont recentrées sur le giratoire, hors du couloir du boulevard et des voies. Les façades, poteaux, passerelles, parasols, lampadaires et trajets de passants qui tombaient sur l'anneau sont retirés ou raccourcis ; le rang de zémidjans garés passe de z = -380 à z = -331.
+- **Chaussée.** L'anneau et les voies rayonnantes utilisent une texture `bitume` sans marquage. La texture `asphalte`, qui porte des files peintes, traçait des droites en travers de l'anneau.
+
+Captures : `docs/audit/download-etoile-rouge.png` (vue oblique, véhicules sur l'anneau) et `download-etoile-rouge-jeu.png` (survol d'ouverture du jeu).
+
+Point relevé hors de cette passe : la course du zémidjan se termine à z ≤ -430 (`CourseTransport`), alors que le joueur est borné à z > -407. L'arrivée ne peut donc pas être atteinte.

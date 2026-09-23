@@ -68,7 +68,9 @@ export class Joueur extends Personnage {
       // Le premier tronçon possède un chemin côtier accessible. Plus loin, la
       // mer rejoint le garde-corps de la promenade aménagée.
       const ouest=z>30?-24:-8, est=24;
-      return x>ouest+rayon&&x<est-rayon&&z>-407&&z<150
+      // Le giratoire de l'Étoile Rouge déborde du couloir : on peut en faire le tour.
+      const giratoire=Math.hypot(x-16,z+364)<23-rayon;
+      return (giratoire||x>ouest+rayon&&x<est-rayon)&&z>-407&&z<150
         &&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+rayon&&Math.abs(z-o.z)<o.d/2+rayon);
     };
     if(vehicule){

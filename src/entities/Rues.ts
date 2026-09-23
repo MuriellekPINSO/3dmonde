@@ -1,7 +1,17 @@
 import * as T from 'three';
 import { Batisseur, varie } from './Batisseur';
 import { Personnage } from './Joueur';
-import { vehicule } from './Monuments';
+import { vehicule, GIRATOIRE, horsGiratoire } from './Monuments';
+
+/**
+ * Circulation à droite, comme au Bénin : vers l'Étoile Rouge (z décroissant)
+ * sur les voies est, vers la Corniche sur les voies ouest. Voie de base à
+ * droite, voie de dépassement à gauche.
+ */
+const VOIE_ETOILE = 18.3, DEPASSEMENT_ETOILE = 20.15, VOIE_CORNICHE = 13.6, DEPASSEMENT_CORNICHE = 11.75;
+const voieDe = (sens: number) => sens > 0 ? VOIE_CORNICHE : VOIE_ETOILE;
+/** Demi-longueur de la zone où un véhicule quitte sa voie droite pour l'anneau. */
+const APPROCHE_GIRATOIRE = 34;
 
 /** Enseignes fictives : scènes inspirées de références de Cotonou, sans copier un commerce. */
 const commerces = [
@@ -15,7 +25,9 @@ const commerces = [
   ['FRUITS DE SAISON','ANANAS · ORANGES · BANANES','#477d4d'],
 ];
 
-type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number;xBase?:number};
+type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number;xBase?:number;
+  /** Trajet en cours autour du giratoire, parcouru à l'abscisse curviligne `s`. */
+  anneau?:{courbe:T.CatmullRomCurve3;s:number;longueur:number};attente?:number};
 export class Rues {
   private readonly mouvements:Passage[]=[];
   private readonly feux:{groupe:T.Group;rouge:T.MeshStandardMaterial;orange:T.MeshStandardMaterial;vert:T.MeshStandardMaterial}[]=[];
@@ -46,6 +58,8 @@ export class Rues {
     // Les bâtiments bordent le boulevard, avec deux percées latérales ; la Marina reste dégagée.
     let index=0;
     for(const z of [-204,-218,-231,-244,-258,-278,-291,-304,-318,-337,-350,-364,-398]){
+      // Le giratoire de l'Étoile Rouge occupe cette portion du front bâti.
+      if(!horsGiratoire(28,z,38))continue;
       const [titre,detail,accent]=commerces[index%commerces.length];
       const g=new T.Group();g.name=`rue-commerce-${index}`;g.position.set(28+varie(z,2)*2,0,z);g.rotation.y=-Math.PI/2;this.b.scene.add(g);
       const w=9.5,h=index%3===0?8:4.3,depth=8;
@@ -65,6 +79,13 @@ export class Rues {
         this.b.boite(9,.1,.1,'#48675d',0,5.85,5,g);
         for(let x=-4.4;x<4.5;x+=.65)this.b.boite(.06,.7,.06,'#48675d',x,5.5,5,g);
         this.b.boite(1.25,.55,.6,'#dedfd0',3.6,7.4,4.4,g);
+        // Climatiseurs, descentes d'eau et stores donnent aux façades une
+        // profondeur quotidienne absente des simples volumes texturés.
+        for(const x of [-3.6,3.6]){
+          this.b.boite(.72,.58,.28,'#d7d9d2',x,6.05,4.25,g);
+          const grille=this.b.cyl(.2,.2,.035,12,'#77817d',x,6.05,4.42,g);grille.rotation.x=Math.PI/2;
+        }
+        this.b.cyl(.055,.07,h-1.1,6,'#7d8580',4.25,(h-1.1)/2,4.22,g);
       }
       // Étal et accessoires sous les auvents, motifs de pagnes et bassines.
       if(index%4===1){
@@ -100,10 +121,17 @@ export class Rues {
     }
     // Une deuxième profondeur bâtie donne une silhouette de quartier derrière les devantures.
     for(let i=0;i<17;i++){
-      const z=20-i*25;if(z>-95||(z<-100&&z>-193))continue;
+      const z=20-i*25;if(z>-95||(z<-100&&z>-193)||!horsGiratoire(45,z,50))continue;
       const h=7+varie(z,9)*8;
       this.b.boite(12,h,18,this.b.tex('immeuble',1,h/5,['#e5d3b0','#bdc4b4','#d3ad90'][i%3]),45,h/2,z);
       this.b.boite(12.5,.3,18.5,'#b7afa0',45,h+.15,z);
+      // Balcons, réservoirs et cages d'escalier cassent la répétition de la
+      // rangée lointaine sans ajouter de nouvelles textures lourdes.
+      for(let y=3.2;y<h-1;y+=3.1){
+        this.b.boite(1.4,.16,14,'#d8d2c4',38.9,y,z).castShadow=false;
+        for(let dz=-6;dz<=6;dz+=1.5)this.b.boite(.05,.72,.05,'#596965',38.25,y+.38,z+dz).castShadow=false;
+      }
+      this.b.cyl(.55,.55,1.1,12,'#303b3d',45,h+.85,z);
     }
   }
   /**
@@ -223,8 +251,8 @@ export class Rues {
     for(const x of [12.2,15.7,19.2,22.7])for(let z=-94;z>-196;z-=8)
       this.b.boite(.12,.03,4.2,'#eeeade',x,.025,z).castShadow=false;
     for(const x of [9.85,25.15])this.b.boite(.14,.03,104,'#eeeade',x,.025,-145).castShadow=false;
-    const feu=(x:number,z:number,sens:number)=>{
-      const g=new T.Group();g.position.set(x,0,z);g.name='feu-carrefour-amazone';this.b.scene.add(g);
+    const feu=(x:number,z:number,sens:number,orientation=0)=>{
+      const g=new T.Group();g.position.set(x,0,z);g.rotation.y=orientation;g.name='feu-carrefour-amazone';this.b.scene.add(g);
       this.b.cyl(.09,.14,6.8,7,'#454b49',0,3.4,0,g);
       const bras=this.b.boite(3.2,.11,.11,'#454b49',sens*1.55,6.6,0,g);bras.rotation.z=sens*-.04;
       const boitier=this.b.boite(.42,1.25,.38,'#252a29',sens*3.05,6.05,0,g);
@@ -238,8 +266,9 @@ export class Rues {
       this.feux.push({groupe:g,rouge:lampes[0],orange:lampes[1],vert:lampes[2]});
       return boitier;
     };
-    feu(10.5,-99,1);feu(21.5,-103,-1);
-    feu(10.5,-330,1);feu(21.5,-334,-1);
+    // Chaque feu se tient à droite de la voie qu'il règle, en amont du passage ;
+    // le giratoire de l'Étoile Rouge, lui, n'a pas de feux.
+    feu(21.5,-97,1,Math.PI);feu(10.5,-105,1);
     for(const z of [-99,-103])for(let x=11.5;x<21;x+=1.25)
       this.b.boite(.72,.035,2.6,'#eeeade',x,.035,z).castShadow=false;
     for(const x of [12.1,19.9])this.b.boite(.16,.035,5.5,'#eeeade',x,.035,-94).castShadow=false;
@@ -448,6 +477,7 @@ export class Rues {
     this.b.sol(3.6,218,this.b.tex('paves',2,62,'#cbb79a'),23,-299,.02);
     this.b.sol(.6,218,'#5e6259',21.4,-299,-.04);
     for(let z=-194;z>-408;z-=12){
+      if(!horsGiratoire(21.45,z,25))continue;
       this.b.boite(.9,.11,2.5,'#bcb49e',21.45,.03,z).castShadow=false;
     }
     for(const z of [-272]){
@@ -466,6 +496,7 @@ export class Rues {
     // Réseaux et ombre en secteur commerçant ; jardins officiels dégagés.
     for(const debut of [-202,-292]){
       for(let z=debut;z>debut-80;z-=25){
+        if(!horsGiratoire(23.8,z,27)||!horsGiratoire(23.8,z-25,27))continue;
         this.b.cyl(.13,.2,8,7,'#8e8c78',23.8,4,z);this.b.boite(2,.12,.12,'#646959',23.8,7.7,z);
         for(const dx of [-.65,.65])this.b.cable([23.8+dx,7.8,z],[23.8+dx,7.15,z-12.5],.025,'#535a50');
         for(const dx of [-.65,.65])this.b.cable([23.8+dx,7.15,z-12.5],[23.8+dx,7.8,z-25],.025,'#535a50');
@@ -474,7 +505,7 @@ export class Rues {
     for(const z of [-207,-282,-322,-394])this.b.arbre(24,z,.85);
     this.enseigne('AKPAKPA','COTONOU · BORD DE L’EAU','#266a64',4,1,this.b.scene,7.3,3.2,19);
     // L'Étoile Rouge est plus dense : deux petits stands et des terrasses en retrait.
-    for(const z of [-342,-369])this.parasol(23.5,z,'#a9523e');
+    for(const z of [-326,-402])this.parasol(23.5,z,'#a9523e');
     for(const z of [-293]){
       for(const x of [22.8,24]){this.b.boite(.65,.12,.6,'#5a8a81',x,.5,z);this.b.boite(.65,.65,.1,'#5a8a81',x,.85,z-.3);}
     }
@@ -483,7 +514,7 @@ export class Rues {
     // Une place reste disponible pour le modèle détaillé kekenon.glb.
     for(let i=1;i<20;i++){
       const type=i%5===0?'voiture':'zemidjan';const palettes=type==='voiture'?['#d4ad61','#2f6682','#a84f45','#d9ded7']:['#9e3b32','#2d6380','#c8922e','#356f55'];const objet=vehicule(this.b,type,palettes[i%palettes.length]);
-      const sens=i%2?1:-1;objet.position.set(sens>0?18.3:13.6,0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
+      const sens=i%2?1:-1;objet.position.set(voieDe(sens),0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
       objet.name=`circulation-${i}`;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:type==='voiture'?6.3:8.2,sens,phase:i,type});
     }
@@ -492,7 +523,7 @@ export class Rues {
     for(let i=0;i<4;i++){
       const objet=vehicule(this.b,'voiture');objet.name=`circulation-taxi-${i+1}`;
       const carrosserie=objet.children[0] as T.Mesh;if(carrosserie?.isMesh&&carrosserie.material instanceof T.MeshStandardMaterial){const matiere=carrosserie.material.clone();matiere.color.set(i%2?'#ece7d6':'#3f7b58');carrosserie.material=matiere;}
-      const sens=i%2?1:-1,departs=[-58,-149,-217,-331];objet.position.set(sens>0?18.3:13.6,0,departs[i]);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      const sens=i%2?1:-1,departs=[-58,-149,-217,-331];objet.position.set(voieDe(sens),0,departs[i]);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:6.7+i*.12,sens,phase:70+i,type:'taxi'});
     }
     for(let i=0;i<2;i++){
@@ -501,7 +532,7 @@ export class Rues {
       this.b.boite(2.08,.42,3.4,'#526b70',0,1.55,-.15,objet);
       this.b.boite(1.5,.18,1.2,'#3d7653',0,1.13,-2.27,objet);
       for(const x of [-.98,.98])for(const z of [-1.45,1.35]){const roue=this.b.cyl(.33,.33,.18,10,'#272b29',x,.4,z,objet);roue.rotation.z=Math.PI/2;}
-      const sens=i?1:-1;objet.position.set(sens>0?18.3:13.6,0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      const sens=i?1:-1;objet.position.set(voieDe(sens),0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
     }
   }
@@ -580,7 +611,7 @@ export class Rues {
     for(let i=0;i<nombre;i++){
       const sens=i%2?1:-1,groupe=new T.Group();
       groupe.name=`zem-supplementaire-${i+1}`;
-      groupe.position.set(sens>0?18.3:13.6,0,departs[i]??4-i*88);
+      groupe.position.set(voieDe(sens),0,departs[i]??4-i*88);
       groupe.rotation.y=sens>0?0:Math.PI;
       // zem.glb regarde déjà vers l'avant dans son fichier, contrairement au
       // premier kekenon qui exige un demi-tour dans son gabarit.
@@ -628,9 +659,74 @@ export class Rues {
     if(!cible||cible.accident!==undefined)return false;
     cible.accident=2.7;cible.chuteDirection=1;return true;
   }
+  /**
+   * Engage un véhicule sur l'anneau quand il atteint l'approche du giratoire,
+   * ou s'il y est déjà (placement de départ). Renvoie vrai s'il y est engagé.
+   */
+  private entrerGiratoire(p:Passage,dt:number){
+    const z=p.objet.position.z,entree=GIRATOIRE.z-p.sens*APPROCHE_GIRATOIRE,prochain=z+p.vitesse*p.sens*dt;
+    const franchit=p.sens<0?z>=entree&&prochain<entree:z<=entree&&prochain>entree;
+    const dedans=Math.abs(z-GIRATOIRE.z)<APPROCHE_GIRATOIRE;
+    if(!franchit&&!dedans)return false;
+    const courbe=this.trajetGiratoire(p),longueur=courbe.getLength();
+    const fraction=franchit?0:T.MathUtils.clamp((z-entree)*p.sens/(APPROCHE_GIRATOIRE*2),0,.98);
+    p.anneau={courbe,s:fraction*longueur,longueur};
+    return true;
+  }
+  /**
+   * Trajet lissé d'une voie droite à l'autre en passant par l'anneau, dans le
+   * sens antihoraire : on entre en serrant à droite, l'île reste à gauche. Un
+   * véhicule sur quatre fait un tour complet de plus avant de sortir.
+   */
+  private trajetGiratoire(p:Passage){
+    const {x:cx,z:cz,voie:rayon}=GIRATOIRE,voie=voieDe(p.sens),degre=Math.PI/180;
+    const points=[new T.Vector3(p.objet.position.x,0,cz-p.sens*APPROCHE_GIRATOIRE),new T.Vector3(voie,0,cz-p.sens*27)];
+    const depart=(p.sens<0?72:-108)*degre,arrivee=depart-(144+(p.phase%4===1?360:0))*degre;
+    for(let a=depart;a>=arrivee-1e-6;a-=24*degre)points.push(new T.Vector3(cx+Math.cos(a)*rayon,0,cz+Math.sin(a)*rayon));
+    points.push(new T.Vector3(cx+Math.cos(arrivee)*rayon,0,cz+Math.sin(arrivee)*rayon));
+    points.push(new T.Vector3(voie,0,cz+p.sens*27),new T.Vector3(voie,0,cz+p.sens*APPROCHE_GIRATOIRE));
+    return new T.CatmullRomCurve3(points,false,'centripetal');
+  }
+  /** Avance sur l'anneau en ralentissant, et laisse passer ce qui se trouve devant. */
+  private tournerGiratoire(p:Passage,dt:number){
+    const anneau=p.anneau!,position=p.objet.position;
+    const tangente=anneau.courbe.getTangentAt(Math.min(1,anneau.s/anneau.longueur));
+    // Seul ce qui se trouve dans le couloir de la trajectoire gêne : un passant
+    // sur le trottoir voisin ne bloque pas l'anneau.
+    const gene=this.mouvements.some(q=>{
+      if(q===p)return false;
+      const dx=q.objet.position.x-position.x,dz=q.objet.position.z-position.z;
+      const devant=dx*tangente.x+dz*tangente.z,cote=Math.abs(dx*tangente.z-dz*tangente.x);
+      return devant>.2&&devant<4.2&&cote<1.5;
+    });
+    // Au-delà de deux secondes et demie d'attente, on avance quand même :
+    // deux véhicules qui se cèdent mutuellement le passage ne restent pas figés.
+    if(gene&&(p.attente=(p.attente??0)+dt)<2.5)return;
+    p.attente=0;
+    anneau.s+=p.vitesse*.72*dt;
+    if(anneau.s>=anneau.longueur){
+      // Posé juste au-delà de l'approche, pour ne pas y être aussitôt réengagé.
+      position.set(voieDe(p.sens),0,GIRATOIRE.z+p.sens*(APPROCHE_GIRATOIRE+.1));
+      p.anneau=undefined;p.voieCible=voieDe(p.sens);p.objet.rotation.y=p.sens>0?0:Math.PI;
+      return;
+    }
+    const point=anneau.courbe.getPointAt(anneau.s/anneau.longueur);
+    position.x=point.x;position.z=point.z;
+    p.objet.rotation.y=Math.atan2(tangente.x,tangente.z);
+  }
   private passants(){
     const trajets=[[-21.1,58,136],[1.5,42,122],[-3.2,-84,-54],[-3.4,-207,-179],[-3.4,-320,-276],[4,-378,-348],[23,-85,18],[24,-310,-278],[23,-405,-338],[-5,-150,-110],[5,-260,-220],[22,-190,-150],[-4,-392,-350],[24,-265,-225],[-5,-45,-8],[22,-365,-325],[-20,25,92],[-2,-22,28],[5,-135,-96],[23,-176,-120],[-4,-252,-230],[24,-244,-205],[-4,-350,-326],[23,-388,-350]];
-    trajets.forEach(([x,debut,fin],i)=>{
+    // Un trajet qui croiserait l'anneau est raccourci à sa plus longue partie
+    // hors du giratoire : les passants suivent le trottoir, pas la chaussée.
+    const horsAnneau=trajets.flatMap(([x,debut,fin])=>{
+      const ecart=Math.abs(x-GIRATOIRE.x);
+      if(ecart>=GIRATOIRE.trottoir+.5)return [[x,debut,fin]];
+      const demi=Math.sqrt((GIRATOIRE.trottoir+.5)**2-ecart**2),bas=GIRATOIRE.z-demi,haut=GIRATOIRE.z+demi;
+      if(fin<=bas||debut>=haut)return [[x,debut,fin]];
+      const morceaux=[[x,debut,Math.min(fin,bas)],[x,Math.max(debut,haut),fin]].filter(([,d,f])=>f-d>=6);
+      return morceaux.sort((m,n)=>(n[2]-n[1])-(m[2]-m[1])).slice(0,1);
+    });
+    horsAnneau.forEach(([x,debut,fin],i)=>{
       const personne=new Personnage(['#c5754a','#447e88','#698756','#995764'][i%4],x,(debut+fin)/2,{pagne:i%3===0});
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);
       this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.8+(i%7)*.09,sens:i%2?1:-1,phase:i,personne,xBase:x,voieCible:x});
@@ -662,6 +758,8 @@ export class Rues {
           const angle=(p.type==='voiture'||p.type==='taxi'||p.type==='minibus') ? 0.14 : 1.28;
           p.objet.rotation.z=(p.chuteDirection??1)*angle*Math.min(1,ecoule/.24)*releve;
           if(p.accident<=0){p.accident=undefined;p.chuteDirection=undefined;p.objet.rotation.z=0;}
+        }else if(p.anneau||this.entrerGiratoire(p,dt)){
+          this.tournerGiratoire(p,dt);
         }else{
           let prochain=p.objet.position.z+p.vitesse*p.sens*dt;
           if(prochain<p.debut)prochain=p.fin;if(prochain>p.fin)prochain=p.debut;
@@ -669,7 +767,7 @@ export class Rues {
           // sécurité se libère au lieu de traverser celui qui le précède.
           const occupe=vehicules.some(autre=>autre!==p&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.3
             &&Math.abs(autre.objet.position.z-prochain)<3.3);
-          const voieBase=p.sens>0?18.3:13.6,voieDepassement=p.sens>0?20.15:11.75;
+          const voieBase=voieDe(p.sens),voieDepassement=p.sens>0?DEPASSEMENT_CORNICHE:DEPASSEMENT_ETOILE;
           if(occupe){
             const libre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieDepassement)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
             if(libre)p.voieCible=voieDepassement;
@@ -678,7 +776,7 @@ export class Rues {
             if(retourLibre)p.voieCible=voieBase;
           }else p.voieCible=voieBase;
           p.objet.position.x=T.MathUtils.lerp(p.objet.position.x,p.voieCible??voieBase,1-Math.exp(-dt*1.8));
-          const arrets=p.sens>0?[-332.2,-105.2]:[-325.8,-96.8];
+          const arrets=p.sens>0?[-105.2]:[-96.8];
           const franchit=arrets.some(stop=>p.sens>0?p.objet.position.z<stop&&prochain>=stop:p.objet.position.z>stop&&prochain<=stop);
           const bloqueFeu=this.etatFeu!=='vert'&&franchit;
           const bloquePieton=this.mouvements.some(autre=>!!autre.personne&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.5&&

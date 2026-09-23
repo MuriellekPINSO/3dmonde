@@ -14,6 +14,31 @@ const BRONZE = '#75695c';
 const BEIGE_MARINA = '#cdbb9a';
 const CREME_CONGRES = '#ece5d6';
 
+/**
+ * Giratoire de l'Étoile Rouge, posé sur l'axe du boulevard comme sur le survol
+ * Download-7.mp4 : île centrale, anneau de chaussée à deux files où voitures et
+ * motos tournent dans le sens antihoraire (circulation à droite), trottoir
+ * circulaire. Les rayons servent au décor, à la circulation et aux collisions.
+ */
+export const GIRATOIRE = {x: 16, z: -364, ile: 12.2, chausseeInt: 12.8, chausseeExt: 21, trottoir: 24, voie: 16.9};
+/** Directions des voies qui rayonnent (0 = est, π/2 = sud, vers la Corniche). */
+export const VOIES_GIRATOIRE = [Math.PI / 2, -Math.PI / 2, Math.PI, 0, -Math.PI / 4];
+/** Vrai si le point est au-delà de `marge` mètres du centre du giratoire. */
+export const horsGiratoire = (x: number, z: number, marge: number = GIRATOIRE.trottoir) =>
+  Math.hypot(x - GIRATOIRE.x, z - GIRATOIRE.z) > marge;
+/**
+ * Île centrale en boîtes de collision, pour un joueur en véhicule : un carré
+ * inscrit et quatre calottes. À pied, on peut traverser pour rejoindre l'étoile.
+ */
+export const obstaclesIleGiratoire = (() => {
+  const {x, z, ile} = GIRATOIRE, c = ile * Math.SQRT1_2, calotte = ile - c;
+  return [
+    {x, z, w: 2 * c, d: 2 * c},
+    {x, z: z - c - calotte / 2, w: ile * 1.2, d: calotte}, {x, z: z + c + calotte / 2, w: ile * 1.2, d: calotte},
+    {x: x - c - calotte / 2, z, w: calotte, d: ile * 1.2}, {x: x + c + calotte / 2, z, w: calotte, d: ile * 1.2},
+  ];
+})();
+
 /** Sol continu de la promenade, chaussée, accotements et rives. */
 export function boulevard(b: Batisseur) {
   // Le décor visible dépasse largement les limites jouables (-407 à 150). La
@@ -24,10 +49,15 @@ export function boulevard(b: Batisseur) {
   b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
   b.sol(2.2, longueur, b.tex('gazon', 1.5, 205), 9.25, centre, -.02).name='accotement-continu';
   b.sol(13, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
-  for (const x of [-8.2, 8.35]) b.boite(.35, .24, longueur, '#e7e1d2', x, .12, centre).castShadow = false;
+  b.boite(.35, .24, longueur, '#e7e1d2', -8.2, .12, centre).castShadow = false;
+  // La bordure côté chaussée s'interrompt au giratoire, que le boulevard traverse.
+  const nord = centre - longueur / 2, sud = centre + longueur / 2;
+  const coupe = Math.sqrt(GIRATOIRE.trottoir ** 2 - (8.35 - GIRATOIRE.x) ** 2);
+  for (const [debut, fin] of [[GIRATOIRE.z + coupe, sud], [nord, GIRATOIRE.z - coupe]] as const)
+    b.boite(.35, .24, fin - debut, '#e7e1d2', 8.35, .12, (debut + fin) / 2).castShadow = false;
   // Le tronçon de la Corniche reçoit ses lampadaires solaires spécifiques dans Rues.ts.
-  for (let z = -102; z > -400; z -= 34) b.lampadaireDouble(10.6, z);
-  for (let z = -118; z > -400; z -= 34) b.lampadaireSimple(11.4, z, 1);
+  for (let z = -102; z > -400; z -= 34) if (horsGiratoire(10.6, z)) b.lampadaireDouble(10.6, z);
+  for (let z = -118; z > -400; z -= 34) if (horsGiratoire(11.4, z)) b.lampadaireSimple(11.4, z, 1);
 
   horizonUrbain(b);
 }
@@ -89,6 +119,20 @@ export function corniche(b: Batisseur) {
   b.panneau('Arrivée jogging', 6.5, 2.5, -42);
   // Quelques palmiers restent en retrait côté ville, comme sur les vues hautes.
   for (const z of [13,-17,-49,-82]) jeunePalmier(b, 7.9, z);
+  // Mobilier observé sur les promenades récentes : bancs tournés vers l'eau,
+  // corbeilles et caniveau continu rendent l'échelle piétonne plus crédible.
+  for(const z of [18,-7,-34,-62,-87]){
+    bancUrbain(b,-4.9,z,Math.PI/2);
+    b.cyl(.2,.24,.72,10,'#343b39',-3.9,.36,z+2.1);
+  }
+  b.sol(.42,118,'#626963',8.55,-34,.015).name='caniveau-corniche';
+  for(let z=18;z>-91;z-=6)b.boite(.3,.025,1.8,'#343b39',8.55,.035,z).castShadow=false;
+  // Download-4 et Download-6 : la chaussée est portée par une digue, dont le
+  // parement clair plonge dans un talus d'enrochement jusqu'à l'eau.
+  b.boite(.5,1.1,118,'#c9c5b9',-8.55,-.2,-35).castShadow=false;
+  const talus=b.boite(2.6,.35,118,b.mat('#57554f',{rugosite:.95}),-9.9,-.08,-35);
+  talus.rotation.z=-.42;talus.castShadow=false;
+  for(let z=20;z>-92;z-=3.4)b.rocher(-10.6+varie(z,5)*.5,.1,z,.55+varie(z,8)*.3,'#5d5a54');
   // Enrochement visible au bout de la perspective côtière.
   for (let i = 0; i < 8; i++) b.rocher(-9.6 - i * .55, .2, -94 + i * .35, .55 + varie(i, 9) * .35, '#686d68');
   return mer;
@@ -108,12 +152,72 @@ function cornichePlageOuverte(b:Batisseur){
 
   // Jeunes cocotiers régulièrement plantés dans la bande sableuse.
   for(let z=140;z>36;z-=12.5){
+    if(z>74&&z<100)continue;                        // emprise de la placette
     const palmier=jeunePalmier(b,-11.5+varie(z,4)*2.2,z);
     palmier.scale.setScalar(.72+varie(z,7)*.2);
   }
   // Passage piéton au début du parcours, visible dans les premières secondes.
   for(let x=10.1;x<22.2;x+=1.35)b.boite(.76,.035,3,'#f2efe5',x,.035,132).castShadow=false;
   b.panneau('CORNICHE · PLAGE OUVERTE',1.5,3.3,140,7);
+
+  // Survols Download-4 et Download-6.mp4 : jeunes badamiers à couronne étagée,
+  // blocs de béton blanc servant d'assises, espaces en béton clair aux bords
+  // arrondis avec un petit skatepark, et épis de roches noires dans la mer.
+  for(const z of [133,121,108,71,58,46])badamier(b,-16.8+varie(z,2)*1.4,z);
+  for(let z=145;z>38;z-=12.5)for(const dz of [0,1.6]){
+    b.boite(.95,.55,.95,'#ecebe4',-7.2,.33,z+dz);
+    b.boite(.6,.02,.6,'#55544f',-7.2,.61,z+dz).castShadow=false;
+  }
+  placetteSkate(b,-14.2,88);
+  for(const z of [64,122])epiRocheux(b,-27.5,z,24);
+}
+
+/** Badamier (Terminalia catappa) : tronc droit, couronne en plateaux superposés. */
+function badamier(b:Batisseur,x:number,z:number){
+  const g=new T.Group();g.position.set(x,0,z);g.rotation.y=varie(z,x)*6.3;b.racine.add(g);
+  b.cyl(.1,.16,3.4,7,'#6f5c47',0,1.7,0,g);
+  const feuilles=[b.mat('#4b7c3b'),b.mat('#5f8c45')];
+  for(const [y,r,dx] of [[2.3,1.9,.25],[3.05,1.55,-.2],[3.7,1.05,.1]] as const){
+    const plateau=b.cyl(r,r*.92,.42,9,feuilles[y>3?1:0],dx,y,0,g);plateau.castShadow=true;
+  }
+  b.obstacle(x,z,.5,.5);
+  return g;
+}
+
+/**
+ * Espace en béton clair aux contours lobés, cerclé d'une bordure blanche, avec
+ * deux rampes et un module de glisse : le skatepark de la Corniche vu au drone.
+ */
+function placetteSkate(b:Batisseur,x:number,z:number){
+  const bordure=b.mat('#f3f1ea'),beton=b.mat('#cfcbc0',{rugosite:.9});
+  const lobes=[[0,0,4.2],[-1.2,-5.4,3.4],[.9,5.2,3.1],[-.6,9.4,2.3]] as const;
+  for(const [dx,dz,r] of lobes){
+    b.cyl(r+.3,r+.3,.1,28,bordure,x+dx,.1,z+dz).castShadow=false;
+  }
+  for(const [dx,dz,r] of lobes){
+    b.cyl(r,r,.1,28,beton,x+dx,.13,z+dz).castShadow=false;
+  }
+  // Deux plans inclinés qui se font face, et un module central.
+  for(const sens of [-1,1]){
+    const rampe=b.boite(2.6,.25,3,'#c4bfb2',x+sens*1.9,.5,z-5.4);
+    rampe.rotation.z=sens*.32;
+  }
+  b.boite(1.6,.45,2.6,'#bdb8ab',x,.4,z+.4);
+  b.boite(1.6,.06,2.6,'#8f8b80',x,.65,z+.4).castShadow=false;
+  // Arbre en jardinière ronde au milieu du lobe principal.
+  b.cyl(1,1.05,.4,16,'#e7e4da',x-1.8,.33,z+1.8);
+  badamier(b,x-1.8,z+1.8);
+}
+
+/** Épi de roches sombres qui s'avance dans la mer, écume au pied. */
+function epiRocheux(b:Batisseur,x:number,z:number,longueur:number){
+  const roche=b.mat('#3b3a38',{rugosite:.95}),rocheClaire=b.mat('#56524c',{rugosite:.95});
+  for(let i=0;i*1.5<longueur;i++){
+    const px=x-i*1.5;
+    for(const dz of [-1.3,0,1.3])b.rocher(px+varie(i,dz)*.6,.35+(dz?0:.35),z+dz+varie(dz,i)*.5,dz?1.05:1.3,(i+dz)%2?roche:rocheClaire);
+  }
+  const ecume=b.mat('#eef3ee',{transparent:.55});
+  for(const dz of [-2.6,2.6]){const m=b.boite(longueur,.04,1.2,ecume,x-longueur/2,.2,z+dz);m.castShadow=false;}
 }
 
 function jeunePalmier(b: Batisseur, x: number, z: number) {
@@ -150,6 +254,9 @@ export function esplanadeAmazone(b: Batisseur) {
   bande(25, -2.8, -137, .78);
 
   b.boite(.5, 1.1, 78, '#d5cab1', -53, .55, -137);
+  // Derrière le muret, la plage rejoint l'Atlantique, comme sur les vues drone
+  // de Download-10.mp4 : parvis, pelouse, sable, puis la mer.
+  b.sol(8.5, 80, b.tex('sable', 4, 36, '#d8c59c'), -57.4, -137, .04).name = 'plage-esplanade';
   for (let z = -104; z > -172; z -= 13) { b.lampadaireSimple(-11.5, z, -1); b.lampadaireSimple(-44, z, 1); }
   // Portiques du port de Cotonou, aperçus au fond des photos de l’esplanade.
   for (const z of [-104, -124, -144]) portique(b, -80, z);
@@ -182,7 +289,27 @@ export function esplanadeAmazone(b: Batisseur) {
     b.cyl(.065, .09, 5.7, 7, '#2f3738', -9.2, 2.85, z);
     b.boite(.85, .08, .26, '#242b2d', -8.84, 5.55, z).rotation.z = -.08;
   }
+  // Grand parvis réellement habité : bancs bas, bornes anti-intrusion et
+  // projecteurs encastrés visibles sur les vues aériennes nocturnes.
+  for(const [x,z,r] of [[-42,-106,0],[-31,-151,Math.PI/2],[-8,-104,Math.PI],[-7,-151,Math.PI]] as const)bancUrbain(b,x,z,r);
+  for(let i=0;i<18;i++){
+    const a=i*Math.PI*2/18,rayon=15.2;
+    b.cyl(.13,.16,.72,8,'#4b504d',-19+Math.cos(a)*rayon,.36,-123+Math.sin(a)*rayon);
+    const lampe=b.cyl(.11,.11,.025,10,'#fff1bc',-19+Math.cos(a)*11.8,.11,-123+Math.sin(a)*11.8);
+    lampe.material=b.mat('#fff0b0',{rugosite:.25});lampe.castShadow=false;
+  }
+  for(let z=-104;z>=-168;z-=8)b.boite(.35,.025,2.1,'#4e5652',-52.4,.09,z).castShadow=false;
   b.panneau('MONUMENT DE L’AMAZONE', -19, 30, -123, 11);
+}
+
+/** Banc robuste en bois et métal, utilisé dans les grands espaces publics. */
+function bancUrbain(b:Batisseur,x:number,z:number,rotation=0){
+  const g=new T.Group();g.position.set(x,0,z);g.rotation.y=rotation;b.racine.add(g);
+  const bois=b.mat('#866346',{rugosite:.92}),metal=b.mat('#303836',{rugosite:.62,metal:.25});
+  for(const dz of [-.32,0,.32])b.boite(2.25,.09,.22,bois,0,.58,dz,g);
+  for(const dx of [-.86,.86]){b.boite(.1,.55,.72,metal,dx,.3,0,g);b.boite(.1,.72,.1,metal,dx,.76,.38,g);}
+  for(const dz of [.43,.68])b.boite(2.25,.1,.16,bois,0,.82,dz,g);
+  return g;
 }
 
 /** Jardins géométriques et chemin courbe visibles dans le survol TOUR.mp4. */
@@ -321,6 +448,29 @@ function statueAmazone(b: Batisseur, x: number, z: number) {
   });
 }
 
+/**
+ * Patine gris argent du monument réel (Download-9 et Download-10.mp4, plein
+ * soleil) : le modèle amazone.glb est texturé en bronze cuivré. La texture
+ * garde ses reliefs mais perd sa teinte, ramenée à sa seule luminance.
+ */
+export function patineArgent(objet: T.Object3D) {
+  objet.traverse(n => {
+    const mesh = n as T.Mesh;
+    if (!mesh.isMesh) return;
+    const source = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const argent = source.map(m => {
+      const copie = (m as T.MeshStandardMaterial).clone();
+      copie.color.set('#e1e4e7'); copie.metalness = .35; copie.roughness = .4;
+      copie.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>',
+          '#include <map_fragment>\n  diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(.299, .587, .114))) * 1.6;');
+      };
+      return copie;
+    });
+    mesh.material = Array.isArray(mesh.material) ? argent : argent[0];
+  });
+}
+
 /** Palais de la Marina : long bâtiment beige sur pilotis, bandeaux vitrés bleutés. */
 export function palaisMarina(b: Batisseur) {
   b.sol(26, 58, b.tex('gazon', 13, 29), 35, -152, .04);
@@ -385,6 +535,15 @@ export function palaisCongres(b: Batisseur) {
   });
   for (const z of [-218, -266, -274]) b.arbre(-17.5, z, .45);
   for (const z of [-224, -230, -256, -262]) b.haie(-17, z, 1.2, 4, .55);
+  // Parvis d'arrivée : îlots paysagers, bornes et éclairage bas donnent au
+  // bâtiment la profondeur horizontale visible sur les photographies récentes.
+  for(const z of [-226,-236,-246,-256,-266]){
+    b.cyl(.14,.17,.68,8,'#555d59',-8.8,.34,z);
+    b.cyl(.1,.13,.46,8,'#3f4946',-19.2,.23,z);
+    b.sphere(.13,'#fff0b5',-19.2,.52,z).castShadow=false;
+  }
+  for(const [x,z] of [[-36,-219],[-45,-225],[-43,-266],[-34,-272]] as const){b.haie(x,z,4.8,1.4,.55);b.arbre(x,z,.42);}
+  bancUrbain(b,-18.2,-219,0);bancUrbain(b,-18.2,-271,Math.PI);
   b.cocotier(-11.5, -240, false);
   b.panneau('PALAIS DES CONGRÈS', -24, 15, -240, 9);
 }
@@ -404,96 +563,138 @@ function tambour(b: Batisseur, x: number, z: number, rBas: number, rHaut: number
 }
 
 /**
- * Place de l’Étoile Rouge : étoile rouge à cinq branches, pylône cannelé
- * à bandeaux de brique et statue de bronze aux trois attributs.
+ * Place de l’Étoile Rouge : un giratoire sur l'axe du boulevard. Au centre de
+ * l'île, deux étoiles rouges imbriquées sur un dallage, la flèche blanche et la
+ * statue de bronze ; autour, l'anneau où tournent voitures et zémidjans.
  */
 export function etoileRouge(b: Batisseur) {
-  const x = -28, z = -364;
+  const {x, z, ile, chausseeInt, chausseeExt, trottoir, voie} = GIRATOIRE;
   b.sol(76, 96, b.tex('sable', 38, 48, '#c6bda4'), -48, z, .02);
-  b.cyl(16.5, 16.5, .3, 40, b.tex('beton', 10, 10), x, .12, z).castShadow = false;
-  // Chaussée annulaire complète : la place est un carrefour giratoire, la
-  // circulation en fait le tour. L'anneau ne couvrait qu'un peu plus d'un
-  // demi-tour, ce qui la réduisait à un parvis bordé d'un bout de route.
-  b.anneau(17.2, 25.5, b.tex('asphalte', 8, 1), x, .06, z);
-  b.anneau(16.8, 17.2, '#e6e0d0', x, .08, z);
-  b.anneau(25.5, 25.9, '#e6e0d0', x, .08, z);
-  for (let i = 0; i < 36; i++) {
-    const a = i * Math.PI / 18;
-    const trait = b.boite(1.9, .03, .26, '#e8e3d2', x + Math.cos(a) * 21.3, .09, z + Math.sin(a) * 21.3);
+  // Anneau de chaussée complet, deux files séparées par un tireté, et bordures.
+  b.anneau(chausseeInt, chausseeExt, b.tex('bitume', 6, 6), x, .06, z);
+  b.anneau(chausseeExt - .35, chausseeExt - .2, '#e8e3d2', x, .075, z);
+  b.anneau(chausseeInt + .2, chausseeInt + .35, '#e8e3d2', x, .075, z);
+  for (let i = 0; i < 40; i++) {
+    const a = i * Math.PI / 20;
+    const trait = b.boite(.22, .03, 1.7, '#e8e3d2', x + Math.cos(a) * voie, .08, z + Math.sin(a) * voie);
     trait.rotation.y = -a; trait.castShadow = false;
   }
-  // La promenade débouche sur l'anneau : deux traversées marquent la rencontre,
-  // sinon la chaussée semblait recouvrir le dallage par accident.
-  for (const zt of [-348.5, -379.5]) for (let px = -8; px < -2.2; px += 1.3)
-    b.boite(.72, .035, 2.6, '#f0ece0', px, .1, zt).castShadow = false;
-  // Cinq voies convergentes, prolongées jusqu'au tissu bâti qui ceinture la place.
-  for (let i = 0; i < 5; i++) {
-    const a = Math.PI * .5 + i * Math.PI * 2 / 5;
-    if (Math.cos(a) > .55) continue;
-    const r = 38, voie = b.boite(9.5, .2, 26, b.tex('asphalte', 1, 3), x + Math.cos(a) * r, .05, z + Math.sin(a) * r);
-    voie.rotation.y = -a; voie.castShadow = false;
-  }
-  // Pylône, étoile et statue : cèdent la place au modèle etoile-rouge.glb.
-  b.ensemble('etoile-rouge', () => {
-    // Soubassement rouge et étoile à cinq branches.
-    b.cyl(16.6, 16.6, .95, 40, '#a8382c', x, .48, z, undefined, true);
-    b.etoile(13, 5.6, 1.4, '#a8382c', x, .1, z);
-    b.etoile(12.2, 5, .3, b.tex('beton', 6, 6, '#cfc7b4'), x, 1.5, z);
-    for (let marche = 0; marche < 4; marche++) b.boite(6, .4, .9, '#b7ae9a', x + 13.6 + marche * .8, .2 + marche * .4, z);
-    // Auvent rouge porté par dix poteaux, tel qu’il coiffe le pied du monument.
-    for (let i = 0; i < 10; i++) {
-    const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 4.6 : 10.6;
-    b.cyl(.22, .26, 3.2, 8, '#9d3428', x + Math.cos(a) * r, 3.4, z + Math.sin(a) * r);
-    }
-    b.etoile(11.5, 5, .4, '#a8382c', x, 5, z);
-    b.etoile(11.1, 4.7, .18, '#8e2f24', x, 4.82, z);
-    // Pylône effilé : pied évasé, fût cannelé à bandeaux de brique.
-    const socle = 1.8;
-    const pied = b.cyl(1.75, 4.5, 13, 4, b.tex('cannelures', 3, 3, '#cbc3b0'), x, socle + 6.5, z);
-    pied.rotation.y = Math.PI / 4;
-    const cannele = b.tex('cannelures', 3, 3, '#cbc3b0');
-    const futs: [number, number, number, number][] = [[1.4, 1.75, 12, socle + 19], [1.15, 1.4, 8, socle + 29]];
-    for (const [rHaut, rBas, h, y] of futs) b.cyl(rHaut, rBas, h, 4, cannele, x, y, z).rotation.y = Math.PI / 4;
-    // Bandeaux de brique, dans l’axe horizontal comme sur le monument.
-    for (const [rHaut, rBas, h, y] of futs) for (let i = 1; i <= 3; i++) {
-    const u = i / 4, r = rBas + (rHaut - rBas) * u + .04;
-    b.cyl(r, r, .55, 4, '#a4614c', x, y - h / 2 + u * h, z).rotation.y = Math.PI / 4;
-    }
-    for (let i = 1; i <= 2; i++) {
-    const u = i / 3, r = 4.5 + (1.75 - 4.5) * u + .05;
-    b.cyl(r, r, .5, 4, '#a4614c', x, socle + u * 13, z).rotation.y = Math.PI / 4;
-    }
-    b.boite(2.9, .5, 2.9, '#c6bda9', x, socle + 33.2, z);
-    // Haubans tendus vers le socle de l’étoile.
-    for (let i = 0; i < 8; i++) {
-    const a = i * Math.PI / 4;
-    b.cable([x, socle + 20, z], [x + Math.cos(a) * 11, socle + 1.7, z + Math.sin(a) * 11], .05, '#b6b2a4');
-    }
-    statueEtoile(b, x, socle + 33.5, z);
+  // Trottoir circulaire, interrompu là où les voies rejoignent l'anneau.
+  const tour = Math.PI * 2, norme = (a: number) => ((a % tour) + tour) % tour;
+  const ouvertures = VOIES_GIRATOIRE.map(a => ({a: norme(a), demi: Math.abs(Math.sin(a)) > .9 ? .32 : .22}))
+    .sort((p, q) => p.a - q.a);
+  ouvertures.forEach((o, i) => {
+    const suivante = ouvertures[(i + 1) % ouvertures.length];
+    const debut = o.a + o.demi, fin = suivante.a - suivante.demi + (i === ouvertures.length - 1 ? tour : 0);
+    // RingGeometry mesure l'angle dans le plan XY : après bascule au sol, a monde = -thêta.
+    b.anneau(chausseeExt, trottoir, b.tex('paves', 10, 2, '#cdc4b3'), x, .12, z, -fin, fin - debut);
+    b.anneau(chausseeExt, chausseeExt + .3, '#e1dccd', x, .15, z, -fin, fin - debut);
   });
-  b.panneau('PLACE DE L’ÉTOILE ROUGE', x, 8.5, z + 13, 10);
-  // L'île est couverte d'un collier dense de grands arbres, entre la pointe de
-  // l'étoile et la bordure : sept arbres sur un arc laissaient le terre-plein nu.
-  // Le collier se tient au bord de l'île, au-delà des pointes de l'étoile : plus
-  // au centre et à pleine taille, les couronnes se soudaient en un seul dôme et
-  // masquaient complètement l'étoile et le pied du pylône.
-  for (let i = 0; i < 16; i++) {
-    const a = i * Math.PI / 8;
-    b.arbre(x + Math.cos(a) * 16.2, z + Math.sin(a) * 16.2, .64 + varie(i, 3) * .16);
+  // Voies rayonnantes hors du boulevard : ouest, est et nord-est.
+  for (const a of VOIES_GIRATOIRE.slice(2)) {
+    const longueur = 34, r = chausseeExt - .5 + longueur / 2;
+    const route = b.sol(9, longueur, b.tex('bitume', 1, 4), x + Math.cos(a) * r, z + Math.sin(a) * r, .055);
+    route.rotation.y = Math.PI / 2 - a;
+    for (let d = 3; d < longueur; d += 4.5) {
+      const rr = chausseeExt + d;
+      const tiret = b.boite(.2, .03, 2, '#e8e3d2', x + Math.cos(a) * rr, .07, z + Math.sin(a) * rr);
+      tiret.rotation.y = Math.PI / 2 - a; tiret.castShadow = false;
+    }
   }
-  // Le mât nord se tenait au milieu de la nouvelle chaussée annulaire.
-  b.matEclairage(-14.5, -337); b.matEclairage(-47, -385);
-  b.boite(.1, .5, 26, '#2f6b45', -10.5, .8, -364).castShadow = false;
-  for (let zp = -352; zp >= -376; zp -= 6) b.boite(.3, .9, .3, '#2f6b45', -10.5, .45, zp);
-  b.cyl(.09, .11, 5.5, 8, '#e0b83c', -11.9, 2.75, -357);
-  villeEtoileRouge(b, x, z);
-  b.panneau('Fin de la promenade', 0, 4, -403);
+  // Passages piétons : deux traversées de l'anneau côté promenade, et une sur
+  // chaque approche du boulevard, à l'entrée du carrefour.
+  const zebre = (a: number, r0: number, r1: number) => {
+    for (let r = r0; r < r1; r += 1.15) {
+      const bande = b.boite(.6, .035, 2.8, '#f2eee2', x + Math.cos(a) * r, .085, z + Math.sin(a) * r);
+      bande.rotation.y = -a; bande.castShadow = false;
+    }
+  };
+  // Elles aboutissent aux pointes ouest de l'étoile, entre deux massifs d'arbres.
+  zebre(Math.PI * .9, chausseeInt + .6, chausseeExt - .4);
+  zebre(Math.PI * 1.3, chausseeInt + .6, chausseeExt - .4);
+  for (const zt of [z + trottoir + 2.5, z - trottoir - 2.5])
+    for (let px = 10.2; px < 22; px += 1.25) b.boite(.72, .035, 2.8, '#f2eee2', px, .03, zt).castShadow = false;
+  // Grands mâts d'éclairage sur le trottoir, entre les voies.
+  for (const a of [Math.PI / 4, Math.PI * .75, Math.PI * 1.25])
+    b.matEclairage(x + Math.cos(a) * (trottoir - 1.4), z + Math.sin(a) * (trottoir - 1.4));
+
+  // Île centrale : bordure claire et sol dallé, sous l'étoile.
+  b.cyl(ile, ile, .3, 48, b.tex('beton', 8, 8, '#cfc8b8'), x, .15, z).castShadow = false;
+  b.cyl(ile + .12, ile + .12, .36, 48, '#e2ddce', x, .18, z, undefined, true);
+  // Pylône, étoile et statue : cèdent la place au modèle etoile-rouge.glb.
+  // Relevé sur le survol drone Download-7.mp4 (vue zénithale à 31 s) : deux
+  // étoiles rouges imbriquées, en murets bas, posées à plat sur un dallage gris
+  // où l'on circule ; au centre un socle pentagonal clair et une flèche blanche
+  // lisse. Ni auvent sur poteaux, ni haubans, ni bandeaux de brique.
+  const rExt = ile - 2, rInt = rExt * .427, sol = .3;
+  b.ensemble('etoile-rouge', () => {
+    const rouge = b.mat('#b8392d', {rugosite: .75}), rougeSombre = b.mat('#8f2d24', {rugosite: .8});
+    const dallage = b.tex('beton', 6, 6, '#c3bdb0');
+    // Grande étoile dallée, puis ses deux contours rouges surélevés.
+    b.etoile(rExt, rInt, .25, dallage, x, sol, z);
+    contourEtoile(b, rExt, rInt, .75, .9, rouge, x, sol, z);
+    b.etoile(rExt * .62, rInt * .62, .25, dallage, x, sol + .25, z);
+    contourEtoile(b, rExt * .62, rInt * .62, .8, .62, rouge, x, sol + .25, z);
+    // Arête sombre au sommet des murets, lisible depuis le drone.
+    contourEtoile(b, rExt * 1.01, rInt * 1.015, .985, .06, rougeSombre, x, sol + .9, z);
+    // Cinq volées de marches descendent de l'étoile intérieure vers les creux.
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI / 2 + Math.PI / 5 + i * Math.PI * 2 / 5, r = rInt * .85;
+      for (let m = 0; m < 3; m++) {
+        const marche = b.boite(1.3, .12, .4, '#8d8a82', x + Math.cos(a) * (r + m * .4), sol + .47 - m * .12, z + Math.sin(a) * (r + m * .4));
+        marche.rotation.y = -a + Math.PI / 2; marche.castShadow = false;
+      }
+    }
+    // Socle pentagonal clair au pied de la flèche.
+    b.cyl(2.2, 2.5, 1.2, 5, '#e6e1d4', x, sol + .6, z).rotation.y = Math.PI / 10;
+    b.cyl(1.8, 2.2, .5, 5, '#d8d2c2', x, sol + 1.45, z).rotation.y = Math.PI / 10;
+    // Flèche blanche effilée, à pied évasé par quatre ailerons.
+    const blanc = b.mat('#eeebe2', {rugosite: .55}), socle = sol + 1.7;
+    b.cyl(.95, 1.6, 27, 4, blanc, x, socle + 13.5, z).rotation.y = Math.PI / 4;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      b.boite(2, 6, .3, blanc, x + Math.cos(a) * 1.7, socle + 3, z + Math.sin(a) * 1.7).rotation.y = -a;
+      b.boite(1, 2.4, .3, blanc, x + Math.cos(a) * 1.4, socle + 6.9, z + Math.sin(a) * 1.4).rotation.y = -a;
+    }
+    // Chapiteau à bord festonné qui porte la statue.
+    b.cyl(1.3, 1.05, 1.6, 10, blanc, x, socle + 27.8, z);
+    b.maillage(new T.TorusGeometry(1.33, .12, 5, 20), '#d6d1c4', x, socle + 28.5, z).rotation.x = Math.PI / 2;
+    statueEtoile(b, x, socle + 28.6, z);
+  });
+  b.panneau('PLACE DE L’ÉTOILE ROUGE', x, 9.5, z + ile, 10);
+  // Vue du drone, l'île n'a pas de collier régulier : cinq massifs de grands
+  // arbres remplissent chacun un creux entre deux branches, et les pointes de
+  // l'étoile restent dégagées jusqu'à la bordure.
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI / 2 + Math.PI / 5 + i * Math.PI * 2 / 5;
+    for (const [r, da, s] of [[8.2, 0, .7], [10.8, -.25, .62], [10.8, .25, .64], [11.3, 0, .58]] as const) {
+      b.arbre(x + Math.cos(a + da) * r, z + Math.sin(a + da) * r, s + varie(i, r) * .1);
+    }
+  }
+  // Grands mâts d'éclairage plantés sur l'étoile, et bancs à la pointe de
+  // chaque branche, tournés vers la flèche. La pointe tournée vers la promenade
+  // accueille le guide à la place du banc.
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI / 2 + i * Math.PI * 2 / 5;
+    b.cyl(.07, .1, 7.5, 7, '#9ea3a0', x + Math.cos(a) * rExt * .7, sol + 3.75, z + Math.sin(a) * rExt * .7);
+    b.boite(.7, .16, .3, '#e7e3d6', x + Math.cos(a) * rExt * .7, sol + 7.5, z + Math.sin(a) * rExt * .7).castShadow = false;
+    if (i !== 1) bancUrbain(b, x + Math.cos(a) * (rExt + 1.1), z + Math.sin(a) * (rExt + 1.1), -a + Math.PI / 2);
+  }
+  villeEtoileRouge(b);
+  b.panneau('Fin de la promenade', -4, 4, -403);
 }
 
-/** Homme de bronze au sommet : houe brandie, fusil à l’épaule, fagot de bois. */
+/**
+ * Homme de bronze au sommet, vu de près à 44–46 s de Download-7.mp4 : houe
+ * brandie à bout de bras, gerbe serrée contre le flanc gauche d'où sort une
+ * flamme rouge. Patine vert-de-gris, bien plus sombre que la flèche.
+ */
 function statueEtoile(b: Batisseur, x: number, y: number, z: number) {
   const g = new T.Group(); g.position.set(x, y, z); g.rotation.y = .5; g.scale.setScalar(3); b.racine.add(g);
-  const bronze = b.mat(BRONZE, {rugosite: .6, metal: .2});
+  const bronze = b.mat('#5a6356', {rugosite: .62, metal: .25});
+  const flamme = b.mat('#d8342a', {rugosite: .4});
+  b.cone(.07, .2, 7, flamme, -.06, 2.2, .42, g);
+  b.cyl(.03, .03, .2, 6, bronze, -.06, 2.02, .42, g);
   b.cyl(.1, .09, .95, 8, bronze, .16, .48, -.1, g);
   b.cyl(.1, .09, .95, 8, bronze, -.13, .48, .12, g);
   b.boite(.28, .09, .16, bronze, .2, .05, -.1, g);
@@ -502,62 +703,82 @@ function statueEtoile(b: Batisseur, x: number, y: number, z: number) {
   b.boite(.46, .1, .3, bronze, 0, 1.06, 0, g);                                       // ceinturon
   b.cyl(.08, .09, .12, 8, bronze, 0, 1.77, 0, g);
   b.sphere(.13, bronze, 0, 1.9, 0, g);
-  b.boite(.3, .07, .28, bronze, .02, 1.99, 0, g);                                    // calot
   // Bras droit levé, houe brandie vers le ciel.
   b.cyl(.055, .06, .62, 7, bronze, .12, 1.94, -.22, g).rotation.z = -.35;
   b.cyl(.05, .055, .5, 7, bronze, .26, 2.44, -.24, g).rotation.z = -.15;
   const manche = b.cyl(.032, .032, .72, 7, bronze, .35, 2.92, -.24, g); manche.rotation.z = .3;
   const lame = b.boite(.26, .17, .05, bronze, .24, 3.24, -.24, g); lame.rotation.z = .3;
-  // Bras gauche le long du corps, fusil en bandoulière dans le dos.
-  b.cyl(.055, .06, .66, 7, bronze, -.04, 1.5, .26, g);
-  b.cyl(.028, .028, 1.15, 7, bronze, -.16, 1.35, .06, g).rotation.set(0, 0, .32);
-  // Fagot de bois dressé à côté de lui.
+  // Bras gauche replié, qui serre la gerbe contre le flanc.
+  b.cyl(.055, .06, .5, 7, bronze, .02, 1.52, .3, g).rotation.x = -.35;
+  b.cyl(.05, .055, .34, 7, bronze, .06, 1.34, .4, g).rotation.x = .9;
+  // Gerbe dressée du pied jusqu'à l'épaule, liée en deux points.
   for (let i = 0; i < 7; i++) {
     const a = i * 6.28 / 7;
-    b.cyl(.035, .04, 1.6, 6, bronze, -.42 + Math.cos(a) * .1, .8, .5 + Math.sin(a) * .1, g).rotation.z = (varie(i, a) - .5) * .12;
+    b.cyl(.03, .045, 1.95, 6, bronze, -.06 + Math.cos(a) * .08, .98, .42 + Math.sin(a) * .08, g).rotation.z = (varie(i, a) - .5) * .1;
   }
-  for (const yl of [.55, 1.15]) b.maillage(new T.TorusGeometry(.14, .022, 5, 10), bronze, -.42, yl, .5, g).rotation.x = Math.PI / 2;
+  for (const yl of [.5, 1.35]) b.maillage(new T.TorusGeometry(.12, .024, 5, 10), bronze, -.06, yl, .42, g).rotation.x = Math.PI / 2;
+}
+
+/**
+ * Contour d'étoile à cinq branches, en muret : l'étoile pleine privée d'une
+ * étoile homothétique de rapport `rapport`. La bande est plus large dans les
+ * branches qu'aux creux, comme les bordures rouges de la place.
+ */
+function contourEtoile(b: Batisseur, rExt: number, rInt: number, rapport: number, hauteur: number,
+  c: string | T.Material, x: number, y: number, z: number) {
+  const trace = (forme: T.Shape | T.Path, k: number) => {
+    for (let i = 0; i < 10; i++) {
+      const a = i * Math.PI / 5 - Math.PI / 2, r = (i % 2 ? rInt : rExt) * k;
+      i ? forme.lineTo(Math.cos(a) * r, Math.sin(a) * r) : forme.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    forme.closePath();
+  };
+  const forme = new T.Shape(); trace(forme, 1);
+  const trou = new T.Path(); trace(trou, rapport); forme.holes.push(trou);
+  const geo = new T.ExtrudeGeometry(forme, {depth: hauteur, bevelEnabled: false});
+  geo.rotateX(-Math.PI / 2);
+  return b.maillage(geo, c, x, y, z);
 }
 
 /**
  * Tissu bâti qui ceinture la place de l'Étoile Rouge, relevé sur TOUR.mp4 à
- * 38 s : la place est un vrai carrefour giratoire, serré de toutes parts par un
- * bâti bas de deux à quatre niveaux — façades bleues, ocre, rouges et roses,
- * boutiques et auvents au rez-de-chaussée, toits de tôle — avec une gare
- * routière de cars sur un côté. Le jeu n'y posait que quatre boutiques isolées
- * à vingt-quatre mètres, sur du sable nu : la place flottait au lieu d'être un
- * carrefour de quartier.
+ * 38 s et sur Download-7.mp4 : un bâti bas de deux à quatre niveaux serre le
+ * carrefour de toutes parts — façades bleues, ocre, rouges et roses, boutiques
+ * et auvents au rez-de-chaussée, toits de tôle — avec une gare routière de cars.
  *
- * Le secteur est reste ouvert : c'est par là qu'arrive la promenade, et boucler
- * la ceinture y ferait buter les immeubles dans le boulevard.
+ * Les immeubles se tiennent hors du couloir du boulevard, qui traverse la place
+ * du sud au nord, et laissent libres les voies rayonnantes. Le premier rang est
+ * à quarante-deux mètres du centre : un joueur qui fait le tour de l'anneau peut
+ * s'écarter de vingt-trois mètres, et la caméra recule de quatorze derrière lui.
  */
-function villeEtoileRouge(b: Batisseur, cx: number, cz: number) {
+function villeEtoileRouge(b: Batisseur) {
+  const {x: cx, z: cz} = GIRATOIRE;
   const teintes = ['#3f6f96', '#c4553f', '#d9ac48', '#c2879a', '#b5613c', '#e2ddcd', '#5f8087'];
   const accents = ['#2b5878', '#a63f2c', '#bf9034', '#a76a7c', '#95492c', '#c6bfa9', '#48656b'];
+  const gare = {x: cx - 50, z: cz - 26};
   let index = 0;
-  for (const [rang, pas] of [[32, 13], [46, 15]] as const) {
-    for (let deg = 58; deg <= 302; deg += pas, index++) {
+  for (const [rang, pas] of [[42, 18], [56, 15]] as const) {
+    for (let deg = 0; deg < 360; deg += pas, index++) {
       const a = deg * Math.PI / 180;
       const bx = cx + Math.cos(a) * rang, bz = cz + Math.sin(a) * rang;
-      // La caméra recule de quatorze mètres derrière un joueur qui longe la
-      // promenade à x=-7,7 : rien de bâti ne peut s'avancer à l'est de x=-24
-      // sans qu'elle finisse dedans. Le demi-diagonale d'un bloc vaut 8,5 m,
-      // d'où ce seuil. Le secteur est de la place reste donc ouvert — c'est la
-      // conséquence directe du monument posé à côté du boulevard, pas dessus.
-      if (bx > -32.5) continue;
-      if (rang === 46 && deg > 203 && deg < 247) continue;      // emprise de la gare routière
+      if (bx > -21 && bx < 39) continue;                         // couloir du boulevard et de ses façades
+      if (bx > 62) continue;                                     // rangée d'horizon, à x=72
+      if (bz > -318 && bx < -18) continue;                       // parvis du quartier de marchés
+      if (Math.hypot(bx - gare.x, bz - gare.z) < 17) continue;   // emprise de la gare routière
+      // Une voie rayonnante passe entre les immeubles, pas au travers.
+      if (VOIES_GIRATOIRE.some(v => Math.abs(Math.atan2(Math.sin(a - v), Math.cos(a - v))) < Math.asin(11 / rang))) continue;
       immeubleEtoile(b, bx, bz, Math.PI - a, 2 + (index * 7) % 3,
-        teintes[index % teintes.length], accents[index % accents.length], rang === 32);
+        teintes[index % teintes.length], accents[index % accents.length], rang === 42);
     }
   }
-  // Gare routière : deux rangées de cars à l'arrêt, au sud-ouest de la place.
+  // Gare routière : deux rangées de cars à l'arrêt, au nord-ouest de la place.
   for (let rangee = 0; rangee < 2; rangee++) for (let c = 0; c < 4; c++) {
-    const bx = -68 + c * 4.4, bz = -396 - rangee * 11;
+    const bx = gare.x - 6.6 + c * 4.4, bz = gare.z - 5.5 + rangee * 11;
     b.boite(2.5, 2.7, 9.4, ['#e6e2d4', '#cfd6d2', '#dcc9a8', '#d8dbd4'][c % 4], bx, 1.55, bz);
     b.boite(2.6, .95, 8.6, '#4a5f66', bx, 2.5, bz).castShadow = false;
     b.boite(2.6, .28, 9.6, '#b8bdb6', bx, 2.95, bz).castShadow = false;
   }
-  b.panneau('GARE ROUTIÈRE', -61, 7.5, -390, 7);
+  b.panneau('GARE ROUTIÈRE', gare.x, 7.5, gare.z + 8, 7);
 }
 
 /** Petit immeuble du tissu de l'Étoile Rouge, boutique et auvent au rez-de-chaussée. */

@@ -36,6 +36,9 @@ export class MerAnimee {
           // Au premier tronçon (z monde > 38), la plage est plus large et la
           // ligne d'eau recule de vingt mètres. La transition reste progressive.
           p.x -= smoothstep(16.0, 24.0, p.z) * 20.5;
+          // Au droit de l'Esplanade (z monde < -99), l'eau recule derrière le
+          // parvis et sa plage : elle recouvrait la moitié du dallage.
+          p.x -= (1.0 - smoothstep(-113.0, -107.0, p.z)) * 50.0;
           float ample = .05 + (1.0 - uv.x) * .08;
           float vague = sin(p.x * .34 + p.z * .09 + uTemps * 1.35) * ample;
           vague += sin(p.x * .13 - p.z * .28 + uTemps * 1.85) * .04;
@@ -99,6 +102,7 @@ export class MerAnimee {
             vUvEcume = uv;
             vec3 p = position;
             p.x -= smoothstep(16.0, 24.0, p.z) * 20.5;
+            p.x -= (1.0 - smoothstep(-113.0, -107.0, p.z)) * 50.0;
             p.x += sin(p.z * .105 + uTemps * .8 + uPhase) * .36;
             p.x += sin(p.z * .31 - uTemps * 1.4 + uPhase) * .1;
             p.y += .08 + sin(p.z * .22 + uTemps * 1.7 + uPhase) * .055;
