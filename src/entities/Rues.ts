@@ -174,15 +174,7 @@ export class Rues {
       this.b.boite(w+.6,.3,d+.6,'#949b98',x,h+.15,z);
     }
 
-    // Murs d'enceinte, portails et maisons basses sur la seconde moitié.
-    for(const [z,longueur,couleur] of [[-65,20,'#d8d3c6'],[-84,16,'#aac0bd']] as const){
-      this.b.boite(.38,1.8,longueur,couleur,27, .9,z);
-      this.b.boite(.45,2.2,.7,'#8d9690',27,1.1,z-longueur/2);
-      this.b.boite(.45,2.2,.7,'#8d9690',27,1.1,z+longueur/2);
-    }
-    this.b.boite(12,4.5,14,'#a7bbb5',35,2.25,-80);
-    this.b.boite(13,.35,15,this.b.tex('tole',4,4),35,4.68,-80);
-    this.b.boite(.18,2.6,4.5,'#304c4d',26.75,1.3,-77);
+    // La seconde moitié du côté ville est occupée par le mur peint du port (fresquePortuaire).
     for(const [x,z] of [[32,-60],[39,-76],[34,-90]] as const)this.b.arbre(x,z,.85);
     this.enseigne('STELLA MARIS','AKPAKPA','#587b93',6.8,.9,this.b.scene,26.76,1.35,-29,-Math.PI/2);
 
@@ -192,7 +184,7 @@ export class Rues {
 
     // Accotement sableux vers la fin du tronçon, planté de jeunes arbres.
     this.b.sol(9,25,this.b.tex('sable',4,10,'#c69868'),31,-91,.01);
-    for(const z of [-85,-93,-101]){
+    for(const z of [-96,-101]){
       this.b.cyl(.09,.13,3.2,6,'#87745e',27.7,1.6,z);
       const couronne=this.b.sphere(.9,'#4e7548',27.7,3.25,z);couronne.scale.set(1.2,.55,1.1);
     }
@@ -215,38 +207,97 @@ export class Rues {
       for(const [dx,dz] of [[-w/2-1,-d/2-1],[w/2+1,d/2+1]] as const)this.b.arbre(x+dx,z+dz,.42);
     }
   }
-  /** Fresque portuaire relevée sur IMG_9338–9346, reconstruite au canvas sans incorporer la photo. */
+  /**
+   * Fresque du mur du port, relevée sur IMG_9338–9346 : elle suit la Corniche
+   * juste après STELLA MARIS, avant l'Esplanade de l'Amazone. Elle se dressait
+   * auparavant devant la Cité ministérielle et traversait le rez-de-chaussée du
+   * Palais de la Marina. Six panneaux figuratifs reconstruits au canvas, sans
+   * reprendre les photos : carte d'Afrique tenue à deux mains, pêcheur au
+   * chapeau devant des voiliers, mains et pagnes, visages géométriques, danseuses
+   * au soleil, visage aux oranges. Le mur est couronné d'une bande de claustras
+   * et les grues du port dépassent derrière.
+   */
   private fresquePortuaire(){
-    const toile=document.createElement('canvas');toile.width=2048;toile.height=512;
+    const debut=-54,fin=-93,longueur=debut-fin,centre=(debut+fin)/2,L=4096,H=512,panneau=L/6;
+    const toile=document.createElement('canvas');toile.width=L;toile.height=H;
     const c=toile.getContext('2d')!;
-    c.fillStyle='#5a958d';c.fillRect(0,0,2048,512);
-    const fonds=['#d5a63b','#234f63','#b9533f','#d8c082','#487d73','#9e3e42'];
-    for(let i=0;i<12;i++){
-      c.fillStyle=fonds[i%fonds.length];c.beginPath();c.moveTo(i*180-80,512);c.lineTo(i*180+65,0);c.lineTo(i*180+230,0);c.lineTo(i*180+90,512);c.fill();
+    const buste=(x:number,y:number,e:number,peau:string,habit:string,chapeau?:string)=>{
+      c.fillStyle=habit;c.beginPath();c.moveTo(x-95*e,H);c.quadraticCurveTo(x-90*e,y+95*e,x,y+80*e);c.quadraticCurveTo(x+90*e,y+95*e,x+95*e,H);c.fill();
+      c.fillStyle=peau;c.fillRect(x-18*e,y+45*e,36*e,40*e);
+      c.beginPath();c.ellipse(x,y,46*e,58*e,0,0,Math.PI*2);c.fill();
+      c.fillStyle='#1d1612';c.fillRect(x-22*e,y-6*e,12*e,6*e);c.fillRect(x+10*e,y-6*e,12*e,6*e);
+      c.fillStyle='#5a3024';c.fillRect(x-14*e,y+26*e,28*e,6*e);
+      if(chapeau){c.fillStyle=chapeau;c.beginPath();c.ellipse(x,y-40*e,92*e,18*e,0,0,Math.PI*2);c.fill();c.fillRect(x-48*e,y-92*e,96*e,52*e);}
+    };
+    const voilier=(x:number,y:number,e:number)=>{
+      c.fillStyle='#5b3423';c.beginPath();c.moveTo(x-70*e,y);c.lineTo(x+70*e,y);c.lineTo(x+48*e,y+26*e);c.lineTo(x-50*e,y+26*e);c.closePath();c.fill();
+      c.strokeStyle='#3a2418';c.lineWidth=4*e;c.beginPath();c.moveTo(x,y);c.lineTo(x,y-120*e);c.stroke();
+      c.fillStyle='#efe6cf';c.beginPath();c.moveTo(x+4*e,y-112*e);c.lineTo(x+58*e,y-12*e);c.lineTo(x+4*e,y-12*e);c.fill();
+      c.beginPath();c.moveTo(x-4*e,y-98*e);c.lineTo(x-46*e,y-14*e);c.lineTo(x-4*e,y-14*e);c.fill();
+    };
+    // 1. Globe bleu nuit, Afrique ocre tenue à deux mains.
+    let x0=0;c.fillStyle='#16295a';c.fillRect(x0,0,panneau,H);
+    for(let i=0;i<60;i++){c.fillStyle='#cfd9ff';c.fillRect(x0+((i*97)%panneau),(i*53)%H,3,3);}
+    c.fillStyle='#2f6f9c';c.beginPath();c.arc(x0+panneau/2,H*.46,190,0,Math.PI*2);c.fill();
+    const afrique=[[.30,.02],[.45,0],[.62,.05],[.70,.12],[.80,.26],[.95,.30],[.88,.42],[.78,.55],[.74,.70],[.62,.86],[.55,.98],[.47,.93],[.42,.78],[.40,.62],[.33,.50],[.20,.46],[.08,.40],[.02,.28],[.08,.15],[.18,.06]];
+    c.fillStyle='#e0a93a';c.beginPath();afrique.forEach(([u,v],i)=>{const px=x0+panneau/2-150+u*300,py=H*.46-170+v*340;i?c.lineTo(px,py):c.moveTo(px,py);});c.closePath();c.fill();
+    c.fillStyle='#6b3f2a';
+    for(const sens of [-1,1]){c.beginPath();c.ellipse(x0+panneau/2+sens*205,H*.62,70,120,sens*-.5,0,Math.PI*2);c.fill();}
+    // 2. Pêcheur au chapeau, voiliers sur fond vert-jaune.
+    x0=panneau;const fond=c.createLinearGradient(x0,0,x0,H);fond.addColorStop(0,'#c9c566');fond.addColorStop(1,'#4f8a5d');
+    c.fillStyle=fond;c.fillRect(x0,0,panneau,H);
+    c.fillStyle='#2f6a7c';c.fillRect(x0,H*.72,panneau,H*.28);
+    for(const [dx,e] of [[.2,1],[.78,.8],[.9,.6]] as const)voilier(x0+panneau*dx,H*.76,e);
+    buste(x0+panneau*.48,H*.40,1.9,'#6b4330','#f1ece0','#d9c79a');
+    c.strokeStyle='#5a3a26';c.lineWidth=10;for(const d of [-40,40]){c.beginPath();c.moveTo(x0+panneau*.48+d,H*.62);c.lineTo(x0+panneau*.48+d*.8,H);c.stroke();}
+    // 3. Mains et pagnes sur fond clair.
+    x0=panneau*2;c.fillStyle='#ece6da';c.fillRect(x0,0,panneau,H);
+    for(const [i,couleur] of ['#6a3f94','#2a64a8','#e27b2c','#c8325a'].entries()){
+      c.fillStyle=couleur;c.beginPath();c.moveTo(x0+i*170,H);c.quadraticCurveTo(x0+i*170+110,H*.2,x0+i*170+260,H*.55);c.lineTo(x0+i*170+230,H);c.fill();
     }
-    // Mer, coques et grues rappellent l'histoire du port visible sur les clichés.
-    c.fillStyle='#173f55';c.fillRect(0,385,2048,127);
-    c.fillStyle='#d9d0ad';
-    for(const x of [180,720,1320,1760]){c.beginPath();c.moveTo(x-120,390);c.lineTo(x+145,390);c.lineTo(x+80,445);c.lineTo(x-70,445);c.closePath();c.fill();}
-    c.strokeStyle='#5b3028';c.lineWidth=15;
-    for(const x of [380,1020,1570]){c.beginPath();c.moveTo(x,385);c.lineTo(x,145);c.lineTo(x+170,235);c.stroke();c.beginPath();c.moveTo(x+15,180);c.lineTo(x+140,385);c.stroke();}
-    // Grandes figures peintes, volontairement stylisées.
-    for(const [x,couleur] of [[95,'#e8c5a0'],[565,'#563c32'],[1140,'#e4bb91'],[1880,'#49372f']] as const){
-      c.fillStyle=couleur;c.beginPath();c.arc(x,165,55,0,Math.PI*2);c.fill();
-      c.beginPath();c.moveTo(x-78,380);c.quadraticCurveTo(x,205,x+78,380);c.closePath();c.fill();
-      c.fillStyle='#262b2b';c.fillRect(x-35,150,18,8);c.fillRect(x+18,150,18,8);
+    c.fillStyle='#7a4a33';for(const [dx,dy] of [[.25,.35],[.62,.28]] as const){c.beginPath();c.ellipse(x0+panneau*dx,H*dy,85,48,.4,0,Math.PI*2);c.fill();for(let d=0;d<4;d++)c.fillRect(x0+panneau*dx-60+d*34,H*dy-80,20,60);}
+    c.fillStyle='#f7f3ea';c.beginPath();c.ellipse(x0+panneau*.45,H*.62,120,42,0,0,Math.PI*2);c.fill();
+    // 4. Visages géométriques aux couleurs vives.
+    x0=panneau*3;const vives=['#e3337e','#1fb4c9','#f2c21b','#7b3fb3','#f06a2a','#2d9c5b'];
+    for(let i=0;i<18;i++){c.fillStyle=vives[i%vives.length];c.beginPath();c.moveTo(x0+(i%6)*panneau/6,(i<6?0:i<12?H/3:H*2/3));c.lineTo(x0+((i%6)+1)*panneau/6,(i<6?0:i<12?H/3:H*2/3)+(i%2?H/3:0));c.lineTo(x0+(i%6)*panneau/6+(i%3)*40,(i<6?H/3:i<12?H*2/3:H));c.fill();}
+    buste(x0+panneau*.3,H*.42,1.5,'#4a2c20','#1b1b2e');buste(x0+panneau*.72,H*.45,1.35,'#8a5a3c','#f2c21b');
+    // 5. Danseuses et marchandes sous un grand soleil.
+    x0=panneau*4;c.fillStyle='#c8392b';c.fillRect(x0,0,panneau,H);
+    c.fillStyle='#f4c542';c.beginPath();c.arc(x0+panneau*.5,H*.38,150,0,Math.PI*2);c.fill();
+    for(const [dx,couleur,bras] of [[.18,'#1c4f8c',1],[.36,'#f2e3c2',0],[.55,'#2d7f4f',1],[.74,'#6a2d7a',0],[.9,'#f08a24',1]] as const){
+      const x=x0+panneau*dx,y=H*.5;c.fillStyle='#3a2217';c.beginPath();c.arc(x,y-70,22,0,Math.PI*2);c.fill();
+      c.fillStyle=couleur;c.beginPath();c.moveTo(x-20,y-45);c.lineTo(x+20,y-45);c.lineTo(x+48,H*.95);c.lineTo(x-48,H*.95);c.fill();
+      c.strokeStyle='#3a2217';c.lineWidth=11;c.beginPath();
+      if(bras){c.moveTo(x-18,y-38);c.lineTo(x-55,y-110);c.moveTo(x+18,y-38);c.lineTo(x+55,y-110);}
+      else{c.moveTo(x-18,y-38);c.lineTo(x-30,y-100);c.moveTo(x+18,y-38);c.lineTo(x+30,y-100);c.stroke();c.fillStyle='#b77a3a';c.beginPath();c.ellipse(x,y-108,48,14,0,0,Math.PI*2);c.fill();c.beginPath();}
+      c.stroke();
     }
-    c.strokeStyle='#f2dfaf';c.lineWidth=12;c.strokeRect(8,8,2032,496);
-    const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;
-    const mur=this.b.boite(.38,4.8,54,'#d9d1bd',27.7,2.4,-121);mur.name='fresque-portuaire';
-    const image=new T.Mesh(new T.PlaneGeometry(54,4.45),new T.MeshStandardMaterial({map:texture,roughness:.9,side:T.DoubleSide}));
-    image.position.set(27.49,2.52,-121);image.rotation.y=-Math.PI/2;this.b.scene.add(image);
-    this.b.boite(.65,.2,54,'#e7e0d0',27.7,4.9,-121);
+    // 6. Grand visage entouré d'oranges et de feuilles.
+    x0=panneau*5;c.fillStyle='#2b76b9';c.fillRect(x0,0,panneau,H);
+    c.fillStyle='#2f7d3c';for(let i=0;i<9;i++){c.beginPath();c.ellipse(x0+60+i*75,H*(.2+(i%3)*.3),55,22,i*.7,0,Math.PI*2);c.fill();}
+    buste(x0+panneau*.46,H*.42,2.3,'#5c3525','#e7e1d3');
+    c.fillStyle='#f28a1e';for(const [dx,dy,r] of [[.12,.3,48],[.2,.7,56],[.8,.25,52],[.86,.62,60],[.7,.85,44]] as const){c.beginPath();c.arc(x0+panneau*dx,H*dy,r,0,Math.PI*2);c.fill();}
+    // Joints clairs entre les panneaux, comme entre les œuvres des différents peintres.
+    c.fillStyle='#e9e2cf';for(let i=1;i<6;i++)c.fillRect(i*panneau-6,0,12,H);
+    const texture=new T.CanvasTexture(toile);texture.colorSpace=T.SRGBColorSpace;texture.anisotropy=4;
+    const mur=this.b.boite(.38,4.8,longueur,'#d9d1bd',27.7,2.4,centre);mur.name='fresque-portuaire';
+    const image=new T.Mesh(new T.PlaneGeometry(longueur,4.45),new T.MeshStandardMaterial({map:texture,roughness:.9,side:T.DoubleSide}));
+    image.position.set(27.49,2.52,centre);image.rotation.y=-Math.PI/2;this.b.scene.add(image);
+    // Bande de claustras claire au-dessus de la peinture, puis chaperon.
+    this.b.boite(.34,1.3,longueur,this.b.tex('claustra',Math.round(longueur/1.2),1,'#ece6d6'),27.7,5.45,centre);
+    this.b.boite(.6,.18,longueur+.2,'#e7e0d0',27.7,6.18,centre);
+    // Grues du port qui dépassent derrière le mur.
+    for(const [zg,h] of [[-62,26],[-86,22]] as const){
+      const g=new T.Group();g.position.set(42,0,zg);this.b.scene.add(g);
+      for(const dx of [-.7,.7])for(const dz of [-.7,.7])this.b.boite(.14,h,.14,'#d8d2c2',dx,h/2,dz,g);
+      for(let y=2;y<h;y+=2.2)this.b.boite(1.6,.08,1.6,'#d8d2c2',0,y,0,g).castShadow=false;
+      this.b.boite(30,.7,.8,'#e1dccd',-8,h+.4,0,g);this.b.boite(6,1.4,1.2,'#9d9a90',7,h+.2,0,g);
+      this.b.cable([-20,h,0],[-20,h-9,0],.05,'#555',g);
+    }
   }
-  /** Grandes intersections, feux et marquages vus autour de l'Amazone et de la Cité ministérielle. */
   private carrefoursOfficiels(){
     // Le boulevard passe de deux à trois voies dans le secteur institutionnel.
-    this.b.sol(15.5,106,this.b.tex('asphalte',2,20,'#777876'),17.5,-145,-.025);
+    this.b.sol(15.5,106,this.b.tex('asphalte',2,20,'#ecece8'),17.5,-145,-.025);
     this.b.sol(4,106,this.b.tex('paves',2,36,'#d2cabd'),27.25,-145,.025);
     for(const x of [12.2,15.7,19.2,22.7])for(let z=-94;z>-196;z-=8)
       this.b.boite(.12,.03,4.2,'#eeeade',x,.025,z).castShadow=false;

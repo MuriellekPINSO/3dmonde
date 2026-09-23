@@ -302,7 +302,7 @@ Sept vidéos verticales (576 × 1024) ajoutées dans `public/espace`, soit envir
 Corrections réalisées :
 
 - **Étoile Rouge.** La vue zénithale montre deux étoiles rouges imbriquées, en murets bas, sur un dallage gris où l'on circule. Au centre : un socle pentagonal clair, une flèche blanche lisse à pied évasé, puis la statue. L'auvent rouge sur dix poteaux, les bandeaux de brique et les huit haubans ont été retirés : aucune de ces vidéos ne les montre. L'anneau régulier de seize arbres devient cinq massifs, un dans chaque creux entre deux branches, et les pointes restent dégagées jusqu'à la bordure. La statue perd son calot et son fusil, garde la houe brandie et serre contre son flanc une gerbe d'où sort une flamme rouge. Sa patine passe au vert-de-gris.
-- **Amazone.** Le modèle `amazone.glb` est texturé en bronze cuivré ; en plein soleil, le monument est gris argent. `patineArgent` ramène la texture à sa luminance, sans toucher aux reliefs.
+- **Amazone.** Le modèle `amazone.glb` est texturé en bronze cuivré. Une première correction l'avait passé au gris argent d'après Download-9/10 ; la revue des photos de terrain l'a ramené au bronze sombre (voir plus bas).
 - **Océan et parvis de l'Amazone.** La nappe d'eau de la Corniche passait par-dessus la moitié ouest du parvis, dont seuls quelques îlots dépassaient. Au sud de z = -99, la ligne d'eau recule désormais de 50 m, et une plage rejoint la mer derrière le muret, dans l'ordre parvis, pelouse, sable, mer.
 - **Corniche.** La digue reçoit son parement et un talus d'enrochement jusqu'à l'eau. Le premier tronçon reçoit deux épis de roches noires avec écume, six jeunes badamiers à couronne étagée, des blocs d'assise en béton blanc et une placette lobée cerclée de blanc, avec son skatepark.
 
@@ -327,3 +327,22 @@ Ce qui change :
 Captures : `docs/audit/download-etoile-rouge.png` (vue oblique, véhicules sur l'anneau) et `download-etoile-rouge-jeu.png` (survol d'ouverture du jeu).
 
 Point relevé hors de cette passe : la course du zémidjan se termine à z ≤ -430 (`CourseTransport`), alors que le joueur est borné à z > -407. L'arrivée ne peut donc pas être atteinte.
+
+## Revue complète du dossier `espace` — 23 septembre 2026
+
+Relecture de l'ensemble du dossier, sans s'appuyer sur les passes précédentes : les 66 photos en planches de douze, les 24 vidéos `IMG_*.MOV` à raison d'une image toutes les trois secondes (121 images), puis captures du jeu depuis les mêmes points de vue. Les écarts retenus :
+
+| Élément | Ce que montrent les médias | Ce que montrait le jeu | Correction |
+| --- | --- | --- | --- |
+| Amazone | Bronze sombre, presque anthracite, par temps couvert (IMG_6243, 6248, 6251, 6252, IMG_6239.MOV, IMG_6249.MOV) | Gris argent, d'après les vidéos Download-9/10 étalonnées en plein soleil | `patineBronze` : luminance de la texture multipliée par un bronze sombre |
+| Fresque du port | Mur peint figuratif le long de la Corniche après STELLA MARIS : Afrique tenue à deux mains, pêcheur au chapeau devant des voiliers, mains et pagnes, visages géométriques, danseuses au soleil, visage aux oranges ; bande de claustras au-dessus, grues derrière (IMG_6220, 9338–9346) | Bandes diagonales abstraites, posées à z = -121 devant la Cité ministérielle et à travers le rez-de-chaussée de la Marina | Déplacée entre z = -54 et -93, six panneaux figuratifs redessinés au canvas, claustras et deux grues |
+| Cité ministérielle | Ailes longues et basses de cinq niveaux en pierre claire, bandeaux vitrés filants, portiques plats en toiture, grille blanche fine et haie (IMG_6228–6233, 9364–9367) | Trois cubes à casquettes vert sombre sous une poutre épaisse, clôture sombre | Reconstruite : trois ailes, dalles filantes, meneaux, portique, antenne, grille blanche |
+| Palais des Congrès | Enduit blanc lisse (IMG_6238.MOV, IMG_6254) ; parking plein de voitures devant (IMG_6253–6258) | Modèle gris métallisé et froissé ; parking recouvert par la pelouse, presque vide | `enduitBlanc` (reliefs retirés, texture atténuée) ; parking surélevé en béton clair et cinq voitures garées |
+| Chaussées | Gris moyen (IMG_6196–6219, IMG_9346.MOV) | Presque noires | Textures `asphalte` et `bitume` éclaircies |
+| Démarche des passants | Pas posé, bras relâchés (IMG_6194, 6195, 6242, 6246, IMG_6254.MOV) | Démarche de défilé main sur la hanche (`marcheur.glb`), gestuelle bras levés pour la passante | `Transfert.ts` reporte la marche de l'avatar féminin sur les deux modèles ; un passant sur trois porte le modèle de la passante, qui marche bras ballants |
+
+À propos de la démarche : `marcheur.glb` est sculpté mains sur les hanches. Le report corrige ses jambes et son buste, mais ses bras restent collés au corps quelle que soit l'animation ; seul un autre modèle pourrait les libérer. C'est pourquoi une partie de la foule passe au modèle de la passante.
+
+Non traité dans cette passe : le Palais de la Marina, qu'aucune photo du dossier ne montre de près ; les giratoires plantés de palmiers de la Corniche (Download-5/6).
+
+Captures : `docs/audit/revue-avant-apres.jpg` (avant en haut, après en bas) et `docs/audit/revue-marche-passants.jpg`.

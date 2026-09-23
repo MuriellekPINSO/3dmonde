@@ -2,7 +2,7 @@ import * as T from 'three';
 import { Rues } from './entities/Rues';
 import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
-import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineArgent, obstaclesIleGiratoire } from './entities/Monuments';
+import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineBronze, enduitBlanc, obstaclesIleGiratoire } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
@@ -17,8 +17,8 @@ import { Meteo, type ModeMeteo } from './entities/Meteo';
  * en code, ou s’y ajoute. Un fichier absent laisse la version construite visible.
  */
 const POSES: Pose[] = [
-  {groupe: 'statue-amazone', fichier: 'amazone.glb', x: -19, z: -123, hauteur: 24, base: 2, rotation: Math.PI / 2, apresPose: patineArgent},
-  {groupe: 'palais-congres', fichier: 'palais-congres.glb', x: -33, z: -243, largeur: 40, base: .05, rotation: Math.PI / 2},
+  {groupe: 'statue-amazone', fichier: 'amazone.glb', x: -19, z: -123, hauteur: 24, base: 2, rotation: Math.PI / 2, apresPose: patineBronze},
+  {groupe: 'palais-congres', fichier: 'palais-congres.glb', x: -33, z: -243, largeur: 40, base: .05, rotation: Math.PI / 2, apresPose: enduitBlanc},
   // etoile-rouge.glb est ecarte : c'est un diorama sur butte de terre rouge, aux arbres
   // sans feuilles, qui ecrase la place et contredit les photos. La version construite
   // en code (fleche blanche, etoiles rouges imbriquees, massifs d'arbres) reste en place.

@@ -38,9 +38,11 @@ const dessins: Record<Motif, (c: CanvasRenderingContext2D, t: number) => void> =
     grain(c, t, 500, ['#c7bfb0', '#e4dfd3']);
   },
   // Large boulevard de la Corniche : quatre files lisibles et lignes de rive.
+  // Gris moyen des chaussées neuves de Cotonou (IMG_6196–6219, IMG_9346.MOV) :
+  // le bitume presque noir d'origine ne ressemblait à aucune prise de vue.
   asphalte(c, t) {
-    c.fillStyle = '#3a3d3f'; c.fillRect(0, 0, t, t);
-    grain(c, t, 1200, ['#434648', '#2f3234', '#4a4d4f']);
+    c.fillStyle = '#5c5f60'; c.fillRect(0, 0, t, t);
+    grain(c, t, 1200, ['#666969', '#525556', '#6f7272']);
     c.fillStyle = '#e6e0d0';
     for (const x of [.25, .49, .75]) c.fillRect(t * x, t * .2, t * .018, t * .6);
     c.fillRect(t * .05, 0, t * .016, t); c.fillRect(t * .935, 0, t * .016, t);
@@ -48,8 +50,8 @@ const dessins: Record<Motif, (c: CanvasRenderingContext2D, t: number) => void> =
   // Même chaussée sans marquage peint, pour l'anneau du giratoire et les voies
   // rayonnantes : les files de la texture précédente y traçaient des droites.
   bitume(c, t) {
-    c.fillStyle = '#3a3d3f'; c.fillRect(0, 0, t, t);
-    grain(c, t, 1200, ['#434648', '#2f3234', '#4a4d4f']);
+    c.fillStyle = '#5c5f60'; c.fillRect(0, 0, t, t);
+    grain(c, t, 1200, ['#666969', '#525556', '#6f7272']);
   },
   sable(c, t) { c.fillStyle = '#e0cfa8'; c.fillRect(0, 0, t, t); grain(c, t, 1600, ['#d6c39a', '#e9daba', '#cbb891', '#f0e3c6']); },
   gazon(c, t) { c.fillStyle = '#6d8f4e'; c.fillRect(0, 0, t, t); grain(c, t, 1800, ['#628345', '#7b9d59', '#587a3e', '#86a663'], 3); },

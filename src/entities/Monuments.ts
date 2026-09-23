@@ -350,32 +350,43 @@ function jardinAerienAmazone(b: Batisseur) {
 }
 
 /**
- * Cité ministérielle observée sur IMG_6228–6233 et IMG_9364–9367 : volumes
- * horizontaux en pierre claire, bandeaux vitrés sombres et grandes casquettes.
+ * Cité ministérielle observée sur IMG_6228–6233, IMG_9364–9367 et IMG_6239.MOV :
+ * des ailes basses de cinq niveaux en pierre claire, très longues, à bandeaux
+ * vitrés continus sous des dalles en léger débord, reliées par de grands
+ * portiques plats à la toiture. Une grille blanche à barreaux fins, doublée
+ * d'une haie, la sépare du trottoir. La version précédente empilait trois
+ * blocs cubiques à casquettes vert sombre, coiffés d'une poutre trop épaisse.
  */
 export function citeMinisterielle(b: Batisseur) {
   const g = new T.Group(); g.name = 'cite-ministerielle'; g.position.set(43, 0, -119); b.racine.add(g);
   b.sol(19, 48, b.tex('gazon', 8, 18, '#789353'), 43, -119, .025);
-  const pierre = b.mat('#c9c7bd'), verre = b.mat('#29484e', {rugosite: .28, metal: .22});
-  for (const z of [-13.5, 0, 13.5]) {
-    b.boite(15.5, 13.2, 11.2, pierre, 1.5, 6.6, z, g);
-    // Quatre rubans vitrés séparés par les dalles de pierre en porte-à-faux.
-    for (const y of [2.25, 5.05, 7.85, 10.65]) {
-      b.boite(.18, 1.25, 10.2, verre, -6.34, y, z, g);
-      b.boite(16.1, .38, 11.9, pierre, 1.15, y + .87, z, g);
+  const pierre = b.mat('#d4d0c6'), dalle = b.mat('#e2ded5'), verre = b.mat('#4f646a', {rugosite: .22, metal: .3});
+  // Deux ailes longues perpendiculaires à la rue, et une aile de fond qui les relie.
+  for (const [dx, dz, larg, prof] of [[0, -13.5, 14, 11], [0, 13.5, 14, 11], [5, 0, 5, 38]] as const) {
+    b.boite(larg, 16.5, prof, pierre, dx, 8.25, dz, g);
+    for (let n = 0; n < 5; n++) {
+      const y = 1.6 + n * 3.1;
+      b.boite(larg + .5, .32, prof + .5, dalle, dx, y + 2.35, dz, g);             // dalle filante
+      b.boite(.16, 1.9, prof - .8, verre, dx - larg / 2 - .09, y + 1.2, dz, g);  // bandeau vitré continu
+      for (let m = -prof / 2 + 1; m < prof / 2 - .5; m += 1.6)                   // meneaux fins
+        b.boite(.2, 1.9, .1, dalle, dx - larg / 2 - .12, y + 1.2, dz + m, g).castShadow = false;
     }
-    b.boite(18.8, .62, 12.8, '#d8d5cb', -.15, 13.45, z, g);
+    b.boite(larg + .7, .45, prof + .7, dalle, dx, 16.7, dz, g);
   }
-  // Longues poutres de toiture qui relient visuellement les ailes.
-  b.boite(20.5, .62, 42, '#d7d4ca', -.4, 14.15, 0, g);
-  b.boite(3.2, 12, 34, '#bdbbb2', 8.2, 6, 0, g);
-  // Premier plan très planté, clôture sombre et palmiers battus par le vent.
+  // Portiques plats qui prolongent la toiture en auvent au-dessus de la cour.
+  b.boite(15, .5, 16, dalle, -2, 16.9, 0, g);
+  for (const dz of [-6.5, 6.5]) b.boite(.5, 16.6, .5, dalle, -9, 8.3, dz, g);
+  b.boite(.6, 1.2, 16, dalle, -9, 16.4, 0, g);
+  // Antenne sur le toit, visible sur IMG_6239.MOV.
+  b.cyl(.06, .08, 6, 5, '#b7b3aa', 5, 19.6, 0, g);
+  // Grille blanche à barreaux fins, soubassement bas et haie derrière.
+  b.boite(.35, .45, 46, '#e6e3db', -8.3, .23, 0, g);
+  b.boite(.1, .08, 46, '#f1efea', -8.3, 1.95, 0, g).castShadow = false;
+  for (let z = -22.5; z <= 22.5; z += .45) b.boite(.05, 1.5, .05, '#f1efea', -8.3, 1.2, z, g).castShadow = false;
   for (const z of [-19, -12, -5, 3, 11, 19]) {
-    b.haie(35.6, -119 + z, 1.1, 5, .72);
+    b.haie(35.6, -119 + z, 1.1, 5, 1.1);
     if (z % 2) b.palmierRoyal(37.3, -119 + z);
   }
-  b.boite(.12, 1.25, 44, '#344944', -8.3, .72, 0, g).castShadow = false;
-  for (let z = -21; z <= 21; z += 1.5) b.boite(.08, 1.45, .08, '#344944', -8.38, .75, z, g);
   b.panneau('CITÉ MINISTÉRIELLE', 35, 4.2, -101, 7);
 }
 
@@ -449,26 +460,48 @@ function statueAmazone(b: Batisseur, x: number, z: number) {
 }
 
 /**
- * Patine gris argent du monument réel (Download-9 et Download-10.mp4, plein
- * soleil) : le modèle amazone.glb est texturé en bronze cuivré. La texture
- * garde ses reliefs mais perd sa teinte, ramenée à sa seule luminance.
+ * Reteinte d'un modèle GLB texturé : la texture garde ses reliefs mais perd sa
+ * teinte, ramenée à sa luminance puis multipliée par `teinte`.
  */
-export function patineArgent(objet: T.Object3D) {
+function reteindre(objet: T.Object3D, teinte: string, gain: number, o: {metal: number; rugosite: number; lisse?: boolean; aplat?: number}) {
   objet.traverse(n => {
     const mesh = n as T.Mesh;
     if (!mesh.isMesh) return;
     const source = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const argent = source.map(m => {
+    const copies = source.map(m => {
       const copie = (m as T.MeshStandardMaterial).clone();
-      copie.color.set('#e1e4e7'); copie.metalness = .35; copie.roughness = .4;
+      const c = new T.Color(teinte), rgb = [c.r, c.g, c.b].map(v => v.toFixed(3)).join(', ');
+      copie.color.set('#ffffff'); copie.metalness = o.metal; copie.roughness = o.rugosite;
+      if (o.lisse) { copie.normalMap = null; copie.roughnessMap = null; copie.metalnessMap = null; }
       copie.onBeforeCompile = shader => {
         shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>',
-          '#include <map_fragment>\n  diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(.299, .587, .114))) * 1.6;');
+          `#include <map_fragment>\n  diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(.299, .587, .114)) * ${gain.toFixed(2)}), vec3(1.0), ${(o.aplat ?? 0).toFixed(2)}) * vec3(${rgb});`);
       };
       return copie;
     });
-    mesh.material = Array.isArray(mesh.material) ? argent : argent[0];
+    mesh.material = Array.isArray(mesh.material) ? copies : copies[0];
   });
+}
+
+/**
+ * Bronze sombre de l'Amazone, presque anthracite, tel que le montrent les
+ * photos prises sur place par temps couvert (IMG_6243, 6248, 6251, 6252,
+ * IMG_6239.MOV, IMG_6249.MOV). Le modèle amazone.glb est texturé en cuivre
+ * clair ; les vidéos Download-9/10, en plein soleil et étalonnées, le font
+ * paraître argenté, ce que les photos de terrain démentent.
+ */
+export function patineBronze(objet: T.Object3D) {
+  reteindre(objet, '#8a7866', 1.05, {metal: .35, rugosite: .5});
+}
+
+/**
+ * Blanc mat du Palais des Congrès (IMG_6238.MOV, IMG_6254) : le modèle
+ * palais-congres.glb sortait gris métallisé et froissé. Le bâtiment réel est
+ * un enduit lisse : les cartes de relief et de brillance sont retirées.
+ */
+export function enduitBlanc(objet: T.Object3D) {
+  // L'aplat atténue les taches de la texture photogrammétrique, sans effacer les baies.
+  reteindre(objet, '#f1eee6', 1.25, {metal: 0, rugosite: .9, lisse: true, aplat: .55});
 }
 
 /** Palais de la Marina : long bâtiment beige sur pilotis, bandeaux vitrés bleutés. */
@@ -506,15 +539,21 @@ export function palaisCongres(b: Batisseur) {
   b.sol(38, 64, b.tex('beton', 19, 32), -28, -245, .04);
   b.sol(38, 22, b.tex('gazon', 19, 11), -28, -221, .06);
   // Parking, grille et motos relevés sur IMG_6253–6258.
-  b.sol(7.2, 54, b.tex('asphalte', 2, 14, '#676765'), -11.8, -246, .055);
+  // Le parking passe au-dessus de la pelouse d'entrée, qui le recouvrait.
+  b.sol(7.2, 54, b.tex('beton', 2, 14, '#cfcdc6'), -11.8, -246, .075);
   for (let z=-267;z<=-225;z+=6) {
-    b.boite(3.1,.025,.1,'#ece8da',-11.8,.08,z).castShadow=false;
-    b.boite(.1,.025,4.4,'#ece8da',-9.2,.08,z+2.2).castShadow=false;
+    b.boite(3.1,.025,.1,'#ece8da',-11.8,.095,z).castShadow=false;
+    b.boite(.1,.025,4.4,'#ece8da',-9.2,.095,z+2.2).castShadow=false;
+  }
+  // Parking plein comme sur les photos : berlines et 4×4 blancs, gris, noirs.
+  for (const [z, couleur] of [[-243,'#e8e8e4'],[-249,'#9da3a6'],[-255,'#1f2326'],[-267,'#e2e2dc'],[-223,'#7b2a2a']] as const) {
+    const garee = vehicule(b, 'voiture', couleur); garee.position.set(-11.7, .09, z + 2.2); garee.rotation.y = Math.PI / 2; b.racine.add(garee);
+    garee.traverse(o => { const m = o as T.Mesh; if (m.isMesh) m.castShadow = false; });
   }
   b.boite(.16,1.35,43,'#68706e',-15.3,.72,-247).castShadow=false;
   for(let z=-268;z<=-226;z+=1.45)b.boite(.075,1.55,.075,'#68706e',-15.35,.78,z);
   for(const [z,type] of [[-229,'zemidjan'],[-235,'zemidjan'],[-261,'voiture']] as const){
-    const stationne=vehicule(b,type);stationne.position.set(-11.7,.08,z);stationne.rotation.y=Math.PI/2;b.racine.add(stationne);
+    const stationne=vehicule(b,type);stationne.position.set(-11.7,.09,z);stationne.rotation.y=Math.PI/2;b.racine.add(stationne);
     stationne.traverse(o=>{const m=o as T.Mesh;if(m.isMesh)m.castShadow=false;});
   }
   for(const z of [-222,-270])b.lampadaireSimple(-10.2,z,-1);
@@ -825,7 +864,7 @@ function immeubleEtoile(b: Batisseur, x: number, z: number, orientation: number,
 export function quartierMarches(b: Batisseur) {
   const centre = -296;
   // Voie de desserte saturée de motos, puis le parvis de marché en béton usé.
-  b.sol(15, 38, b.tex('asphalte', 1, 5, '#6d6e6a'), -15.6, centre, .015).name = 'desserte-marches';
+  b.sol(15, 38, b.tex('asphalte', 1, 5, '#b4b4ae'), -15.6, centre, .015).name = 'desserte-marches';
   b.sol(57, 38, b.tex('beton', 26, 17, '#b5ae9e'), -51.5, centre, .008).name = 'parvis-marches';
   for (let z = -280; z >= -312; z -= 2.6) b.boite(.14, .03, 1.9, '#e8e3d4', -8.6, .03, z).castShadow = false;
 

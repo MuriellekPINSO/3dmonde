@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Personnage } from './Joueur';
 import { versHsl, depuisHsl, teinterCorps, libererApparence } from './Teinte';
+import { transfererAnimation } from './Transfert';
 
 /**
  * Habille la scène de personnages articulés. Un seul modèle — 3 126 triangles,
@@ -50,6 +51,12 @@ function animationSurPlace(clip:T.AnimationClip|undefined){
   resultat.tracks=resultat.tracks.filter(piste=>!/(^|[.:])Hips\.position$/i.test(piste.name));
   return resultat;
 }
+
+/**
+ * Un passant sur trois porte le modèle de la passante : bras libres, il marche
+ * bras ballants. Les autres gardent le modèle léger, décliné en couleurs.
+ */
+const passante = (nom: string) => { const n = /^passant-(\d+)$/.exec(nom); return !!n && Number(n[1]) % 3 === 1; };
 
 export class Foule {
   private modele?: T.Object3D;
@@ -123,6 +130,17 @@ export class Foule {
         .catch(e => { console.warn(`silhouette ${n} indisponible : ${e instanceof Error ? e.message : e}`); return undefined; })),
     ]);
     const nomsDebout = ['personnage1.glb', 'perso2.glb', 'go2.glb', 'vendeuse.glb', 'avatar-homme-meshy-opt.glb', 'avatar-femme-meshy-opt.glb', 'passante-cotonou-walk.glb'];
+    // Marche de référence : celle de l'avatar féminin, bras relâchés, pas posé,
+    // comme les passantes filmées sur la Corniche et devant l'Esplanade. Les
+    // clips d'origine des passants sont une démarche de défilé main sur la
+    // hanche (marcheur.glb) et une gestuelle bras levés (passante).
+    const femme = debout[nomsDebout.indexOf('avatar-femme-meshy-opt.glb')];
+    const marcheNaturelle = femme?.animations[0];
+    const transferer = (cible: T.Object3D, secours?: T.AnimationClip) => {
+      if (!femme || !marcheNaturelle) return secours;
+      try { return transfererAnimation(cible, femme.scene, marcheNaturelle) ?? secours; }
+      catch (e) { console.warn('marche transférée indisponible : ' + (e instanceof Error ? e.message : e)); return secours; }
+    };
     debout.forEach((lot, i) => {
       if (!lot) return;
       lot.scene.traverse(n => { const m = n as T.Mesh; if (m.isMesh) { m.castShadow = nomsDebout[i] !== 'vendeuse.glb'; m.receiveShadow = true; } });
@@ -131,11 +149,14 @@ export class Foule {
       // quatre-vingt mille triangles, et la ville n’a pas besoin de sosies. Leur
       // marche native sert aussi de course, à cadence plus vive, plutôt que de
       // télécharger un second fichier avant d’afficher le joueur.
-      if (nomsDebout[i].startsWith('avatar-')||nomsDebout[i]==='passante-cotonou-walk.glb') this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
+      if (nomsDebout[i] === 'passante-cotonou-walk.glb') this.clipsAvatar.set(nomsDebout[i], {marche: transferer(lot.scene, animationSurPlace(lot.animations[0]))});
+      else if (nomsDebout[i].startsWith('avatar-')) this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
       else this.silhouettes.push(lot.scene);
     });
     this.modele = marcheur.scene;
-    this.clipMarche = marcheur.animations[0];
+    // Le maillage de marcheur.glb est sculpté mains sur les hanches : ses bras ne
+    // peuvent pas pendre, mais ses jambes prennent le pas naturel.
+    this.clipMarche = transferer(marcheur.scene, marcheur.animations[0]);
     this.clipCourse = coureur?.animations[0];
     // Mettre le personnage à taille humaine, pieds à l’origine.
     const boite = new T.Box3().setFromObject(this.modele);
@@ -217,7 +238,7 @@ export class Foule {
       if (!this.dansLaScene(personnage.objet)) continue;
       const silhouetteDebout = personnage.objet.name === 'joueur' && this.corpsJoueur
         ? this.debout.get(this.corpsJoueur)
-        : personnage.objet.name === 'passant-16' ? this.debout.get('passante-cotonou-walk.glb')
+        : passante(personnage.objet.name) ? this.debout.get('passante-cotonou-walk.glb')
         : personnage.objet.name.startsWith('vendeuse-') ? this.debout.get('vendeuse.glb') : undefined;
       if(personnage.objet.name==='joueur'&&!silhouetteDebout)continue;
       if (silhouetteDebout) {
@@ -226,7 +247,7 @@ export class Foule {
         if (estVendeuse) corps.name = 'modele-vendeuse';
         else {corps.name = 'corps-personnage';corps.userData.avatar=this.corpsJoueur;}
         for (const piece of personnage.pieces) piece.visible = false;
-        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):personnage.objet.name==='passant-16'?this.clipsAvatar.get('passante-cotonou-walk.glb'):undefined;
+        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):passante(personnage.objet.name)?this.clipsAvatar.get('passante-cotonou-walk.glb'):undefined;
         const marche=mixeur.clipAction(clips?.marche??this.clipMarche);marche.play();
         const course=clips?.course?mixeur.clipAction(clips.course):undefined;course?.play();if(course)course.weight=0;
         const habitant:Habitant={personnage, corps, mixeur, marche, course,
