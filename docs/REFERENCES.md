@@ -416,3 +416,14 @@ Cinq trésors, un par lieu (`src/content/tresors.ts`) : cauri sur la plage ouver
 Les sons (bip, carillon, tam-tams, cuivres, souffle du drone) sont synthétisés dans `src/ui/Effets.ts`, sans fichier. Logique et tests : `ChasseTresor` (`src/core/Partie.ts`). Capture : `docs/audit/chasse-au-tresor.jpg`.
 
 Reste à faire : les deux giratoires plantés de palmiers de la Corniche (Download-5/6), qui demandent de faire tourner la circulation comme à l'Étoile Rouge.
+
+## Zémidjans qui roulaient en crabe et penchés — 24 septembre 2026
+
+Défaut signalé en jeu : des zémidjans roulaient de côté, inclinés.
+
+- **Cause principale** : le modèle `zem.glb` (conducteur et passagère au chapeau conique) est modélisé tourné d'environ 40° et penché comme sur sa béquille. Le jeu le posait tel quel, ses cinq copies avançaient donc en biais et gîtaient.
+- **Correction générale** (`Rues.redresser`) : à la création du gabarit de chaque véhicule détaillé, son axe long est mesuré sur les sommets vus de dessus et aligné sur la route par la plus petite rotation, ce qui garde le sens avant ; la gîte est annulée, puis le véhicule est reposé au sol et recentré. Mesure après correction : axe long à 0–1° de la direction de marche pour tous les zémidjans, en ligne droite comme sur l'anneau de l'Étoile Rouge. La moto du joueur en bénéficie aussi.
+- **Changements de file** : un véhicule qui double glissait latéralement sans tourner ; il braque désormais vers sa nouvelle voie, son cap suivant sa trajectoire réelle.
+- **Passagère de `zem.glb`** : sa texture montre un dos nu. Un corsage en wax est ajusté sur son buste (50 cm derrière le conducteur, de 1,12 à 1,71 m).
+
+Capture : `docs/audit/zemidjans-redresses.jpg` (avant : vue de dessus et de côté ; après : profil et dos).

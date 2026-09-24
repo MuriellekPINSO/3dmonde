@@ -611,11 +611,67 @@ export class Rues {
     const interne=objet.clone();
     interne.position.set(objet.position.x-centre.x,objet.position.y-boite.min.y,objet.position.z-centre.z);
     interne.rotation.y=objet.rotation.y;
-    const gabarit=new T.Group();gabarit.add(interne);
+    // Le modèle est redressé dans un groupe intermédiaire, puis recentré.
+    const redresse=new T.Group();redresse.add(interne);
+    Rues.redresser(redresse);
+    const gabarit=new T.Group();gabarit.add(redresse);
     // Modèle dense : pas d'ombre portée, elle coûte un second rendu complet.
     gabarit.traverse(n=>{n.castShadow=false;n.receiveShadow=false;});
     return gabarit;
   }
+  /**
+   * La passagère au chapeau conique de zem.glb n'a pas de haut : sa texture
+   * montre un dos nu. Un corsage en wax est ajusté sur son buste, relevé sur le
+   * maillage redressé : 50 cm derrière le conducteur, de 1,12 à 1,71 m.
+   */
+  private static habillerPassagere(gabarit:T.Object3D){
+    const toile=document.createElement('canvas');toile.width=toile.height=128;const c=toile.getContext('2d')!;
+    c.fillStyle='#1f4f8f';c.fillRect(0,0,128,128);
+    for(let i=0;i<4;i++)for(let j=0;j<4;j++){
+      const x=i*32+(j%2)*16+16,y=j*32+16;
+      c.fillStyle='#f0a228';c.beginPath();c.arc(x,y,11,0,Math.PI*2);c.fill();
+      c.fillStyle='#b8322a';c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();
+    }
+    const carte=new T.CanvasTexture(toile);carte.colorSpace=T.SRGBColorSpace;carte.wrapS=carte.wrapT=T.RepeatWrapping;carte.repeat.set(3,1);
+    const corsage=new T.Mesh(new T.CylinderGeometry(.18,.21,.5,16,1,true),new T.MeshStandardMaterial({map:carte,roughness:.85,side:T.DoubleSide}));
+    corsage.name='corsage-passagere';corsage.scale.set(1.05,1,.78);corsage.position.set(0,1.37,-.5);
+    // Épaules : un anneau aplati ferme le haut du corsage autour du cou.
+    const epaules=new T.Mesh(new T.CylinderGeometry(.08,.185,.09,16,1,true),corsage.material);
+    epaules.scale.set(1.05,1,.78);epaules.position.set(0,1.665,-.5);
+    gabarit.add(corsage,epaules);
+  }
+  /**
+   * Remet un véhicule droit sur sa route. zem.glb est modélisé tourné d'une
+   * quarantaine de degrés et penché sur sa béquille : posé tel quel, le zémidjan
+   * roulait en crabe, incliné sur le côté. L'axe long du véhicule, mesuré sur
+   * ses sommets vus de dessus, est aligné sur z par la plus petite rotation — le
+   * sens avant/arrière d'origine est gardé — puis la gîte, pente de la position
+   * latérale selon la hauteur, est annulée. Le véhicule est enfin reposé au sol,
+   * centré sur son origine.
+   */
+  private static redresser(groupe:T.Object3D){
+    const points:T.Vector3[]=[],v=new T.Vector3();
+    groupe.updateMatrixWorld(true);
+    groupe.traverse(n=>{const m=n as T.Mesh;if(!m.isMesh)return;const pos=m.geometry.getAttribute('position');const pas=Math.max(1,Math.floor(pos.count/4000));
+      for(let i=0;i<pos.count;i+=pas)points.push(v.fromBufferAttribute(pos,i).applyMatrix4(m.matrixWorld).clone());});
+    if(points.length<10)return;
+    const moyenne=(f:(p:T.Vector3)=>number)=>points.reduce((a,p)=>a+f(p),0)/points.length;
+    const mx=moyenne(p=>p.x),mz=moyenne(p=>p.z);
+    const xx=moyenne(p=>(p.x-mx)**2),zz=moyenne(p=>(p.z-mz)**2),xz=moyenne(p=>(p.x-mx)*(p.z-mz));
+    // Angle de l'axe long depuis +z, ramené dans ]-90°, 90°].
+    let cap=Math.PI/2-.5*Math.atan2(2*xz,xx-zz);
+    cap=Math.atan2(Math.sin(cap),Math.cos(cap));if(cap>Math.PI/2)cap-=Math.PI;if(cap<=-Math.PI/2)cap+=Math.PI;
+    groupe.rotation.y=-cap;groupe.updateMatrixWorld(true);
+    const droits=points.map(p=>p.clone().applyAxisAngle(new T.Vector3(0,1,0),-cap));
+    const my=droits.reduce((a,p)=>a+p.y,0)/droits.length,lx=droits.reduce((a,p)=>a+p.x,0)/droits.length;
+    const yy=droits.reduce((a,p)=>a+(p.y-my)**2,0)/droits.length,xy=droits.reduce((a,p)=>a+(p.x-lx)*(p.y-my),0)/droits.length;
+    const gite=Math.atan2(xy,yy);
+    if(Math.abs(gite)<.5)groupe.rotation.z=gite;
+    groupe.updateMatrixWorld(true);
+    const boite=new T.Box3().setFromObject(groupe),c=boite.getCenter(new T.Vector3());
+    groupe.position.set(-c.x,-boite.min.y,-c.z);
+  }
+
   /**
    * Substitue le modèle détaillé au véhicule construit en boîtes : celui-ci est
    * retiré, pas seulement masqué. Aucune boîte ne subsiste donc à l'écran, à
@@ -668,6 +724,7 @@ export class Rues {
   /** Ajoute cinq exemplaires du second modèle de zémidjan sur les deux voies. */
   ajouterZemidjans(objet:T.Object3D,nombre=5){
     const gabarit=this.gabaritVehicule(objet);
+    Rues.habillerPassagere(gabarit);
     objet.removeFromParent();
     // Milieux des intervalles laissés par la circulation existante : aucun
     // nouveau modèle ne naît superposé à un autre véhicule.
@@ -848,6 +905,7 @@ export class Rues {
             const retourLibre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieBase)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
             if(retourLibre)p.voieCible=voieBase;
           }else p.voieCible=voieBase;
+          const xAvant=p.objet.position.x;
           p.objet.position.x=T.MathUtils.lerp(p.objet.position.x,p.voieCible??voieBase,1-Math.exp(-dt*1.8));
           const arrets=p.sens>0?[-105.2]:[-96.8];
           const franchit=arrets.some(stop=>p.sens>0?p.objet.position.z<stop&&prochain>=stop:p.objet.position.z>stop&&prochain<=stop);
@@ -855,7 +913,15 @@ export class Rues {
           const bloquePieton=this.mouvements.some(autre=>!!autre.personne&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.5&&
             (p.sens>0?autre.objet.position.z>=p.objet.position.z&&autre.objet.position.z-p.objet.position.z<5:p.objet.position.z>=autre.objet.position.z&&p.objet.position.z-autre.objet.position.z<5));
           const depasse=occupe&&Math.abs((p.voieCible??voieBase)-p.objet.position.x)>.25;
+          const zAvant=p.objet.position.z;
           if((!occupe||depasse)&&!bloqueFeu&&!bloquePieton)p.objet.position.z=prochain;
+          // Le véhicule regarde où il va : en changeant de file, il braque vers
+          // la nouvelle voie au lieu de glisser de côté.
+          const dz=p.objet.position.z-zAvant,dx=p.objet.position.x-xAvant;
+          if(Math.abs(dz)>1e-4&&Math.abs(dz)<5){
+            const cap=Math.atan2(dx,dz),ecart=Math.atan2(Math.sin(cap-p.objet.rotation.y),Math.cos(cap-p.objet.rotation.y));
+            p.objet.rotation.y+=ecart*(1-Math.exp(-dt*8));
+          }
         }
       }
       // Les passages éloignés ne participent ni au rendu ni aux ombres.
