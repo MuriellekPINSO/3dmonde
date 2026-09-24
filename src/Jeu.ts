@@ -1,7 +1,9 @@
 import { Ambiance } from './ui/Ambiance';
-import { Monde } from './world';
+import { Monde, SITES_SURVOL } from './world';
 import { products } from './game';
-import { Partie, SportJogging, CourseTransport, Vendeuse, Zemidjan, Voiture, type Transport } from './core/Partie';
+import { Partie, SportJogging, CourseTransport, Vendeuse, Zemidjan, Voiture, ChasseTresor, type Transport } from './core/Partie';
+import { TRESORS, AUTEL_AMAZONE } from './content/tresors';
+import { Effets } from './ui/Effets';
 import { guides, lieux, zones, zoneActuelle, stations, etals, type Guide } from './content/zones';
 import { DialogueVocal } from './ui/DialogueVocal';
 import { Manette, type LectureManette } from './input/Manette';
@@ -9,7 +11,7 @@ import { demanderIA } from './ui/DialogueIA';
 import { ApercuAvatar, AVATARS } from './ui/ApercuAvatar';
 import type { CorpsJoueur } from './entities/Foule';
 const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
-type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'}|null;
+type Interaction = {type:'guide';guide:Guide}|{type:'vendeuse'|'sport'|'transport'|'tresor'|'autel'}|null;
 const POINT_PHOTO_CORNICHE={x:1.5,z:124};
 
 export class Jeu {
@@ -18,6 +20,10 @@ export class Jeu {
   readonly vendeuse=new Vendeuse();
   readonly transports:Transport[]=[new Zemidjan(),new Voiture()];
   readonly course=new CourseTransport();
+  readonly chasse=new ChasseTresor(TRESORS.length);
+  private readonly effets=new Effets();
+  /** Minuterie du détecteur : le bip s'accélère à l'approche du trésor. */
+  private prochainBip=0;
   private monde!:Monde;
   private voix!:DialogueVocal;
   private ambiance!:Ambiance;
@@ -71,21 +77,23 @@ export class Jeu {
   }
   private interface(){
     $('app').innerHTML=`<div id="world"></div>
-    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="map">Carte · 0/${guides.length}</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">10 000 FCFA</span></div></header>
+    <header><a class="brand" href="./"><span class="brand-mark">C.</span><span>COTONOU<small>UNE VILLE À RENCONTRER</small></span></a><div class="top-right"><span class="tag">BALADE · 4 ZONES</span><span id="controller-status" class="tag" hidden>🎮 MANETTE</span><button id="sound" aria-pressed="false">Voix : désactivée</button><button id="survol-btn" title="Vues du ciel · V">🚁 Vues du ciel</button><button id="tresor-btn" title="Chasse au trésor · T">🗺 Trésors</button><button id="map">Carte · 0/${guides.length}</button><button id="bag">Sac · 0</button><button id="menu" aria-label="Pause et réglages">☰</button><span id="wallet">10 000 FCFA</span></div></header>
     <aside class="location"><p class="eyebrow" id="zone-kicker">BÉNIN / AKPAKPA</p><h1 id="zone-title">La Corniche</h1><p id="zone-description">Au bord de l’eau, Cotonou s’éveille.</p><div class="rule"></div><p class="eyebrow">VOTRE CARNET DE BALADE</p><ol>${zones.map(z=>`<li id="task-${z.id}">${z.nom}${z.id==='amazone'?' & Présidence':''}</li>`).join('')}</ol><p class="note" id="next-objective">Rencontrer le guide de la Corniche.</p><p class="note" id="side-quests">Jogging : à essayer · Aïcha : à rencontrer</p></aside>
     <button id="ambiance" aria-pressed="false">Ambiance : coupée</button>
     <div class="compass" aria-hidden="true">N<span>↑</span></div>
     <div id="world-state"><span id="clock">07:30</span><span id="weather">Ciel clair</span><span id="health">Énergie 100</span></div>
     <div id="mission-hud"><strong>Mission</strong><span id="mission-text">Rencontrer le guide de la Corniche</span></div>
     <div id="minimap" aria-label="Minimap du parcours"><div class="minimap-route">${guides.map(g=>`<span class="minimap-stop ${this.partie.visites.has(g.id)?'done':''}" style="top:${Math.max(0,Math.min(100,(132-g.z)/488*100))}%" title="${g.titre}"></span>`).join('')}<span id="minimap-joueur" style="top:100%">➤</span></div><span class="minimap-nord">N</span><span class="minimap-sud">S</span></div>
-    <div id="tutorial" hidden><button id="tutorial-close" aria-label="Fermer le tutoriel">×</button><strong>Premiers pas</strong><span>ZQSD : marcher · E : interagir · M : carte · P : pause</span><small>Manette : joystick gauche pour conduire, ✕ interagir, ○ descendre, R1 klaxonner et Options mettre en pause.</small></div>
+    <div id="tutorial" hidden><button id="tutorial-close" aria-label="Fermer le tutoriel">×</button><strong>Premiers pas</strong><span>ZQSD : marcher · Maj : courir · E : interagir · M : carte · T : chasse au trésor · V : vue du ciel · P : pause</span><small>Manette : joystick gauche pour conduire, ✕ interagir, ○ descendre, R1 klaxonner et Options mettre en pause.</small></div>
     <div id="toast" role="status"></div><button id="interaction" hidden></button>
     <div id="intro-cinema" hidden><div class="intro-titres"><h2 id="intro-titre">COTONOU</h2><p id="intro-sous-titre">UNE VILLE À RENCONTRER</p></div><button id="intro-saut" class="intro-saut">Passer l'intro ⏭</button></div>
     <div id="vehicle-status" hidden><span id="vehicle-label"></span><button id="dismount">Descendre · F / ○</button></div>
     <div id="chrono-course" hidden></div>
+    <div id="survol" hidden><p class="eyebrow">VUE DU CIEL · <span id="survol-rang"></span></p><h3 id="survol-titre"></h3><p id="survol-texte"></p><div class="survol-actions"><button id="survol-prec" aria-label="Site précédent">◀</button><button id="survol-suiv" aria-label="Site suivant">▶</button><button id="survol-quitter">Revenir au sol · V</button></div></div>
+    <div id="chasse-hud" hidden><p class="eyebrow">CHASSE AU TRÉSOR · <span id="chasse-etat"></span></p><p id="chasse-enigme"></p><div class="detecteur"><span id="chasse-chaleur">Froid</span><meter id="chasse-jauge" min="0" max="1" value="0"></meter></div><button id="chasse-indice" hidden>Indice</button></div>
     <div id="mode-photo" hidden><div class="photo-filtres"><button data-filtre="0" aria-pressed="true">Doré</button><button data-filtre="1">Rétro</button><button data-filtre="2">Lagune</button></div><button id="photo-shoot" class="primary">📸 Capturer</button><button id="photo-fermer">Fermer · X</button></div>
     <div id="sport" hidden><span id="sport-label">Jogging</span><progress id="progress" max="50" value="0"></progress></div>
-    <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
+    <footer><div><kbd>ZQSD</kbd> / <kbd>↑↓←→</kbd> Se déplacer <span>·</span> <kbd>Maj</kbd> Courir <span>·</span> Glisser pour regarder</div><div>🎮 Joystick gauche : avancer <span>·</span> droit : regarder <span>·</span> <kbd>✕</kbd> Interagir <span>·</span> <kbd>□</kbd> Jogging <span>·</span> <kbd>○</kbd> Retour</div></footer>
     <div id="touch"><button data-key="arrowup" aria-label="Avancer">↑</button><div><button data-key="arrowleft" aria-label="Aller à gauche">←</button><button data-key="arrowdown" aria-label="Reculer">↓</button><button data-key="arrowright" aria-label="Aller à droite">→</button></div></div>
     <dialog id="welcome"><div class="welcome-copy"><p class="eyebrow">BIENVENUE AU BÉNIN</p><h2>Crée ton personnage.</h2><p>Choisis ton sexe, ton prénom et tes couleurs avant de partir à la découverte de Cotonou.</p><div id="avatar-preview" class="avatar-preview" aria-label="Aperçu du personnage"><div id="avatar-3d" class="preview-3d"></div><div class="preview-forme"><div class="preview-ear preview-ear-left"></div><div class="preview-ear preview-ear-right"></div><div class="preview-neck"></div><div class="preview-head"><span class="preview-eyes"></span><span class="preview-nose"></span><span class="preview-smile"></span></div><div class="preview-hair"></div><div class="preview-body"></div><div class="preview-accent"></div><div class="preview-arm preview-arm-left"><i></i></div><div class="preview-arm preview-arm-right"><i></i></div><div class="preview-legs"><i></i><i></i></div></div></div><p id="avatar-summary" class="avatar-summary">Mika · Homme</p></div><div class="character-creator"><fieldset><legend>Sexe</legend><div class="avatar-options"><button type="button" data-sex="homme" aria-pressed="true">Homme</button><button type="button" data-sex="femme" aria-pressed="false">Femme</button></div></fieldset><label>Prénom du personnage<input id="player-name" maxlength="16" value="Mika" autocomplete="off"></label><fieldset><legend>Couleur de peau</legend><div class="color-options skin-options">${[['#f6d5be','Très claire'],['#dfae88','Claire'],['#bd875e','Dorée'],['#9b6746','Mate'],['#79513b','Brune'],['#462c23','Foncée']].map(([c,n])=>`<button type="button" data-skin="${c}" style="--swatch:${c}" aria-label="Peau ${n.toLowerCase()}" aria-pressed="${c===this.peauJoueur}"></button>`).join('')}</div></fieldset><fieldset><legend>Couleur des vêtements</legend><div class="color-options"><button type="button" data-color="#f3b94f" aria-label="Jaune soleil" aria-pressed="true"></button><button type="button" data-color="#287b72" aria-label="Vert lagune" aria-pressed="false"></button><button type="button" data-color="#9c4058" aria-label="Bordeaux" aria-pressed="false"></button><button type="button" data-color="#365f8c" aria-label="Bleu" aria-pressed="false"></button><button type="button" data-color="#dc6e35" aria-label="Orange" aria-pressed="false"></button></div></fieldset><fieldset><legend>Couleur des chaussures</legend><div class="color-options">${[['','D’origine'],['#f4f1e8','Blanches'],['#2a2b30','Noires'],['#b4453c','Rouges'],['#2f5f9e','Bleues'],['#e0b23f','Jaunes']].map(([c,n])=>`<button type="button" data-shoe="${c}" style="--swatch:${c||'#f7f4ec'}" aria-label="Chaussures ${n.toLowerCase()}" aria-pressed="${c===this.chaussures}"></button>`).join('')}</div></fieldset><div class="loading-city"><span></span></div><p class="note">Ton personnage et ta progression seront sauvegardés sur cet appareil.</p><button id="begin" class="primary">Commencer la balade <span>→</span></button></div></dialog>
     <dialog id="panel"><button id="close" class="close" aria-label="Fermer">×</button><p id="panel-kicker" class="eyebrow"></p><h2 id="panel-title"></h2><div id="panel-body"></div></dialog>`;
@@ -95,6 +103,10 @@ export class Jeu {
     this.toastTimer=window.setTimeout(()=>$('toast').classList.remove('show'),5500);
   }
   private missionCourante(){
+    if(this.chasse.actif){
+      const t=TRESORS[this.chasse.etape];
+      if(t)return this.chasse.porte?`Chasse : rapporter ${t.nom} au pied de l’Amazone`:`Chasse : énigme ${this.chasse.etape+1}/${TRESORS.length} — ${t.nom}`;
+    }
     const chrono=this.partie.defis.get('arrivee-amazone');
     if(chrono!==undefined)return `Défi : rejoindre l’Amazone · ${Math.ceil(chrono)} s`;
     const guide=guides.find(g=>!this.partie.visites.has(g.id));
@@ -108,6 +120,7 @@ export class Jeu {
     {id:'souvenirs-corniche',titre:'Trésors de la Corniche',detail:`Ramasser les 3 souvenirs de la promenade (${this.partie.souvenirs.size}/3)`,gain:200,faite:this.partie.souvenirs.size>=3,bonus:'Couleur lagune'},
     {id:'photo-corniche',titre:'Le bon cadrage',detail:'Prendre une photo depuis le point de vue de la Corniche',gain:150,faite:this.partie.photos.has('corniche'),bonus:'Carte postale · Corniche'},
     {id:'quiz-amazone',titre:'Mémoire de l’Amazone',detail:'Répondre à la question après avoir rencontré le guide',gain:250,faite:this.partie.quizReussis.has('amazone'),bonus:'Anecdote débloquée'},
+    {id:'chasse-tresor',titre:'Les trésors des Amazones',detail:`Rapporter les ${TRESORS.length} trésors au pied de l’Amazone (${this.chasse.livres.size}/${TRESORS.length} · ${this.chasse.points} pts)`,gain:1000,faite:this.chasse.termine,bonus:'Titre · Gardien·ne du Danxomè'},
     {id:'exploration',titre:'Mémoire de Cotonou',detail:`Écouter les ${guides.length} guides`,gain:600,faite:this.partie.terminee(lieux)},
     {id:'sport',titre:'Matin sportif',detail:'Terminer les 50 m de jogging',gain:300,faite:this.sport.termine},
     {id:'commerce',titre:'Rencontre locale',detail:'Acheter un produit chez Aïcha',gain:150,faite:this.partie.inventory.length>0},
@@ -115,7 +128,7 @@ export class Jeu {
   ];}
   private sauvegarder(){
     if(!this.monde)return;
-    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,sexeJoueur:this.sexeJoueur,peauJoueur:this.peauJoueur,chaussures:this.chaussures,nomJoueur:this.nomJoueur}));}catch{}
+    try{localStorage.setItem('cotonou-sauvegarde-v2',JSON.stringify({soldeVersion:2,partie:this.partie.serialiser(),chasse:this.chasse.serialiser(),sport:{termine:this.sport.termine},position:{x:this.monde.player.position.x,z:this.monde.player.position.z},tenue:this.tenue,corpsJoueur:this.corpsJoueur,sexeJoueur:this.sexeJoueur,peauJoueur:this.peauJoueur,chaussures:this.chaussures,nomJoueur:this.nomJoueur}));}catch{}
   }
   private chargerSauvegarde(){
     try{
@@ -130,6 +143,7 @@ export class Jeu {
       if(typeof data?.chaussures==='string'&&/^(#[0-9a-f]{6})?$/i.test(data.chaussures))this.chaussures=data.chaussures;
       if(typeof data?.nomJoueur==='string'&&data.nomJoueur.trim())this.nomJoueur=data.nomJoueur.slice(0,16);
       this.monde.restaurerSouvenirs([...this.partie.souvenirs]);
+      this.chasse.restaurer(data?.chasse);this.afficherEtapeChasse();
       this.appliquerApparence();
       $<HTMLButtonElement>('begin').innerHTML='Continuer la balade <span>→</span>';this.synchroniser();
     }catch{localStorage.removeItem('cotonou-sauvegarde-v2');}
@@ -163,13 +177,25 @@ export class Jeu {
       }else if(!localStorage.getItem('cotonou-tutoriel-vu'))$('tutorial').hidden=false;
     };this.accueil.addEventListener('cancel',e=>e.preventDefault());this.accueil.addEventListener('close',()=>this.apercu?.arreter());
     $('tutorial-close').onclick=()=>{$('tutorial').hidden=true;localStorage.setItem('cotonou-tutoriel-vu','1');};
+    $('survol-btn').onclick=()=>this.basculerSurvol();$('tresor-btn').onclick=()=>this.ouvrirChasse();
+    $('survol-prec').onclick=()=>this.changerSite(-1);$('survol-suiv').onclick=()=>this.changerSite(1);$('survol-quitter').onclick=()=>this.basculerSurvol();
+    $('chasse-indice').onclick=()=>{const t=TRESORS[this.chasse.etape];if(t)this.notifier(`Indice : ${t.indice}`);};
     $('bag').onclick=()=>this.ouvrirSac();$('map').onclick=()=>this.ouvrirParcours();$('menu').onclick=()=>this.ouvrirMenu();
     $('interaction').onclick=()=>this.interagir();$('dismount').onclick=()=>this.descendre();
     addEventListener('keydown',e=>{
       if(this.panel.open||this.accueil.open||!this.monde)return;
       if(this.monde.introActive){if(e.key==='Escape'||e.key==='Enter')this.cloreIntro();return;}
       const key=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(key))e.preventDefault();
+      // En vue du ciel, les flèches changent de site et le joueur reste au sol.
+      if(this.monde.siteSurvol){
+        if(e.repeat)return;
+        if(key==='arrowleft'||key==='q'||key==='a')this.changerSite(-1);
+        else if(key==='arrowright'||key==='d')this.changerSite(1);
+        else if(key==='v'||key==='escape')this.basculerSurvol();
+        return;
+      }
       this.monde.keys.add(key);if(e.repeat)return;
+      if(key==='v')this.basculerSurvol();if(key==='t')this.ouvrirChasse();
       if(key==='e')this.interagir();if(key===' ')this.basculerSport();if(key==='f')this.descendre();if(key==='h'&&this.partie.transport)this.ambiance.klaxonner();
       if(key==='escape'||key==='p')this.ouvrirMenu();if(key==='m')this.ouvrirParcours();if(key==='i')this.ouvrirSac();
       if(key==='x')this.basculerPhoto();
@@ -252,6 +278,7 @@ export class Jeu {
     $('app').classList.remove('en-intro');
     this.monde.sauterIntro();
     localStorage.setItem('cotonou-intro-vue','1');
+    this.notifier('Nouveau : la chasse au trésor des Amazones (T ou 🗺 Trésors) et les vues du ciel de chaque site (V ou 🚁).');
   }
   private elementsManette(dialogue:HTMLDialogElement){
     return Array.from(dialogue.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled)'))
@@ -305,6 +332,8 @@ export class Jeu {
     if(lecture.appuye(3))this.ouvrirSac();
     if(lecture.appuye(5)&&this.partie.transport)this.ambiance.klaxonner();
     if(lecture.appuye(8))this.ouvrirParcours();
+    if(lecture.appuye(4))this.basculerSurvol();
+    if(this.monde.siteSurvol){if(lecture.appuye(14))this.changerSite(-1);if(lecture.appuye(15))this.changerSite(1);}
     if(lecture.appuye(9))this.ouvrirMenu();
   }
   private ouvrirSac(){
@@ -325,7 +354,7 @@ export class Jeu {
     $<HTMLSelectElement>('quality').onchange=e=>this.monde.reglerQualite((e.target as HTMLSelectElement).value as 'basse'|'normale'|'haute');
     $<HTMLSelectElement>('weather-setting').onchange=e=>this.monde.reglerMeteo((e.target as HTMLSelectElement).value as 'auto'|'soleil'|'couvert'|'pluie');
     $<HTMLSelectElement>('time-setting').onchange=e=>this.monde.reglerHeure((e.target as HTMLSelectElement).value as 'auto'|'matin'|'jour'|'soir');
-    $<HTMLInputElement>('volume-setting').oninput=e=>this.ambiance.reglerVolume(Number((e.target as HTMLInputElement).value)/100);
+    $<HTMLInputElement>('volume-setting').oninput=e=>{const v=Number((e.target as HTMLInputElement).value)/100;this.ambiance.reglerVolume(v);this.effets.volume=v*.85;};
     $('edit-character').onclick=()=>{this.panel.close();this.mettreAJourCreateur();this.accueil.showModal();this.apercu?.demarrer();};
     $('save-now').onclick=()=>{this.sauvegarder();this.notifier('Progression sauvegardée.');this.panel.close();};
     $('reset-save').onclick=()=>{if(confirm('Effacer la progression et recommencer ?')){localStorage.removeItem('cotonou-sauvegarde-v2');location.reload();}};
@@ -433,7 +462,9 @@ export class Jeu {
   private interagir(){
     if(this.panel.open||this.accueil.open||!this.proche)return;
     this.manette.vibrer('interaction');
-    if(this.partie.transport){this.notifier('Descends avec F pour rencontrer les personnages ou faire du sport.');return;}
+    if(this.partie.transport&&this.proche.type!=='tresor'){this.notifier('Descends avec F pour rencontrer les personnages ou faire du sport.');return;}
+    if(this.proche.type==='tresor'){this.ramasserTresor();return;}
+    if(this.proche.type==='autel'){this.ouvrirAutel();return;}
     if(this.proche.type==='guide')this.afficherGuide(this.proche.guide);
     else if(this.proche.type==='vendeuse')this.parlerVendeuse();
     else if(this.proche.type==='transport')this.ouvrirTransport();
@@ -444,6 +475,80 @@ export class Jeu {
     const p=this.monde.player.position;
     if(this.sport.demarrer(p.x,p.z,!!this.partie.transport)){this.manette.vibrer('succes');this.notifier('Suis la bande terracotta jusqu’à la ligne d’arrivée.');}
     else{this.manette.vibrer('erreur');this.notifier('À pied, rejoins le départ du jogging sur la bande terracotta de la Corniche.');}
+  }
+  /** Ouvre ou quitte les vues du ciel ; sans site demandé, part du plus proche. */
+  private basculerSurvol(index?:number){
+    if(!this.monde||this.panel.open||this.accueil.open)return;
+    if(this.monde.siteSurvol&&index===undefined){this.monde.survoler(null);$('survol').hidden=true;$('app').classList.remove('en-survol');this.notifier('Retour au sol.');return;}
+    const p=this.monde.player.position;
+    const proche=index??SITES_SURVOL.reduce((meilleur,site,i)=>Math.hypot(site.x-p.x,site.z-p.z)<Math.hypot(SITES_SURVOL[meilleur].x-p.x,SITES_SURVOL[meilleur].z-p.z)?i:meilleur,0);
+    this.monde.survoler(proche);this.effets.souffle();this.majSurvol();
+    $('survol').hidden=false;$('app').classList.add('en-survol');
+  }
+  private changerSite(pas:number){
+    const site=this.monde.siteSurvol;if(!site)return;
+    const i=SITES_SURVOL.findIndex(s=>s.id===site.id);this.monde.survoler(i+pas);this.effets.souffle();this.majSurvol();
+  }
+  private majSurvol(){
+    const site=this.monde.siteSurvol;if(!site)return;
+    $('survol-titre').textContent=site.titre;$('survol-texte').textContent=site.texte;
+    $('survol-rang').textContent=`${SITES_SURVOL.findIndex(s=>s.id===site.id)+1} / ${SITES_SURVOL.length}`;
+  }
+  /** Règles, score et départ de la chasse au trésor. */
+  private ouvrirChasse(){
+    if(!this.monde||this.accueil.open)return;
+    const t=TRESORS[this.chasse.etape];
+    const etat=this.chasse.actif
+      ?`<p><strong>En cours · ${this.chasse.livres.size}/${TRESORS.length} trésors · ${this.chasse.points} points</strong></p><p class="enigme">${this.chasse.porte&&t?`Tu portes ${t.nom}. Rapporte-le au pied de la statue de l’Amazone, sur l’esplanade.`:t?t.enigme:''}</p><button id="chasse-stop">Abandonner la chasse</button>`
+      :`<button id="chasse-go" class="primary">${this.chasse.termine?'Rejouer la chasse':'Commencer la chasse'}</button>`;
+    this.ouvrir('Les trésors des Amazones','CHASSE AU TRÉSOR',`<p>Les Amazones du Danxomè ont caché <strong>${TRESORS.length} trésors</strong> dans Cotonou, un par lieu. Lis l’énigme, cherche le lieu décrit — la <strong>colonne de lumière dorée</strong> et le <strong>détecteur</strong> t’aident — puis ramasse le trésor avec <kbd>E</kbd>.</p><p>Rapporte ensuite chaque trésor <strong>au pied de la statue de l’Amazone</strong>, où une question sur le lieu t’attend. Bonne réponse : 100 points, plus un bonus de rapidité.</p>${this.chasse.record!==null?`<p class="note">Record : ${this.chasse.record} points.</p>`:''}${etat}`);
+    if($('chasse-go'))$('chasse-go').onclick=()=>{this.chasse.demarrer();this.afficherEtapeChasse();this.panel.close();this.effets.tamtam(4);this.synchroniser();
+      this.notifier(`Chasse lancée ! Énigme 1/${TRESORS.length} : ouvre l’œil et suis le détecteur.`);};
+    if($('chasse-stop'))$('chasse-stop').onclick=()=>{this.chasse.arreter();this.afficherEtapeChasse();this.panel.close();this.synchroniser();this.notifier('Chasse abandonnée. Tu peux la reprendre depuis le bouton Trésors.');};
+  }
+  /** Place le trésor de l'étape en cours et met à jour le HUD de la chasse. */
+  private afficherEtapeChasse(){
+    const t=this.chasse.actif?TRESORS[this.chasse.etape]:undefined;
+    this.monde?.tresors.montrer(t&&!this.chasse.porte?t.forme:null,t?.x,t?.z);
+    if(t&&this.chasse.porte){this.monde?.tresors.montrer(t.forme,t.x,t.z);this.monde?.tresors.porter(true);}
+    else this.monde?.tresors.porter(false);
+    $('chasse-hud').hidden=!this.chasse.actif;
+    if(!t)return;
+    $('chasse-etat').textContent=`${this.chasse.livres.size}/${TRESORS.length} · ${this.chasse.points} pts`;
+    $('chasse-enigme').textContent=this.chasse.porte?`Tu portes ${t.nom}. Rapporte-le au pied de la statue de l’Amazone.`:t.enigme;
+    $('chasse-indice').hidden=true;
+  }
+  private ramasserTresor(){
+    const t=TRESORS[this.chasse.etape];if(!t||!this.chasse.ramasser())return;
+    this.manette.vibrer('succes');this.effets.carillon();this.afficherEtapeChasse();this.synchroniser();
+    this.notifier(`Trésor trouvé : ${t.nom} ! Rapporte-le au pied de l’Amazone.`);
+  }
+  /** Au pied de l'Amazone : question sur le lieu du trésor, puis remise. */
+  private ouvrirAutel(){
+    const t=TRESORS[this.chasse.etape];if(!t||!this.chasse.porte)return;
+    const ordre=[0,1,2].sort(()=>Math.random()-.5);
+    this.ouvrir(`${t.nom}`,'AU PIED DE L’AMAZONE',`<p>Tu déposes ${t.nom}, trouvé à ${t.lieu}. Pour que les Amazones l’acceptent, réponds à leur question :</p><div class="quiz"><strong>${t.question}</strong>${ordre.map(i=>`<button data-reponse="${i}">${t.reponses[i]}</button>`).join('')}</div>`);
+    $('panel-body').querySelectorAll<HTMLButtonElement>('[data-reponse]').forEach(b=>b.onclick=()=>{
+      const juste=b.dataset.reponse==='0',gain=this.chasse.deposer(t.id,juste);
+      if(juste){this.manette.vibrer('succes');this.effets.fanfare(this.chasse.termine);}else{this.manette.vibrer('erreur');this.effets.erreur();}
+      this.panel.close();this.afficherEtapeChasse();this.synchroniser();
+      if(this.chasse.termine){
+        this.ouvrir('Les trésors sont réunis !','CHASSE AU TRÉSOR',`<p>Les ${TRESORS.length} trésors reposent au pied de l’Amazone. Tu termines avec <strong>${this.chasse.points} points</strong>${this.chasse.record===this.chasse.points?' — nouveau record !':` (record : ${this.chasse.record})`}.</p><p>Réclame ta récompense « Les trésors des Amazones » dans la carte (<kbd>M</kbd>).</p><p class="note">${t.anecdote}</p>`);
+      }else this.notifier(`${juste?'Bonne réponse':'Pas tout à fait — la bonne réponse : '+t.reponses[0]} · +${gain} points. ${t.anecdote} Énigme suivante !`);
+    });
+  }
+  /** Détecteur : chaleur, jauge et bip qui s'accélère à l'approche. */
+  private detecteur(dt:number,x:number,z:number){
+    const t=TRESORS[this.chasse.etape];if(!t)return;
+    const cible=this.chasse.porte?AUTEL_AMAZONE:t,d=Math.hypot(cible.x-x,cible.z-z);
+    const proximite=Math.max(0,Math.min(1,1-d/140));
+    $<HTMLMeterElement>('chasse-jauge').value=proximite;
+    $('chasse-chaleur').textContent=d<6?'Brûlant !':d<22?'Chaud':d<55?'Tiède':'Froid';
+    $('chasse-hud').dataset.chaleur=d<6?'brulant':d<22?'chaud':d<55?'tiede':'froid';
+    this.chasse.avancer(dt);
+    if(!this.chasse.porte&&this.chasse.temps>60)$('chasse-indice').hidden=false;
+    this.prochainBip-=dt;
+    if(this.prochainBip<=0){this.effets.bip(proximite);this.prochainBip=.16+1.5*Math.pow(1-proximite,1.6);}
   }
   private actualiser(dt:number){
     this.commandesManette(dt);
@@ -468,11 +573,15 @@ export class Jeu {
     if(joueur)joueur.style.top=`${Math.max(0,Math.min(100,(132-p.z)/488*100))}%`;
     if(zone.id!==this.zoneId){this.zoneId=zone.id;$('zone-title').textContent=zone.nom;$('zone-description').textContent=zone.sousTitre;$('zone-kicker').textContent=`BÉNIN / ${zone.id==='corniche'?'AKPAKPA':'COTONOU'}`;this.synchroniser();}
     const guide=guides.find(g=>g.estProche(p.x,p.z));
-    this.proche=guide?{type:'guide',guide}:etals.some(z=>Math.hypot(p.x-3,p.z-z)<4.5)?{type:'vendeuse'}:stations.some(z=>Math.hypot(p.x-3,p.z-z)<4.2)?{type:'transport'}:p.x>5&&Math.abs(p.z-8)<5?{type:'sport'}:null;
-    $('interaction').hidden=!this.proche||paused;
-    $('interaction').textContent=this.partie.transport?'F · Descendre pour interagir':this.proche?.type==='guide'?'E · Rencontrer le guide':this.proche?.type==='vendeuse'?'E · Discuter avec Aïcha':this.proche?.type==='transport'?'E · Héler un transport':'Espace · Commencer le jogging';
+    const tresor=this.chasse.actif?TRESORS[this.chasse.etape]:undefined;
+    const surTresor=!!tresor&&!this.chasse.porte&&Math.hypot(tresor.x-p.x,tresor.z-p.z)<2.8;
+    const surAutel=!!tresor&&this.chasse.porte&&Math.hypot(AUTEL_AMAZONE.x-p.x,AUTEL_AMAZONE.z-p.z)<3.4;
+    this.proche=surTresor?{type:'tresor'}:surAutel?{type:'autel'}:guide?{type:'guide',guide}:etals.some(z=>Math.hypot(p.x-3,p.z-z)<4.5)?{type:'vendeuse'}:stations.some(z=>Math.hypot(p.x-3,p.z-z)<4.2)?{type:'transport'}:p.x>5&&Math.abs(p.z-8)<5?{type:'sport'}:null;
+    $('interaction').hidden=!this.proche||paused||!!this.monde.siteSurvol;
+    $('interaction').textContent=this.proche?.type==='tresor'?`E · Ramasser : ${tresor?.nom}`:this.proche?.type==='autel'?'E · Déposer le trésor au pied de l’Amazone':this.partie.transport?'F · Descendre pour interagir':this.proche?.type==='guide'?'E · Rencontrer le guide':this.proche?.type==='vendeuse'?'E · Discuter avec Aïcha':this.proche?.type==='transport'?'E · Héler un transport':'Espace · Commencer le jogging';
     // The interaction button remains usable on touch screens while mounted.
-    $('interaction').onclick=this.partie.transport?()=>this.descendre():()=>this.interagir();
+    $('interaction').onclick=this.partie.transport&&this.proche?.type!=='tresor'?()=>this.descendre():()=>this.interagir();
+    if(!paused&&this.chasse.actif&&!this.monde.siteSurvol)this.detecteur(dt,p.x,p.z);
     if(!paused){
       this.partie.avancerDefis(dt);
       $('mission-text').textContent=this.missionCourante();
@@ -502,6 +611,6 @@ export class Jeu {
     }
     $('chrono-course').hidden=!this.course.actif||paused;
     if(this.course.actif)$('chrono-course').textContent=`⏱ ${this.course.temps.toFixed(1)} s / ${this.course.cible} s`;
-    return {paused:paused||this.photoOuverte,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:4)};
+    return {paused:paused||this.photoOuverte,running:this.sport.actif,transport:this.partie.transport?.id??null,speed:this.partie.transport?.vitesse??(this.sport.actif?7:this.monde.sprint?4.4:2.3)};
   }
 }

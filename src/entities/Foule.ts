@@ -4,7 +4,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Personnage } from './Joueur';
 import { versHsl, depuisHsl, teinterCorps, libererApparence } from './Teinte';
-import { transfererAnimation } from './Transfert';
+import { transfererAnimation, poserAssis } from './Transfert';
 
 /**
  * Habille la scène de personnages articulés. Un seul modèle — 3 126 triangles,
@@ -39,7 +39,125 @@ type Habitant = {
   reactionCooldown?: number;
   reactionCible?: T.Vector3;
   bulle?:T.Sprite;
+  /**
+   * Allure de l'animation : vitesse à laquelle le pied d'appui reste fixe au
+   * sol, en marche et en course, et instant du cycle où les pieds se croisent,
+   * qui sert de pose d'arrêt. Mesurées sur les clips (1,42 et 3,8 m/s pour un
+   * corps de 1,74 m) : en dessous ou au-dessus, les pieds glissent.
+   */
+  pas?: Pas;
 };
+type Pas = {marche: number; course: number; neutre: number};
+/** Allure mesurée pour un corps de 1,74 m, ramenée à la taille du personnage. */
+const allure = (hauteur: number, neutre: number): Pas => ({marche: 1.42 * hauteur / 1.74, course: 3.8 * hauteur / 1.74, neutre});
+/** Taille des passantes : un peu plus petites que le joueur. */
+const TAILLE_PASSANTE = 1.66;
+/**
+ * Pantalons des passantes : le scan porte un pantalon pêche clair sous un haut
+ * en pagne fleuri. Seul le pantalon est reteint — jean, noir, vert, bordeaux,
+ * kaki, blanc — et le premier garde sa couleur d'origine.
+ */
+const PANTALONS = ['', '#2c3a57', '#1f2024', '#3f6b4a', '#8c2f3a', '#b8a67c', '#e6e3da'];
+
+/**
+ * Deux défauts du scan de la passante. Sa texture est branchée aussi en
+ * émission, à pleine intensité : le corps brillait par lui-même, plat, sans
+ * ombre ni lumière de la scène. Et le rigging automatique a lié des sommets des
+ * sandales aux orteils des deux pieds à la fois : dès que les jambes
+ * s'écartaient, la semelle s'étirait d'un pied à l'autre en longue plaque plate.
+ */
+function corrigerPassante(scan: T.Object3D) {
+  scan.traverse(n => {
+    const m = n as T.SkinnedMesh;
+    if (!m.isMesh) return;
+    const matiere = m.material as T.MeshPhysicalMaterial;
+    matiere.emissive?.set(0x000000); matiere.emissiveMap = null;
+    if (matiere.isMeshPhysicalMaterial) { matiere.specularColor.set(0xffffff); matiere.specularIntensity = .4; }
+    matiere.roughness = .85; matiere.metalness = 0; matiere.needsUpdate = true;
+    if (m.isSkinnedMesh) separerPieds(m);
+  });
+}
+
+/**
+ * Chaque sommet d'un pied ne suit plus qu'un côté : celui qui pèse le plus parmi
+ * ses os de tibia, de pied et d'orteils. Les poids de l'autre côté sont retirés,
+ * le reste renormalisé. Les cuisses et le bassin ne sont pas touchés.
+ */
+function separerPieds(maillage: T.SkinnedMesh) {
+  const noms = maillage.skeleton.bones.map(b => b.name.replace(/^mixamorig:?/, ''));
+  // Côté des os du bas de jambe, et lesquels sont un pied.
+  const os = noms.map(n => /^(Left|Right)(Leg|Foot|ToeBase|Toe_End|ToeEnd)$/.exec(n)?.[1]);
+  const pied = noms.map(n => /(Foot|Toe)/.test(n));
+  const indices = maillage.geometry.getAttribute('skinIndex'), poids = maillage.geometry.getAttribute('skinWeight');
+  let repares = 0;
+  for (let i = 0; i < indices.count; i++) {
+    let gauche = 0, droite = 0, touchePied = false;
+    for (let k = 0; k < 4; k++) {
+      const j = indices.getComponent(i, k), cote = os[j], w = poids.getComponent(i, k);
+      if (cote === 'Left') gauche += w; else if (cote === 'Right') droite += w;
+      if (w > 0 && pied[j]) touchePied = true;
+    }
+    if (!touchePied || !gauche || !droite) continue;
+    const perdant = gauche >= droite ? 'Right' : 'Left';
+    let total = 0;
+    for (let k = 0; k < 4; k++) {
+      if (os[indices.getComponent(i, k)] === perdant) poids.setComponent(i, k, 0);
+      total += poids.getComponent(i, k);
+    }
+    for (let k = 0; k < 4; k++) poids.setComponent(i, k, total ? poids.getComponent(i, k) / total : 0);
+    repares++;
+  }
+  poids.needsUpdate = true;
+  // Le scan a été pris pieds joints : quelques triangles relient une sandale à
+  // l'autre et s'étirent en lame dès que les jambes s'écartent. Ils disparaissent.
+  const cote = new Int8Array(indices.count);
+  for (let i = 0; i < indices.count; i++) {
+    let gauche = 0, droite = 0;
+    for (let k = 0; k < 4; k++) {
+      const j = indices.getComponent(i, k), w = poids.getComponent(i, k);
+      if (!pied[j] && os[j] !== undefined && w < .5) continue;
+      if (os[j] === 'Left') gauche += w; else if (os[j] === 'Right') droite += w;
+    }
+    cote[i] = gauche > .5 ? -1 : droite > .5 ? 1 : 0;
+  }
+  const index = maillage.geometry.getIndex();
+  if (index) {
+    const garde: number[] = [];
+    for (let t = 0; t < index.count; t += 3) {
+      const a = cote[index.getX(t)], b = cote[index.getX(t + 1)], c = cote[index.getX(t + 2)];
+      if (Math.min(a, b, c) === -1 && Math.max(a, b, c) === 1) continue;
+      garde.push(index.getX(t), index.getX(t + 1), index.getX(t + 2));
+    }
+    maillage.geometry.setIndex(garde);
+  }
+  return repares;
+}
+
+/**
+ * Reteint le pantalon clair de l'atlas de la passante. La peau y est brun foncé
+ * et le pagne multicolore : seuls les texels pêche très clairs sont touchés.
+ * L'outil générique de Teinte.ts prenait ce pêche pour de la peau, et le haut
+ * orangé aussi : la passante semblait nue.
+ */
+function teinterPantalon(corps: T.Object3D, couleur: string) {
+  const cible = new T.Color(couleur), vise = versHsl(cible.r * 255, cible.g * 255, cible.b * 255);
+  corps.traverse(n => {
+    const m = n as T.Mesh; if (!m.isMesh || !(m.material instanceof T.MeshStandardMaterial)) return;
+    const source = m.material.map?.image as CanvasImageSource | undefined; if (!source) return;
+    const taille = 1024, toile = document.createElement('canvas'); toile.width = toile.height = taille;
+    const ctx = toile.getContext('2d', {willReadFrequently: true})!; ctx.drawImage(source, 0, 0, taille, taille);
+    const image = ctx.getImageData(0, 0, taille, taille), d = image.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const {h, s, l} = versHsl(d[i], d[i + 1], d[i + 2]);
+      if (l < .66 || h < 8 || h > 50 || s < .25) continue;
+      const [r, v, b] = depuisHsl(vise.h, vise.s, Math.min(.96, Math.max(.05, vise.l + (l - .83) * .9)));
+      d[i] = r; d[i + 1] = v; d[i + 2] = b;
+    }
+    ctx.putImageData(image, 0, 0);
+    const carte = new T.CanvasTexture(toile); carte.colorSpace = T.SRGBColorSpace; carte.flipY = false;
+    const matiere = m.material.clone(); matiere.map = carte; m.material = matiere;
+  });
+}
 
 export type CorpsJoueur = 'personnage1.glb'|'perso2.glb'|'go2.glb'|'avatar-homme-meshy-opt.glb'|'avatar-femme-meshy-opt.glb';
 
@@ -53,10 +171,11 @@ function animationSurPlace(clip:T.AnimationClip|undefined){
 }
 
 /**
- * Un passant sur trois porte le modèle de la passante : bras libres, il marche
- * bras ballants. Les autres gardent le modèle léger, décliné en couleurs.
+ * Les figurants portent le modèle de la passante, décliné en tenues. Le modèle
+ * léger marcheur.glb, qui l'habillait jusqu'ici, est sculpté mains sur les
+ * hanches avec un pan de jupe qui s'étire à chaque pas : il ne sert plus que de
+ * secours si la passante manque.
  */
-const passante = (nom: string) => { const n = /^passant-(\d+)$/.exec(nom); return !!n && Number(n[1]) % 3 === 1; };
 
 export class Foule {
   private modele?: T.Object3D;
@@ -69,6 +188,8 @@ export class Foule {
   private readonly habitants: Habitant[] = [];
   private joueur?: Habitant;
   private static readonly DUREE_CHUTE = 3.4;
+  /** Hauteur du bassin d'un passager assis sur la selle du zémidjan détaillé. */
+  private static readonly SELLE = .98;
   private readonly matieres = new Map<string, T.Material>();
   private source?: CanvasImageSource;
   private matiereOrigine?: T.MeshStandardMaterial;
@@ -76,7 +197,10 @@ export class Foule {
   private readonly silhouettes: T.Object3D[] = [];
   private readonly debout = new Map<string, T.Object3D>();
   /** Clips natifs des avatars Meshy riggés. */
-  private readonly clipsAvatar = new Map<string, {marche?:T.AnimationClip;course?:T.AnimationClip}>();
+  private readonly clipsAvatar = new Map<string, {marche?:T.AnimationClip;course?:T.AnimationClip;neutre?:number}>();
+  /** Passantes déjà teintes, clonées ensuite : une seule teinture par tenue. */
+  private readonly tenues: T.Object3D[] = [];
+  private tenueSuivante = 0;
   /**
    * Silhouette à donner au joueur. Les avatars scannés portent leur propre
    * squelette et leur marche ; une silhouette sans os reçoit, faute de mieux,
@@ -149,8 +273,9 @@ export class Foule {
       // quatre-vingt mille triangles, et la ville n’a pas besoin de sosies. Leur
       // marche native sert aussi de course, à cadence plus vive, plutôt que de
       // télécharger un second fichier avant d’afficher le joueur.
-      if (nomsDebout[i] === 'passante-cotonou-walk.glb') this.clipsAvatar.set(nomsDebout[i], {marche: transferer(lot.scene, animationSurPlace(lot.animations[0]))});
-      else if (nomsDebout[i].startsWith('avatar-')) this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0])});
+      if (nomsDebout[i] === 'passante-cotonou-walk.glb') this.clipsAvatar.set(nomsDebout[i], {marche: transferer(lot.scene, animationSurPlace(lot.animations[0])), neutre: .08});
+      // Pose d'arrêt de chaque marche : l'instant où les deux pieds se croisent.
+      else if (nomsDebout[i].startsWith('avatar-')) this.clipsAvatar.set(nomsDebout[i], {marche: animationSurPlace(lot.animations[0]), neutre: nomsDebout[i].includes('homme') ? .6 : .08});
       else this.silhouettes.push(lot.scene);
     });
     this.modele = marcheur.scene;
@@ -158,6 +283,16 @@ export class Foule {
     // peuvent pas pendre, mais ses jambes prennent le pas naturel.
     this.clipMarche = transferer(marcheur.scene, marcheur.animations[0]);
     this.clipCourse = coureur?.animations[0];
+    const passanteScan = this.debout.get('passante-cotonou-walk.glb');
+    if (passanteScan) corrigerPassante(passanteScan);
+    if (passanteScan) for (const pantalon of PANTALONS) {
+      const tenue = clonerSquelette(passanteScan);
+      if (pantalon) try { teinterPantalon(tenue, pantalon); } catch (e) { console.warn('tenue indisponible : ' + (e instanceof Error ? e.message : e)); }
+      this.tenues.push(tenue);
+    }
+    // Les courses des avatars pèsent onze mégaoctets : elles arrivent après la
+    // ville, et le joueur marche en attendant.
+    void this.chargerCourses(chargeur, url, femme);
     // Mettre le personnage à taille humaine, pieds à l’origine.
     const boite = new T.Box3().setFromObject(this.modele);
     const centre = boite.getCenter(new T.Vector3());
@@ -226,62 +361,89 @@ export class Foule {
     return matiere;
   }
   /**
-   * Remplace toutes les silhouettes construites en code par le modèle articulé.
-   * Celles qui ne sont plus dans la scène — conducteurs des véhicules remplacés —
-   * sont ignorées.
+   * Remplace toutes les silhouettes construites en code par un corps articulé :
+   * l'avatar choisi pour le joueur, la vendeuse pour Aïcha, et pour tous les
+   * autres une passante dans l'une des tenues. Les conducteurs des véhicules
+   * garés gardent leur silhouette assise, et celles qui ne sont plus dans la
+   * scène — conducteurs des véhicules remplacés — sont ignorées.
    */
   habiller(echelle = 1.78) {
     if (!this.modele || !this.clipMarche) return 0;
     let habilles = 0;
     for (const personnage of Personnage.tous) {
       if (this.habitants.some(h => h.personnage === personnage)) continue;
-      if (!this.dansLaScene(personnage.objet)) continue;
-      const silhouetteDebout = personnage.objet.name === 'joueur' && this.corpsJoueur
-        ? this.debout.get(this.corpsJoueur)
-        : passante(personnage.objet.name) ? this.debout.get('passante-cotonou-walk.glb')
-        : personnage.objet.name.startsWith('vendeuse-') ? this.debout.get('vendeuse.glb') : undefined;
-      if(personnage.objet.name==='joueur'&&!silhouetteDebout)continue;
-      if (silhouetteDebout) {
-        const estVendeuse=personnage.objet.name.startsWith('vendeuse-');
-        const corps = this.poserDebout(personnage, silhouetteDebout,estVendeuse?1.3:1.74,estVendeuse ? .46 : 0);
-        if (estVendeuse) corps.name = 'modele-vendeuse';
-        else {corps.name = 'corps-personnage';corps.userData.avatar=this.corpsJoueur;}
-        for (const piece of personnage.pieces) piece.visible = false;
-        const mixeur = new T.AnimationMixer(corps), clips=personnage.objet.name==='joueur'&&this.corpsJoueur?this.clipsAvatar.get(this.corpsJoueur):passante(personnage.objet.name)?this.clipsAvatar.get('passante-cotonou-walk.glb'):undefined;
-        const marche=mixeur.clipAction(clips?.marche??this.clipMarche);marche.play();
-        const course=clips?.course?mixeur.clipAction(clips.course):undefined;course?.play();if(course)course.weight=0;
-        const habitant:Habitant={personnage, corps, mixeur, marche, course,
-          bouge: true, fige: !clips?.marche, reposY:corps.position.y, precedent: personnage.objet.position.clone()};
-        if(personnage.objet.name.startsWith('passant-')&&this.habitants.length%4===0){habitant.bulle=this.creerBulle();personnage.objet.add(habitant.bulle);}
-        this.habitants.push(habitant);
-        if (personnage.objet.name === 'joueur') {this.joueur = habitant;this.appliquerCouleurJoueur();}
-        habilles++;
-        continue;
+      if (!this.dansLaScene(personnage.objet) || personnage.objet.userData.conducteur) continue;
+      const nom = personnage.objet.name, estJoueur = nom === 'joueur', estVendeuse = nom.startsWith('vendeuse-');
+      if (estJoueur && !this.corpsJoueur) continue;
+      const passanteClips = this.clipsAvatar.get('passante-cotonou-walk.glb');
+      const tenue = !estJoueur && !estVendeuse && this.tenues.length && passanteClips?.marche
+        ? this.tenues[this.tenueSuivante++ % this.tenues.length] : undefined;
+      const choix = estJoueur ? this.debout.get(this.corpsJoueur!) : estVendeuse ? this.debout.get('vendeuse.glb') : tenue;
+      if (estJoueur && !choix) continue;
+      let corps: T.Object3D, clips: {marche?: T.AnimationClip; course?: T.AnimationClip; neutre?: number} | undefined, pas: Pas;
+      if (choix) {
+        const taille = estVendeuse ? 1.3 : estJoueur ? 1.74 : TAILLE_PASSANTE;
+        corps = this.poserDebout(personnage, choix, taille, estVendeuse ? .46 : 0);
+        corps.name = estVendeuse ? 'modele-vendeuse' : 'corps-personnage';
+        if (estJoueur) corps.userData.avatar = this.corpsJoueur;
+        clips = estJoueur ? this.clipsAvatar.get(this.corpsJoueur!) : estVendeuse ? undefined : passanteClips;
+        pas = allure(taille, clips?.neutre ?? 0);
+      } else {
+        // Secours : le modèle léger, décliné en couleurs.
+        corps = clonerSquelette(this.modele);
+        corps.name = 'corps-personnage';
+        const facteur = echelle / this.hauteurModele;
+        corps.scale.setScalar(facteur);
+        // Les silhouettes construites reposent à .15 : le modèle rejoint le sol,
+        // et son centre visuel rejoint exactement le point logique du personnage.
+        corps.position.set(-this.centreXModele*facteur,-.15-this.baseModele*facteur,-this.centreZModele*facteur);
+        const matiere = this.matiere(personnage.couleur);
+        corps.traverse(n => { const m = n as T.Mesh; if (m.isMesh) m.material = matiere; });
+        personnage.objet.add(corps);
+        clips = {marche: this.clipMarche, course: this.clipCourse};
+        pas = {marche: 1.47 * echelle / 1.74, course: 3.8 * echelle / 1.74, neutre: .1};
       }
-      const corps = clonerSquelette(this.modele);
-      corps.name = 'corps-personnage';
-      const facteur = echelle / this.hauteurModele;
-      corps.scale.setScalar(facteur);
-      // Les silhouettes construites reposent à .15 : le modèle rejoint le sol,
-      // et son centre visuel rejoint exactement le point logique du personnage.
-      corps.position.set(-this.centreXModele*facteur,-.15-this.baseModele*facteur,-this.centreZModele*facteur);
-      const matiere = this.matiere(personnage.couleur);
-      corps.traverse(n => { const m = n as T.Mesh; if (m.isMesh) m.material = matiere; });
-      personnage.objet.add(corps);
       for (const piece of personnage.pieces) piece.visible = false;
       const mixeur = new T.AnimationMixer(corps);
-      const marche = mixeur.clipAction(this.clipMarche);
-      marche.play();
-      const course = this.clipCourse ? mixeur.clipAction(this.clipCourse) : undefined;
+      const marche = clips?.marche ? mixeur.clipAction(clips.marche) : undefined;
+      marche?.play();
+      const course = clips?.course ? mixeur.clipAction(clips.course) : undefined;
       course?.play(); if (course) course.weight = 0;
-      const habitant:Habitant={personnage, corps, mixeur, marche, course, bouge: false,
-        reposY:corps.position.y,precedent: personnage.objet.position.clone()};
-      if(personnage.objet.name.startsWith('passant-')&&this.habitants.length%4===0){habitant.bulle=this.creerBulle();personnage.objet.add(habitant.bulle);}
+      const habitant: Habitant = {personnage, corps, mixeur, marche: marche ?? mixeur.clipAction(this.clipMarche), course, pas,
+        bouge: estJoueur || estVendeuse, fige: !marche, reposY: corps.position.y, precedent: personnage.objet.position.clone()};
+      if (nom.startsWith('passant-') && this.habitants.length % 4 === 0) {habitant.bulle = this.creerBulle(); personnage.objet.add(habitant.bulle);}
       this.habitants.push(habitant);
-      if (personnage.objet.name === 'joueur') {this.joueur = habitant;this.appliquerCouleurJoueur();}
+      if (estJoueur) {this.joueur = habitant; this.appliquerCouleurJoueur();}
       habilles++;
     }
     return habilles;
+  }
+  /**
+   * Courses des avatars, chargées après la ville : celle du joueur et, reportée
+   * sur la passante, celle des joggeuses de la piste de mise en forme.
+   */
+  private async chargerCourses(chargeur: GLTFLoader, url: (nom: string) => string, femme?: {scene: T.Object3D}) {
+    const fichiers: [string, string][] = [['avatar-femme-meshy-opt.glb', 'avatar-femme-course-meshy-opt.glb'], ['avatar-homme-meshy-opt.glb', 'avatar-homme-course-meshy-opt.glb']];
+    await Promise.all(fichiers.map(async ([avatar, fichier]) => {
+      try {
+        const lot = await chargeur.loadAsync(url(fichier));
+        const course = animationSurPlace(lot.animations[0]);
+        const clips = this.clipsAvatar.get(avatar);
+        if (clips && course) clips.course = course;
+        const passante = this.debout.get('passante-cotonou-walk.glb'), clipsPassante = this.clipsAvatar.get('passante-cotonou-walk.glb');
+        if (avatar.includes('femme') && passante && clipsPassante && lot.animations[0] && femme)
+          clipsPassante.course = transfererAnimation(passante, lot.scene, lot.animations[0]);
+      } catch (e) { console.warn(`course ${fichier} indisponible : ${e instanceof Error ? e.message : e}`); }
+    }));
+    // Ceux qui sont déjà habillés reçoivent leur course.
+    for (const h of this.habitants) {
+      if (h.course || h.fige) continue;
+      const clips = h === this.joueur ? this.clipsAvatar.get(this.corpsJoueur ?? '') : this.clipsAvatar.get('passante-cotonou-walk.glb');
+      if (!clips?.course || h.corps.name !== 'corps-personnage') continue;
+      if (h !== this.joueur && !this.tenues.length) continue;
+      h.course = h.mixeur.clipAction(clips.course); h.course.play(); h.course.weight = 0;
+    }
+    console.info('courses articulées prêtes');
   }
   personnaliserJoueur(couleur:string,corps:CorpsJoueur=this.corpsJoueur as CorpsJoueur,peau='#79513b',chaussures=''){
     const corpsChange=corps!==this.corpsJoueur;
@@ -296,6 +458,7 @@ export class Foule {
     h.corps=this.poserDebout(h.personnage,choix);h.corps.name='corps-personnage';h.corps.userData.avatar=this.corpsJoueur;
     h.mixeur=new T.AnimationMixer(h.corps);const clips=this.clipsAvatar.get(this.corpsJoueur!);h.marche=h.mixeur.clipAction(clips?.marche??this.clipMarche);h.marche.play();
     h.course=clips?.course?h.mixeur.clipAction(clips.course):undefined;h.course?.play();if(h.course)h.course.weight=0;h.fige=!clips?.marche;h.bouge=true;h.reposY=h.corps.position.y;
+    h.pas=allure(1.74,clips?.neutre??0);
   }
   private appliquerCouleurJoueur(){
     const h=this.joueur;if(!h)return;
@@ -311,6 +474,9 @@ export class Foule {
   private teinterCorps(corps:T.Object3D){teinterCorps(corps,this.peauJoueur,this.couleurJoueur,this.chaussuresJoueur);}
   /** Pose une silhouette debout dans un personnage : pieds au sol, face au sud. */
   private poserDebout(personnage: Personnage, choix: T.Object3D,hauteurCible=1.74,base=.0) {
+    // Un clone hors scène n'a pas encore calculé la place de ses os : la boîte
+    // d'un maillage articulé serait alors fausse, et le corps géant.
+    choix.updateMatrixWorld(true);
     const boite = new T.Box3().setFromObject(choix);
     const centre = boite.getCenter(new T.Vector3());
     const hauteur = boite.max.y - boite.min.y || 1;
@@ -345,14 +511,24 @@ export class Foule {
   creerPassagerMoto() {
     if (!this.corpsJoueur) return null;
     const choix=this.debout.get(this.corpsJoueur);if(!choix)return null;
+    choix.updateMatrixWorld(true);
     const boite=new T.Box3().setFromObject(choix),centre=boite.getCenter(new T.Vector3());
-    const hauteur=boite.max.y-boite.min.y||1,echelle=1.48/hauteur;
+    const hauteur=boite.max.y-boite.min.y||1,echelle=1.66/hauteur;
     const corps=clonerSquelette(choix);corps.scale.setScalar(echelle);
     corps.position.set(-centre.x*echelle,-boite.min.y*echelle,-centre.z*echelle);
-    corps.rotation.x=-.1;
     this.teinterCorps(corps);
-    corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh){m.castShadow=false;m.receiveShadow=true;}});
+    // Maillage déformé hors de sa pose de liaison : sa sphère englobante ne dit
+    // plus où il se trouve, il ne doit pas être écarté du rendu.
+    corps.traverse(n=>{const m=n as T.Mesh;if(m.isMesh){m.castShadow=false;m.receiveShadow=true;m.frustumCulled=false;}});
     const passager=new T.Group();passager.name='passager-joueur-moto';passager.add(corps);passager.visible=false;
+    // Assis à califourchon : le bassin repose sur la selle, les pieds sur les
+    // repose-pieds. Le monde relève le passager de 0,27 m au-dessus du sol.
+    passager.updateMatrixWorld(true);
+    const hanches=poserAssis(corps);
+    if(hanches){
+      const h=hanches.getWorldPosition(new T.Vector3());
+      corps.position.y+=Foule.SELLE-.27-h.y;corps.position.z-=h.z;corps.position.x-=h.x;
+    }
     return passager;
   }
   /** Fait entrer ou sortir visuellement le corps du joueur par le côté du véhicule. */
@@ -413,11 +589,21 @@ export class Foule {
         h.corps.rotation.x = -.06 * amplitude;
         continue;
       }
-      const court = !!h.course && vitesse > 6;
-      if (h.course) { h.course.weight = court ? 1 : 0; h.marche.weight = court ? 0 : 1; }
-      // À l’arrêt, l’animation est retenue plutôt que figée sur une pose bancale.
-      const cadence = vitesse < .05 ? 0 : Math.min(1.6, Math.max(.55, vitesse / (court ? 6 : 1.4)));
-      h.mixeur.timeScale = cadence;
+      const pas = h.pas ?? allure(1.74, 0);
+      h.mixeur.timeScale = 1;
+      if (vitesse < .05) {
+        // À l'arrêt : les pieds se rejoignent sur l'instant neutre du cycle,
+        // au lieu de rester figés au milieu d'une enjambée.
+        h.marche.weight = 1; h.marche.timeScale = 0; h.marche.time = pas.neutre;
+        if (h.course) { h.course.weight = 0; h.course.timeScale = 0; }
+        h.mixeur.update(0);
+        continue;
+      }
+      // La cadence suit la vitesse réelle : le pied d'appui reste posé au sol.
+      // Au-delà d'un pas vif, la course prend le relais par fondu.
+      const course = h.course ? T.MathUtils.smoothstep(vitesse, pas.marche * 1.65, pas.marche * 2.35) : 0;
+      h.marche.weight = 1 - course; h.marche.timeScale = T.MathUtils.clamp(vitesse / pas.marche, .35, 1.9);
+      if (h.course) { h.course.weight = course; h.course.timeScale = T.MathUtils.clamp(vitesse / pas.course, .5, 2.1); }
       h.mixeur.update(dt);
     }
     // Au bout de quelques secondes, on sait qui reste en place : ces figures
@@ -500,10 +686,9 @@ export class Foule {
     const autres = disponibles.length > 1 ? disponibles.slice(0, -1) : disponibles;
     for (const h of this.habitants) {
       if (h.personnage.objet.name === 'joueur') { mobiles++; continue; }
-      // Un passant mobile sur trois prend aussi une silhouette différente.
-      // Sans animation native, son balancement évite l'effet d'un clone qui glisse.
-      const mobileVarie=h.bouge&&index++%3===0;
-      if (h.bouge&&!mobileVarie) { mobiles++; continue; }
+      // Ceux qui marchent gardent leur corps articulé : une silhouette sans
+      // squelette qui se déplace n'est qu'une statue qui glisse.
+      if (h.bouge) { mobiles++; continue; }
       // Le modèle de vendeuse reste réservé à Aïcha : il ne doit jamais devenir
       // un passant géant ou assis au milieu du trottoir.
       const choix = autres[index++ % Math.max(1, autres.length)];

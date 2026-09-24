@@ -45,7 +45,9 @@ test('manette : zone morte et amplitude analogique',()=>{
  assert.ok(zoneMorte(.5)>.35&&zoneMorte(.5)<.45);
 });
 test('la promenade bloque le joueur avant le bord de mer',()=>{
- const joueur=new Joueur(),touches=new Set(['q']);
+ // Le départ est désormais sur la plage ouverte (z=132) : le test se place sur
+ // la promenade aménagée, où le garde-corps borde l'eau.
+ const joueur=new Joueur(),touches=new Set(['q']);joueur.objet.position.set(1.5,.15,12);
  for(let i=0;i<80;i++)joueur.deplacer(touches,0,1/30,4,false,[],false);
  assert.ok(joueur.objet.position.x>-7.7);assert.equal(joueur.objet.position.z,12);
 });
@@ -89,4 +91,21 @@ test('abandon de course : aucun record',()=>{
  c.commencer(true,'etoile');c.avancer(10,-50);
  assert.equal(c.arreter(false),true);
  assert.equal(c.record,null,'abandon sans record');
+});
+
+import {ChasseTresor} from './core/Partie.ts';
+import {TRESORS} from './content/tresors.ts';
+test('chasse au trésor : ramasser, déposer, points et fin',()=>{
+ const c=new ChasseTresor(TRESORS.length);
+ assert.equal(c.ramasser(),false,'rien avant le départ');
+ assert.equal(c.demarrer(),true);assert.equal(c.deposer('cauri',true),0,'rien à déposer sans trésor porté');
+ assert.equal(c.ramasser(),true);assert.equal(c.ramasser(),false,'un seul trésor à la fois');
+ c.avancer(24);assert.equal(c.deposer('cauri',true),190,'100 + bonus de vitesse');
+ assert.equal(c.etape,1);c.ramasser();assert.equal(c.deposer('pagne',false),40,'mauvaise réponse : 40 points');
+ for(const t of TRESORS.slice(2)){c.ramasser();c.deposer(t.id,true);}
+ assert.equal(c.termine,true);assert.equal(c.actif,false);assert.equal(c.record,c.points);
+ const copie=new ChasseTresor(TRESORS.length);copie.restaurer(c.serialiser());assert.equal(copie.points,c.points);assert.equal(copie.termine,true);
+});
+test('trésors : chacun a trois réponses distinctes et reste dans le monde jouable',()=>{
+ for(const t of TRESORS){assert.equal(new Set(t.reponses).size,3,t.id);assert.ok(t.z<150&&t.z>-407,t.id);}
 });

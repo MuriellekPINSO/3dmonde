@@ -150,6 +150,7 @@ export class CourseTransport {
   record: number | null = null;
   /** Limite douce : la gagner reste possible, la battre est la fierté. */
   readonly cible = 75;
+  static readonly ARRIVEE = -338;
   commencer(enVehicule: boolean, direction:'etoile'|'corniche') {
     this.actif = enVehicule && direction === 'etoile';
     this.temps = 0;
@@ -165,9 +166,66 @@ export class CourseTransport {
     this.temps+=dt;
     // L'arrivée est signalée sans couper l'état : seul `arreter` finalise,
     // sinon le record ne s'écrirait jamais.
-    if(z<=-430)return'arrivee';
+    // Ligne d'arrivée à l'entrée sud du giratoire de l'Étoile Rouge. Elle était
+    // à z=-430, au-delà de la limite du monde (-407) : impossible à franchir.
+    if(z<=CourseTransport.ARRIVEE)return'arrivee';
     return'course';
   }
   /** Récompense dégressive avec le temps : vite parti, bien payé. */
   gain(){return Math.max(120,Math.round(420-this.temps*3));}
+}
+
+/**
+ * Chasse au trésor des Amazones : les trésors se cherchent dans l'ordre. Chacun
+ * se ramasse sur place puis se rapporte au pied de l'Amazone, où une question
+ * le valide. Les points récompensent la réponse et la rapidité.
+ */
+export class ChasseTresor {
+  actif = false;
+  /** Index du trésor en cours, dans l'ordre de la liste. */
+  etape = 0;
+  /** Trésor ramassé et pas encore déposé. */
+  porte = false;
+  points = 0;
+  /** Temps passé sur l'étape en cours : il décide du bonus de vitesse. */
+  temps = 0;
+  record: number | null = null;
+  readonly livres = new Set<string>();
+  readonly total: number;
+  // Pas de propriété de paramètre : les tests lisent le TypeScript sans compilation.
+  constructor(total: number) { this.total = total; }
+  get termine() { return this.livres.size >= this.total; }
+  demarrer() {
+    if (this.actif) return false;
+    this.actif = true; this.etape = 0; this.porte = false; this.points = 0; this.temps = 0; this.livres.clear();
+    return true;
+  }
+  arreter() { this.actif = false; this.porte = false; }
+  avancer(dt: number) { if (this.actif && Number.isFinite(dt) && dt > 0) this.temps += dt; }
+  /** Ramasse le trésor de l'étape en cours. */
+  ramasser() {
+    if (!this.actif || this.porte || this.termine) return false;
+    this.porte = true; return true;
+  }
+  /**
+   * Dépose le trésor porté au pied de l'Amazone. Bonne réponse : 100 points et
+   * un bonus de vitesse jusqu'à 100, dégressif sur quatre minutes. Mauvaise
+   * réponse : 40 points, le trésor compte tout de même.
+   */
+  deposer(id: string, bonneReponse: boolean) {
+    if (!this.actif || !this.porte || this.livres.has(id)) return 0;
+    const gain = bonneReponse ? 100 + Math.max(0, Math.round(100 - this.temps / 2.4)) : 40;
+    this.points += gain; this.livres.add(id); this.porte = false; this.etape++; this.temps = 0;
+    if (this.termine) { this.actif = false; if (this.record === null || this.points > this.record) this.record = this.points; }
+    return gain;
+  }
+  serialiser() { return {actif: this.actif, etape: this.etape, porte: this.porte, points: this.points, record: this.record, livres: [...this.livres]}; }
+  restaurer(d: {actif?: boolean; etape?: number; porte?: boolean; points?: number; record?: number | null; livres?: string[]} | undefined) {
+    if (!d) return;
+    this.livres.clear(); for (const id of d.livres ?? []) this.livres.add(id);
+    this.etape = Math.max(0, Math.min(this.total, Number(d.etape) || 0));
+    this.points = Math.max(0, Number(d.points) || 0);
+    this.record = typeof d.record === 'number' ? d.record : null;
+    this.actif = !!d.actif && !this.termine; this.porte = this.actif && !!d.porte; this.temps = 0;
+  }
 }

@@ -70,7 +70,9 @@ export class Joueur extends Personnage {
       const ouest=z>30?-24:-8, est=24;
       // Le giratoire de l'Étoile Rouge déborde du couloir : on peut en faire le tour.
       const giratoire=Math.hypot(x-16,z+364)<23-rayon;
-      return (giratoire||x>ouest+rayon&&x<est-rayon)&&z>-407&&z<150
+      // L'Esplanade de l'Amazone se parcourt à pied jusqu'au pied de la statue.
+      const esplanade=z<-99.5&&z>-152.5&&x>-52.5+rayon&&x<est-rayon;
+      return (giratoire||esplanade||x>ouest+rayon&&x<est-rayon)&&z>-407&&z<150
         &&!obstacles.some(o=>Math.abs(x-o.x)<o.w/2+rayon&&Math.abs(z-o.z)<o.d/2+rayon);
     };
     if(vehicule){

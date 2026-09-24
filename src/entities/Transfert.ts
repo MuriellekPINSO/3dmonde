@@ -20,7 +20,44 @@ const ALIAS: Record<string, string> = {Spine: 'Spine02', Spine1: 'Spine01', Spin
  */
 const SEGMENTS: Record<string, string> = Object.fromEntries(['Left', 'Right'].flatMap(c => [
   [`${c}Arm`, `${c}ForeArm`], [`${c}ForeArm`, `${c}Hand`], [`${c}UpLeg`, `${c}Leg`], [`${c}Leg`, `${c}Foot`],
+  // Le pied aussi : reporté en rotation, il se tordait et la chaussure s'étalait au sol.
+  [`${c}Foot`, `${c}ToeBase`],
 ]));
+
+/**
+ * Pose assise sur la selle d'un zémidjan, obtenue en orientant les segments
+ * dans le repère du corps (+z vers l'avant, +y vers le haut) : cuisses presque
+ * horizontales et un peu écartées, tibias tombant vers les repose-pieds, bras
+ * tendus vers la taille du conducteur. Un corps debout simplement incliné
+ * traversait la moto de la selle jusqu'au sol.
+ */
+export function poserAssis(corps: T.Object3D) {
+  const parNom = new Map<string, T.Bone>();
+  corps.traverse(n => { if ((n as T.Bone).isBone) parNom.set(nomOs(n.name), n as T.Bone); });
+  const repere = corps.getWorldQuaternion(new T.Quaternion());
+  const cibles: [string, string, [number, number, number]][] = ['Left', 'Right'].flatMap(c => {
+    const s = c === 'Left' ? 1 : -1;
+    return [
+      [`${c}UpLeg`, `${c}Leg`, [s * .32, -.18, 1]],
+      [`${c}Leg`, `${c}Foot`, [s * .08, -1, -.12]],
+      [`${c}Foot`, `${c}ToeBase`, [0, -.25, 1]],
+      [`${c}Arm`, `${c}ForeArm`, [s * .22, -.75, .62]],
+      [`${c}ForeArm`, `${c}Hand`, [-s * .25, -.2, 1]],
+    ] as [string, string, [number, number, number]][];
+  });
+  const a = new T.Vector3(), b = new T.Vector3(), q = new T.Quaternion(), parent = new T.Quaternion();
+  for (const [nom, suivant, dir] of cibles) {
+    const os = parNom.get(nom), fin = parNom.get(suivant);
+    if (!os || !fin || !os.parent) continue;
+    corps.updateMatrixWorld(true);
+    const actuelle = fin.getWorldPosition(b).sub(os.getWorldPosition(a)).normalize();
+    const voulue = new T.Vector3(...dir).normalize().applyQuaternion(repere);
+    const monde = q.setFromUnitVectors(actuelle, voulue).multiply(os.getWorldQuaternion(new T.Quaternion()));
+    os.quaternion.copy(os.parent.getWorldQuaternion(parent).invert().multiply(monde));
+  }
+  corps.updateMatrixWorld(true);
+  return parNom.get('Hips');
+}
 const nomOs = (nom: string) => { const court = nom.replace(/^mixamorig:?/, ''); return ALIAS[court] ?? court; };
 
 function os(racine: T.Object3D) {
@@ -62,7 +99,10 @@ export function transfererAnimation(cible: T.Object3D, source: T.Object3D, clip:
     for (const b of osCible) {
       const s = osSource.get(b.name), parent = monde.get(b.parent as T.Bone) ?? parentRepos.get(b)!;
       const segment = segments.get(b);
-      const m = segment
+      // Les orteils suivent le pied d'un bloc : tournés à part, ils étiraient la
+      // sandale entre le talon et la pointe en une longue semelle plate.
+      const rigide = /ToeBase$/.test(b.name);
+      const m = rigide ? parent.clone().multiply(localRepos.get(b)!) : segment
         ? new T.Quaternion().setFromUnitVectors(segment.direction,
           segment.suivant.getWorldPosition(c).sub(segment.source.getWorldPosition(a)).normalize()).multiply(reposCible.get(b)!)
         : s

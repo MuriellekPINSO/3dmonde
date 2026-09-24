@@ -2,7 +2,7 @@ import * as T from 'three';
 import { Rues } from './entities/Rues';
 import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
-import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineBronze, enduitBlanc, obstaclesIleGiratoire } from './entities/Monuments';
+import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineBronze, obstaclesIleGiratoire } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
 import { Foule } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
@@ -11,6 +11,23 @@ import { VieUrbaine } from './entities/VieUrbaine';
 import { Cinema } from './ui/Cinema';
 import { Poussiere } from './entities/Poussiere';
 import { Meteo, type ModeMeteo } from './entities/Meteo';
+import { Tresors3D } from './entities/Tresors3D';
+import { AUTEL_AMAZONE } from './content/tresors';
+
+/**
+ * Vues du ciel : le drone survole chaque site en orbite lente, comme dans les
+ * vidéos du dossier espace (TOUR.mp4, Download-4 à 10). Rayon, altitude et
+ * point visé sont réglés sur la taille de chaque lieu.
+ */
+export const SITES_SURVOL = [
+  {id: 'plage', titre: 'La Corniche · plage ouverte', texte: 'Sable ocre, jeunes cocotiers et épis de roches noires : les vagues de l’Atlantique déferlent en lignes blanches jusqu’au chemin pavé.', x: -12, z: 92, rayon: 52, hauteur: 30, regardY: 0},
+  {id: 'corniche', titre: 'La Corniche · promenade et fresque', texte: 'La digue, le garde-corps, la bande terracotta du jogging et, côté ville, le long mur peint qui raconte le port.', x: 4, z: -40, rayon: 50, hauteur: 28, regardY: 1},
+  {id: 'amazone', titre: 'L’Esplanade de l’Amazone', texte: 'Trente mètres de bronze face à l’océan, un parvis dallé de bandes claires, les jardins et les portiques du port à l’horizon.', x: -22, z: -128, rayon: 62, hauteur: 40, regardY: 10},
+  {id: 'presidence', titre: 'Présidence et Cité ministérielle', texte: 'Le Palais de la Marina, ses drapeaux et ses palmiers royaux, puis les longues ailes claires de la Cité ministérielle.', x: 34, z: -140, rayon: 68, hauteur: 44, regardY: 5},
+  {id: 'congres', titre: 'Le Palais des Congrès', texte: 'Trois tambours blancs inspirés des tata somba, percés d’un oculus doré, et leur chapiteau d’accueil.', x: -30, z: -243, rayon: 55, hauteur: 34, regardY: 4},
+  {id: 'marches', titre: 'Le quartier des marchés', texte: 'La halle de brique de Ganhi et sa toiture en éventail, les hangars de tôle de Dantokpa et les zémidjans en attente.', x: -34, z: -298, rayon: 48, hauteur: 30, regardY: 2},
+  {id: 'etoile', titre: 'La place de l’Étoile Rouge', texte: 'Le grand rond-point où l’on tourne sans s’arrêter : deux étoiles rouges, la flèche blanche et l’homme de bronze à la houe.', x: 16, z: -364, rayon: 62, hauteur: 48, regardY: 8},
+] as const;
 
 /**
  * Modèles détaillés posés sur la scène. Chacun remplace son ensemble construit
@@ -18,13 +35,13 @@ import { Meteo, type ModeMeteo } from './entities/Meteo';
  */
 const POSES: Pose[] = [
   {groupe: 'statue-amazone', fichier: 'amazone.glb', x: -19, z: -123, hauteur: 24, base: 2, rotation: Math.PI / 2, apresPose: patineBronze},
-  {groupe: 'palais-congres', fichier: 'palais-congres.glb', x: -33, z: -243, largeur: 40, base: .05, rotation: Math.PI / 2, apresPose: enduitBlanc},
+  // palais-congres.glb est écarté : ce scan sortait froissé et bosselé ; le
+  // bâtiment reconstruit en code (Monuments.ts) suit les photos.
   // etoile-rouge.glb est ecarte : c'est un diorama sur butte de terre rouge, aux arbres
   // sans feuilles, qui ecrase la place et contredit les photos. La version construite
   // en code (fleche blanche, etoiles rouges imbriquees, massifs d'arbres) reste en place.
-  // Passantes en tenue de sport, le long de la piste de mise en forme.
-  {groupe: 'joggeuse-bleue', fichier: 'joggeuse-bleue.glb', x: 9.2, z: -12, hauteur: 1.72, rotation: Math.PI, ajout: true},
-  {groupe: 'joggeuse-bordeaux', fichier: 'joggeuse-bordeaux.glb', x: 4.7, z: -31, hauteur: 1.68, rotation: Math.PI * .85, ajout: true},
+  // Les joggeuses figées (joggeuse-bleue.glb, joggeuse-bordeaux.glb) sont
+  // remplacées par des joggeuses articulées qui courent sur la piste (Rues.ts).
   // Rang de zémidjans de l’autre côté du boulevard.
   // Il stationnait à z=-380, sur ce qui est devenu l'anneau du giratoire.
   {groupe: 'zemidjans', fichier: 'zemidjans.glb', x: 26.5, z: -331, largeur: 13, base: -.35, rotation: -Math.PI / 2, ajout: true},
@@ -72,6 +89,18 @@ export class Monde {
   /** L'intro ne joue qu'une fois par partie ; le clic ou une touche la sauts. */
   lancerIntro(){this.intro.active=true;this.intro.temps=0;}
   sauterIntro(){this.intro.active=false;this.intro.temps=0;}
+  /** Objets de la chasse au trésor : trésor en cours, objet porté, autel. */
+  readonly tresors: Tresors3D;
+  /** Vue du ciel en cours : site survolé, angle d'orbite et point visé lissé. */
+  private survol: {index: number; angle: number; regard: T.Vector3} | null = null;
+  get siteSurvol(){return this.survol?SITES_SURVOL[this.survol.index]:null;}
+  /** Lance ou quitte le survol d'un site ; la caméra rejoint l'orbite en douceur. */
+  survoler(index:number|null){
+    if(index===null){this.survol=null;return;}
+    const n=SITES_SURVOL.length,i=((index%n)+n)%n,site=SITES_SURVOL[i];
+    this.keys.clear();this.axesManette.x=this.axesManette.z=0;
+    this.survol={index:i,angle:this.survol?.angle??Math.atan2(this.camera.position.z-site.z,this.camera.position.x-site.x),regard:this.survol?.regard??new T.Vector3(this.player.position.x,1.5,this.player.position.z)};
+  }
   /** Mode photo : la caméra et le monde se figent, le HUD s'efface. */
   private photoApercu=false;
   get enPhoto(){return this.photoApercu;}
@@ -103,6 +132,8 @@ export class Monde {
   readonly axesManette = {x: 0, z: 0};
   get player(){return this.joueur.objet;}
   get angleCamera(){return this.yaw;}
+  /** Maj tenue, ou joystick poussé à fond : le joueur court au lieu de marcher. */
+  get sprint(){return this.keys.has('shift')||Math.hypot(this.axesManette.x,this.axesManette.z)>.95;}
   get intensiteCommande(){
     const clavier=this.keys.has('z')||this.keys.has('w')||this.keys.has('s')||this.keys.has('arrowup')||this.keys.has('arrowdown');
     return Math.min(1,Math.max(clavier?1:0,Math.hypot(this.axesManette.x,this.axesManette.z)));
@@ -136,7 +167,7 @@ export class Monde {
     // Les sauvegardes créées avant le rapprochement de l'océan peuvent avoir
     // une coordonnée x sur l'ancienne plage. On les replace sur la promenade.
     if(Number.isFinite(x)&&Number.isFinite(z)){
-      const positionZ=T.MathUtils.clamp(z,-406,148),minimumX=positionZ>30?-23.65:-7.65;
+      const positionZ=T.MathUtils.clamp(z,-406,148),minimumX=positionZ>30?-23.65:positionZ<-99.5&&positionZ>-152.5?-52:-7.65;
       this.player.position.set(T.MathUtils.clamp(x,minimumX,23),.15,positionZ);
     }
   }
@@ -233,6 +264,7 @@ export class Monde {
     this.rues=new Rues(batisseur);figures(batisseur);
     this.placerSouvenirsMission();
     this.vie=new VieUrbaine(this.scene);
+    this.tresors=new Tresors3D(this.scene,AUTEL_AMAZONE);
     this.meteo=new Meteo(this.scene);
     // Les éclairs déclenchent le grondement du tonnerre côté audio.
     this.meteo.onTonnerre=puissance=>this.onTonnerre?.(puissance);
@@ -349,9 +381,11 @@ export class Monde {
       const avant=this.player.position.clone(),enAccident=this.accident>0,enTransition=!!transition;
       // En véhicule, l'île du giratoire se contourne ; à pied, on la rejoint.
       const obstacles=[...this.obstacles,...this.rues.obstaclesVehicules(this.player.position.z),...(state.transport?obstaclesIleGiratoire:[])];
-      const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident||enTransition,obstacles,!!state.transport,this.axesManette);
+      const mouvement=this.joueur.deplacer(this.keys,this.yaw,dt,state.speed,state.paused||enAccident||enTransition||!!this.survol,obstacles,!!state.transport,this.axesManette);
       this.vitesseReelle=mouvement.vitesse;
-      this.rues.actualiser(dt,state.paused,this.player.position.z);
+      // En vue du ciel, la circulation et les ombres suivent le site survolé.
+      const site=this.siteSurvol,foyerZ=site?site.z:this.player.position.z;
+      this.rues.actualiser(dt,state.paused,foyerZ);
       if(state.transport&&!enAccident&&(mouvement.moving||mouvement.bloque)){
         const chocVehicule=this.rues.percuterProche(this.player.position,mouvement.bloque?3:1.65);
         const chocPersonnage=chocVehicule?null:this.foule.percuterProche(this.player.position,state.transport==='voiture'?1.8:1.45);
@@ -408,7 +442,9 @@ export class Monde {
           this.passagerMoto.position.y+=.27+Math.sin(time*.012)*.012*Math.min(1,this.vitesseReelle/5);this.passagerMoto.rotation.y=this.player.rotation.y;this.passagerMoto.rotation.z=chute;
         }
       }
-      this.soleil.position.set(this.player.position.x-25,45,this.player.position.z+22);this.soleil.target.position.copy(this.player.position);
+      const foyerX=site?site.x:this.player.position.x;
+      this.soleil.position.set(foyerX-25,45,foyerZ+22);this.soleil.target.position.set(foyerX,0,foyerZ);
+      if(!state.paused)this.tresors.actualiser(dt,this.player);
       target.copy(this.player.position);target.y+=1.3;
       // Grande intro : la caméra vole au-dessus du parcours, l'UI de jeu est
       // neutralisée (le joueur n'est pas encore « incarné »).
@@ -428,6 +464,20 @@ export class Monde {
         if(this.cinema){this.cinema.bandes=T.MathUtils.lerp(0,1,Math.min(1,this.intro.temps/.8));this.cinema.fondu=Math.max(0,1-this.intro.temps/.8);}
         this.batisseur.panneaux.forEach(p=>p.visible=false);
         this.renderer.render(this.scene,this.camera);
+        return;
+      }
+      // Vue du ciel : orbite lente et haute autour du site, bandes cinéma.
+      if(this.survol&&site){
+        this.survol.angle+=dt*.1;
+        const a=this.survol.angle;
+        desired.set(site.x+Math.cos(a)*site.rayon,site.hauteur+Math.sin(a*.7)*4,site.z+Math.sin(a)*site.rayon);
+        this.camera.position.lerp(desired,1-Math.exp(-dt*1.4));
+        this.survol.regard.lerp(regard.set(site.x,site.regardY,site.z),1-Math.exp(-dt*2.2));
+        this.camera.lookAt(this.survol.regard);
+        this.camera.fov=T.MathUtils.lerp(this.camera.fov,50,1-Math.exp(-dt*2));this.camera.updateProjectionMatrix();
+        this.batisseur.panneaux.forEach(p=>p.visible=false);
+        if(this.cinema){this.cinema.bandes=T.MathUtils.lerp(this.cinema.bandes,.55,1-Math.exp(-dt*3));this.cinema.fondu=Math.max(0,this.cinema.fondu-dt*.55);this.cinema.rendre(dt);}
+        else this.renderer.render(this.scene,this.camera);
         return;
       }
       if(this.cinema){

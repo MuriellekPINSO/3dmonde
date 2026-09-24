@@ -47,6 +47,10 @@ export function boulevard(b: Batisseur) {
   b.sol(28, longueur, b.tex('sable', 14, 310, '#cfc6ab'), -22, centre, -.05).name='sol-lointain-ouest';
   b.sol(64, longueur, b.tex('sable', 32, 310, '#c9c2a8'), 53, centre, -.05).name='sol-lointain-est';
   b.sol(16.4, longueur, b.tex('paves', 8, 308), .1, centre).name='promenade-continue';
+  // Revêtements relevés sur place : pavés gris foncé sur la Corniche aménagée,
+  // dalles claires en chevrons au droit de l'Esplanade.
+  b.sol(16.4, 124, b.tex('pavesGris', 6, 46), .1, -32, .012).name = 'promenade-paves-gris';
+  b.sol(16.4, 64, b.tex('chevrons', 5, 20), .1, -126, .012).name = 'promenade-chevrons';
   b.sol(2.2, longueur, b.tex('gazon', 1.5, 205), 9.25, centre, -.02).name='accotement-continu';
   b.sol(13, longueur, b.tex('asphalte', 1, 77), 16, centre, -.03).name='chaussee-continue';
   b.boite(.35, .24, longueur, '#e7e1d2', -8.2, .12, centre).castShadow = false;
@@ -299,7 +303,70 @@ export function esplanadeAmazone(b: Batisseur) {
     lampe.material=b.mat('#fff0b0',{rugosite:.25});lampe.castShadow=false;
   }
   for(let z=-104;z>=-168;z-=8)b.boite(.35,.025,2.1,'#4e5652',-52.4,.09,z).castShadow=false;
+  // Abords relevés sur IMG_6237, 6239, 6249 et 6255 : guérites blanches aux
+  // entrées, écrans publicitaires sur mât le long des allées, chapiteaux
+  // d'événement au fond du parvis et barrières mobiles devant les guérites.
+  guerite(b, -12.5, -101.5); guerite(b, -12.5, -153);
+  barrieres(b, -15.5, -101.5, 0, 4); barrieres(b, -15.5, -153, 0, 4);
+  ecranPub(b, -10.4, -112, Math.PI / 2, 'BÉNIN RÉVÉLÉ', 'Esplanade des Amazones', '#2a6f8f');
+  ecranPub(b, -10.4, -134, Math.PI / 2, 'AMAZONES', 'Fierté et mémoire du Danxomè', '#8a2f3a');
+  ecranPub(b, -10.4, -146, Math.PI / 2, 'COTONOU', 'Ville ouverte sur l’Atlantique', '#3f7b58');
+  chapiteau(b, -45, -106, 7, 9); chapiteau(b, -45, -117, 7, 9);
   b.panneau('MONUMENT DE L’AMAZONE', -19, 30, -123, 11);
+}
+
+/**
+ * Guérite blanche des entrées de l'Esplanade (IMG_6237.MOV) : cube enduit,
+ * bandeau vitré sombre, toit plat très débordant.
+ */
+function guerite(b: Batisseur, x: number, z: number, rotation = 0) {
+  const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = rotation; b.racine.add(g);
+  const blanc = b.mat('#f0eee8', {rugosite: .9});
+  b.boite(2.8, 2.7, 2.8, blanc, 0, 1.35, 0, g);
+  b.boite(2.84, 1, 2.84, b.mat('#3f5156', {rugosite: .25, metal: .3}), 0, 1.75, 0, g);
+  b.boite(4.4, .35, 4.4, blanc, 0, 2.9, 0, g);
+  b.boite(3.2, .12, 3.2, '#d9d6cd', 0, 3.12, 0, g).castShadow = false;
+  b.obstacle(x, z, 3, 3);
+  return g;
+}
+
+/**
+ * Écran publicitaire sur mât unique, alignés le long des allées de l'Esplanade
+ * (IMG_6237.MOV) : cadre sombre et image lumineuse. Les visuels sont inventés.
+ */
+function ecranPub(b: Batisseur, x: number, z: number, rotation: number, texte: string, detail: string, fond: string) {
+  const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = rotation; b.racine.add(g);
+  b.cyl(.16, .2, 4.2, 10, '#3a3f3e', 0, 2.1, 0, g);
+  b.boite(3.6, 2.2, .3, '#262a2a', 0, 5.1, 0, g);
+  const toile = document.createElement('canvas'); toile.width = 512; toile.height = 300;
+  const c = toile.getContext('2d')!;
+  const degrade = c.createLinearGradient(0, 0, 512, 300); degrade.addColorStop(0, fond); degrade.addColorStop(1, '#1b2b3a');
+  c.fillStyle = degrade; c.fillRect(0, 0, 512, 300);
+  c.fillStyle = '#f3c342'; c.beginPath(); c.arc(430, 70, 48, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#fff8e8'; c.font = 'bold 50px sans-serif'; c.fillText(texte, 28, 170, 460);
+  c.font = '26px sans-serif'; c.fillText(detail, 30, 220, 460);
+  c.fillStyle = '#e8112d'; c.fillRect(0, 280, 512, 20); c.fillStyle = '#fcd116'; c.fillRect(0, 262, 512, 18); c.fillStyle = '#008751'; c.fillRect(0, 262, 150, 38);
+  const carte = new T.CanvasTexture(toile); carte.colorSpace = T.SRGBColorSpace;
+  const ecran = new T.Mesh(new T.PlaneGeometry(3.3, 1.95), new T.MeshBasicMaterial({map: carte, toneMapped: false}));
+  ecran.position.set(0, 5.1, .16); g.add(ecran);
+  b.obstacle(x, z, .6, .6);
+  return g;
+}
+
+/** Ligne de barrières mobiles blanches, à barreaux, sur pieds plats. */
+function barrieres(b: Batisseur, x: number, z: number, rotation: number, nombre: number) {
+  const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = rotation; b.racine.add(g);
+  const metal = b.mat('#e9e9e4', {rugosite: .5, metal: .4});
+  for (let i = 0; i < nombre; i++) {
+    const dx = i * 2.3;
+    // On ne traverse pas une barrière : chaque élément est un obstacle.
+    const cx = x + Math.cos(rotation) * dx, cz = z - Math.sin(rotation) * dx, long = Math.abs(Math.cos(rotation)) > .5;
+    b.obstacle(cx, cz, long ? 2.3 : .3, long ? .3 : 2.3);
+    for (const y of [.12, 1.08]) b.boite(2.2, .05, .05, metal, dx, y, 0, g).castShadow = false;
+    for (let k = -1; k <= 1.01; k += .2) b.boite(.025, .95, .025, metal, dx + k, .6, 0, g).castShadow = false;
+    for (const k of [-1.08, 1.08]) { b.boite(.05, 1.1, .05, metal, dx + k, .55, 0, g); b.boite(.08, .04, .7, '#bdbdb7', dx + k, .02, 0, g).castShadow = false; }
+  }
+  return g;
 }
 
 /** Banc robuste en bois et métal, utilisé dans les grands espaces publics. */
@@ -414,6 +481,8 @@ function portique(b: Batisseur, x: number, z: number) {
 function statueAmazone(b: Batisseur, x: number, z: number) {
   // Les vues au niveau du sol montrent un emmarchement et un haut socle en
   // pierre noire, légèrement réfléchissante, avec une inscription dorée.
+  // L'Esplanade se parcourt à pied : on bute sur le socle.
+  b.obstacle(x, z, 14, 12);
   b.boite(14, .24, 12, '#4b4c4b', x, .12, z);
   b.boite(12.8, .32, 10.8, '#282b2c', x, .4, z);
   b.boite(11.4, 1.15, 9.4, '#303334', x, 1.14, z);
@@ -494,15 +563,6 @@ export function patineBronze(objet: T.Object3D) {
   reteindre(objet, '#8a7866', 1.05, {metal: .35, rugosite: .5});
 }
 
-/**
- * Blanc mat du Palais des Congrès (IMG_6238.MOV, IMG_6254) : le modèle
- * palais-congres.glb sortait gris métallisé et froissé. Le bâtiment réel est
- * un enduit lisse : les cartes de relief et de brillance sont retirées.
- */
-export function enduitBlanc(objet: T.Object3D) {
-  // L'aplat atténue les taches de la texture photogrammétrique, sans effacer les baies.
-  reteindre(objet, '#f1eee6', 1.25, {metal: 0, rugosite: .9, lisse: true, aplat: .55});
-}
 
 /** Palais de la Marina : long bâtiment beige sur pilotis, bandeaux vitrés bleutés. */
 export function palaisMarina(b: Batisseur) {
@@ -525,6 +585,8 @@ export function palaisMarina(b: Batisseur) {
   for (let z = -125; z >= -179; z -= 3) b.boite(.12, 2.3, .12, '#2c3230', 22.6, 1.6, z);
   for (const z of [-146.5, -149.5]) { b.boite(1.2, 3.4, 1.2, '#4a4f4c', 22.6, 1.7, z); b.boite(1.4, .35, 1.4, '#c8b795', 22.6, 3.5, z); }
   for (const z of [-144, -152, -160]) b.drapeauBenin(23.4, z);
+  // Rangée de hauts mâts de drapeaux après la Présidence (IMG_6240, IMG_9367).
+  for (let z = -181; z >= -200; z -= 3.6) b.drapeauBenin(23.3, z, 12);
   for (const z of [-137, -150, -163]) b.lanterneGlobe(23.8, z);
   for (const z of [-133, -142, -161, -170]) b.palmierRoyal(24.4, z);
   for (const z of [-139, -147, -156, -165]) { b.haie(23.7, z, .9, 4.5, .5); b.haie(26.4, z + 2, 1.1, 1.4, .4); }
@@ -557,20 +619,26 @@ export function palaisCongres(b: Batisseur) {
     stationne.traverse(o=>{const m=o as T.Mesh;if(m.isMesh)m.castShadow=false;});
   }
   for(const z of [-222,-270])b.lampadaireSimple(-10.2,z,-1);
-  // Bâtiments : cèdent la place au modèle palais-congres.glb.
+  // Bâtiment reconstruit d'après les photos du dossier espace (IMG_6238.MOV,
+  // IMG_6254, 6256–6258) et de Wikimedia Commons : trois tambours blancs évasés,
+  // corniche épaisse et toit percé d'un oculus ovale, frise de triangles des
+  // tata somba, aile basse à claustras entre eux, chapiteau blanc devant
+  // l'entrée. Le modèle palais-congres.glb, issu d'un scan, sortait froissé.
   b.ensemble('palais-congres', () => {
-    tambour(b, -25, -235, 8.6, 10.6, 9.2, true);
-    tambour(b, -28.5, -258, 6.2, 7.8, 7.2, false);
-    // Aile de liaison et sa dalle en surplomb sur poteaux.
-    b.boite(13, 5, 15, b.mat(CREME_CONGRES), -27, 2.5, -247);
-    b.boite(16, .55, 19, '#f4efe2', -26.5, 5.3, -247);
-    for (let z = -239; z >= -255; z -= 4) b.cyl(.32, .32, 5, 8, '#e4ddcb', -18.8, 2.5, z);
-    b.boite(9, 4.6, 12, b.mat(CREME_CONGRES), -33, 2.3, -246);
-    b.boite(.2, 3.4, 11, b.tex('claustra', 4, 1.4, '#f0ebdf'), -28.4, 2.5, -246);        // claustra en facade
-    // Emmarchement d’entrée face à la promenade.
-    for (let marche = 0; marche < 5; marche++) b.boite(13, .36, 1.1 * (5 - marche), '#ded6c2', -14.4 - marche * .5, .18 + marche * .36, -235);
-    b.boite(6, 4.4, .4, '#3d4a44', -16.2, 2.2, -235);
-    for (let z = -226; z >= -252; z -= 3.6) b.cyl(.09, .11, 7, 8, '#f0ece0', -12.6, 3.5, z);
+    tambour(b, -30, -223, 5.8, 7.2, 8.6);
+    tambour(b, -33, -243, 8.2, 10.2, 11);
+    tambour(b, -31, -263, 6.4, 7.8, 9.4);
+    const blanc = b.mat('#f1efe8', {rugosite: .9}), verre = b.mat('#34454a', {rugosite: .25, metal: .3});
+    // Aile basse derrière les tambours, façade à claustras vers la promenade.
+    b.boite(15, 6.4, 50, blanc, -38, 3.2, -243);
+    b.boite(.2, 4.2, 44, b.tex('claustra', 22, 2, '#f0ebdf'), -30.4, 3.3, -243);
+    b.boite(18, .55, 53, '#f5f3ee', -37.5, 6.7, -243);
+    // Colonnade fine qui porte le débord de la dalle entre les tambours.
+    for (const z of [-230.5, -233.5, -252.5, -255.5]) b.cyl(.22, .22, 6.4, 10, blanc, -29.8, 3.2, z);
+    // Entrée vitrée au pied du grand tambour, emmarchement vers le parvis.
+    b.boite(.3, 3.2, 9, b.mat('#5b6f74', {rugosite: .25, metal: .3}), -22.7, 1.7, -243);
+    for (let marche = 0; marche < 4; marche++) b.boite(1.1, .3 * (marche + 1), 14 - marche * 1.4, '#e3ddd0', -19.6 - marche * 1.1, .15 * (marche + 1), -243);
+    chapiteau(b, -16.2, -243, 8, 10);
   });
   for (const z of [-218, -266, -274]) b.arbre(-17.5, z, .45);
   for (const z of [-224, -230, -256, -262]) b.haie(-17, z, 1.2, 4, .55);
@@ -584,21 +652,51 @@ export function palaisCongres(b: Batisseur) {
   for(const [x,z] of [[-36,-219],[-45,-225],[-43,-266],[-34,-272]] as const){b.haie(x,z,4.8,1.4,.55);b.arbre(x,z,.42);}
   bancUrbain(b,-18.2,-219,0);bancUrbain(b,-18.2,-271,Math.PI);
   b.cocotier(-11.5, -240, false);
-  b.panneau('PALAIS DES CONGRÈS', -24, 15, -240, 9);
+  // Barrières mobiles devant l'entrée du parking (IMG_6253, 6256, 6257).
+  barrieres(b, -14.8, -216.5, Math.PI / 2, 3); barrieres(b, -14.8, -275.5, -Math.PI / 2, 3);
+  ecranPub(b, -9.6, -229, Math.PI / 2, 'PALAIS DES CONGRÈS', 'Conférences · Spectacles', '#5a4a8a');
+  b.panneau('PALAIS DES CONGRÈS', -24, 17, -240, 9);
 }
 
-function tambour(b: Batisseur, x: number, z: number, rBas: number, rHaut: number, h: number, claustra: boolean) {
-  b.cyl(rHaut, rBas, h, 24, b.tex('cannelures', 8, 1), x, h / 2, z);
-  b.cyl(rHaut + .9, rHaut + .9, .7, 24, '#f4efe2', x, h + .35, z);
-  b.anneau(rHaut * .36, rHaut * .5, '#b08d52', x, h + .78, z);
-  b.cyl(rHaut * .38, rHaut * .38, .22, 24, '#7d6a4a', x, h + .62, z);                  // verriere en retrait
-  if (claustra) {
-    b.cyl(rHaut + .4, rHaut + .4, 4.4, 20, b.tex('claustra', 10, 1, '#f0ebdf', {face2: true}), x, 2.2, z, undefined, true);
-    for (let i = 0; i < 7; i++) {
-      const a = -Math.PI / 2 + (i - 3) * .3;
-      b.cyl(.42, .46, 4.4, 8, '#e8e1cf', x + Math.cos(a) * (rHaut + .4), 2.2, z + Math.sin(a) * (rHaut + .4));
-    }
+/**
+ * Tambour du Palais des Congrès : socle vitré, mur blanc évasé à frise de
+ * triangles, corniche en débord, toit plat percé d'un oculus doré. Légèrement
+ * ovale, le grand axe le long de la façade.
+ */
+function tambour(b: Batisseur, x: number, z: number, rBas: number, rHaut: number, h: number) {
+  const g = new T.Group(); g.position.set(x, 0, z); g.scale.set(1, 1, 1.12); b.racine.add(g);
+  const blanc = b.mat('#f1efe8', {rugosite: .9}), verre = b.mat('#5b6f74', {rugosite: .25, metal: .3});
+  const bord = b.mat('#f1efe8', {rugosite: .9, face2: true});
+  const socle = 2.4, mur = h - socle;
+  b.cyl(rBas * .96, rBas * .96, socle, 40, verre, 0, socle / 2, 0, g);
+  for (let i = 0; i < 24; i++) {
+    const a = i * Math.PI / 12;
+    b.boite(.18, socle, .18, blanc, Math.cos(a) * rBas * .97, socle / 2, Math.sin(a) * rBas * .97, g).castShadow = false;
   }
+  b.cyl(rBas * 1.01, rBas * 1.01, .35, 40, blanc, 0, socle + .1, 0, g);
+  b.cyl(rHaut, rBas, mur, 48, b.tex('tata', 7, 1), 0, socle + mur / 2, 0, g);
+  // Corniche épaisse, plus large en haut qu'en bas : un bandeau ouvert, qui
+  // laisse voir d'en haut le toit et son oculus.
+  b.cyl(rHaut + .85, rHaut + .15, 1.3, 48, bord, 0, h + .65, 0, g, true);
+  const lisse = new T.RingGeometry(rHaut, rHaut + .85, 48); lisse.rotateX(-Math.PI / 2);
+  b.maillage(lisse, blanc, 0, h + 1.3, 0, g);
+  b.cyl(rHaut + .1, rHaut + .1, .2, 48, '#e8e5dd', 0, h + 1.1, 0, g);
+  // Oculus : anneau doré, verrière sombre en retrait.
+  const anneau = new T.RingGeometry(rHaut * .3, rHaut * .44, 40); anneau.rotateX(-Math.PI / 2);
+  b.maillage(anneau, b.mat('#c8a468', {rugosite: .5}), 0, h + 1.22, 0, g).castShadow = false;
+  b.cyl(rHaut * .3, rHaut * .3, .12, 40, '#4a4f4c', 0, h + 1.12, 0, g);
+  return g;
+}
+
+/** Chapiteau d'événement blanc à quatre pans, sur poteaux, devant l'entrée. */
+function chapiteau(b: Batisseur, x: number, z: number, largeur: number, longueur: number) {
+  const g = new T.Group(); g.position.set(x, 0, z); b.racine.add(g);
+  const toile = b.mat('#f7f6f1', {rugosite: .8, face2: true});
+  const toit = b.cone(Math.SQRT1_2, 1, 4, toile, 0, 4.1, 0, g);
+  toit.rotation.y = Math.PI / 4; toit.scale.set(largeur, 2.2, longueur);
+  for (const dx of [-1, 1]) for (const dz of [-1, 0, 1]) b.cyl(.06, .06, 3, 6, '#c9c9c4', dx * largeur / 2, 1.5, dz * longueur / 2, g);
+  b.boite(largeur, .5, longueur, b.mat('#f7f6f1', {transparent: .15, face2: true}), 0, 2.75, 0, g).castShadow = false;
+  return g;
 }
 
 /**
@@ -984,6 +1082,8 @@ export function figures(b: Batisseur) {
 
   for (const guide of guides) {
     b.racine.add(new Personnage('#e8e2ca', guide.x, guide.z).objet);
+    // On contourne le guide au lieu de le traverser.
+    b.obstacle(guide.x, guide.z, .7, .7);
     b.panneau(`E · ${guide.id === 'presidence' ? 'Présidence' : 'Guide'}`, guide.x, 3.5, guide.z);
   }
   for (const z of etals) {
@@ -1024,6 +1124,8 @@ export function vehicule(b: Batisseur, type: 'zemidjan' | 'voiture', couleur?:st
     b.boite(.88, .07, .09, '#c9cdca', 0, 1.48, .82, g);                              // guidon
     b.cyl(.13, .13, .1, 10, '#f2ecd8', 0, 1.24, 1, g).rotation.x = Math.PI / 2;      // phare
     const conducteur = new Personnage('#f2c928', 0, .35, {jambes: '#3f5a86', casque: '#1d2124'}).objet;
+    // Silhouette assise : la foule ne la remplace pas par un corps qui marche debout sur la selle.
+    conducteur.userData.conducteur = true;
     conducteur.position.set(0, .52, -.35); conducteur.scale.setScalar(.82); g.add(conducteur);
   } else {
     b.boite(1.6, .75, 2.8, couleur??'#d4ad61', 0, .8, 0, g);

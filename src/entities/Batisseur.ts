@@ -6,7 +6,7 @@ import * as T from 'three';
  * Les motifs reprennent les surfaces observées sur les photos de référence
  * listées dans docs/REFERENCES.md.
  */
-export type Motif = 'paves'|'asphalte'|'bitume'|'sable'|'gazon'|'beton'|'eau'|'piste'|'vitrage'|'vitrageSombre'
+export type Motif = 'paves'|'asphalte'|'bitume'|'tata'|'chevrons'|'pavesGris'|'sable'|'gazon'|'beton'|'eau'|'piste'|'vitrage'|'vitrageSombre'
   |'cannelures'|'pylone'|'claustra'|'tole'|'immeuble'|'boutique'|'drapeau'|'roche';
 
 let graine = 1;
@@ -75,7 +75,46 @@ const dessins: Record<Motif, (c: CanvasRenderingContext2D, t: number) => void> =
   // Palais de la Marina : bandeaux vitrés bleutés à petits carrés blancs.
   vitrage(c, t) { verriere(c, t, '#2f5f88', '#27496a'); },
   vitrageSombre(c, t) { verriere(c, t, '#2c3134', '#232729'); },
+  // Corniche aménagée (IMG_9331–9333) : pavés rectangulaires gris foncé posés
+  // en rangs décalés, joints clairs.
+  pavesGris(c, t) {
+    c.fillStyle = '#9a9c98'; c.fillRect(0, 0, t, t);
+    const h = t / 8, l = t / 4;
+    for (let r = 0; r < 8; r++) for (let k = -1; k < 5; k++) {
+      c.fillStyle = ['#6f7370', '#777b78', '#6a6e6b', '#7d807c'][Math.floor(alea() * 4)];
+      c.fillRect(k * l + (r % 2 ? l / 2 : 0) + 1.5, r * h + 1.5, l - 3, h - 3);
+    }
+    grain(c, t, 700, ['#646865', '#82857f']);
+  },
+  // Esplanade de l'Amazone (IMG_6241, 6246) : grandes dalles de pierre claire
+  // posées en chevrons.
+  chevrons(c, t) {
+    c.fillStyle = '#cfc8ba'; c.fillRect(0, 0, t, t);
+    const u = t / 8;
+    for (let i = -2; i < 10; i++) for (let j = -2; j < 10; j++) {
+      c.fillStyle = ['#e4ddd0', '#ddd6c8', '#e8e2d6', '#d8d1c2'][Math.floor(alea() * 4)];
+      const x = i * u * 2, y = j * u * 2;
+      c.fillRect(x + (j % 2) * u + 1, y + 1, u * 2 - 2, u - 2);
+      c.fillRect(x + (j % 2) * u + 1, y + u + 1, u - 2, u * 2 - 2);
+    }
+    grain(c, t, 500, ['#d2cbbd', '#ece6db']);
+  },
   // Tambours du Palais des Congrès : parement clair nervuré verticalement.
+  // Tambours du Palais des Congrès : enduit blanc lisse, frise de triangles
+  // sombres à mi-hauteur, comme les ouvertures des tata somba (IMG_6254,
+  // photos Commons « Palais des congrès Cotonou »). Haut de la toile = haut du mur.
+  tata(c, t) {
+    c.fillStyle = '#f2f0ea'; c.fillRect(0, 0, t, t);
+    grain(c, t, 160, ['#ebe8e0', '#f7f5f0']);
+    const haut = t * .3, bas = t * .46, n = 6;
+    c.fillStyle = '#e4e0d6'; c.fillRect(0, haut - t * .025, t, t * .012); c.fillRect(0, bas + t * .012, t, t * .012);
+    c.fillStyle = '#3b3935';
+    for (let i = 0; i < n; i++) {
+      const x = i * t / n, w = t / n;
+      c.beginPath(); c.moveTo(x + w * .08, bas); c.lineTo(x + w * .5, haut); c.lineTo(x + w * .92, bas); c.closePath(); c.fill();
+    }
+    c.fillStyle = '#e9e6de'; for (let i = 0; i < 4; i++) c.fillRect(0, t * (.62 + i * .09), t, t * .006);
+  },
   cannelures(c, t) {
     c.fillStyle = '#ece5d6'; c.fillRect(0, 0, t, t);
     for (let i = 0; i < 48; i++) { c.fillStyle = i % 2 ? '#e0d9c8' : '#f4efe3'; c.fillRect(i * t / 48, 0, t / 96, t); }

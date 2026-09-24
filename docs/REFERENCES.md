@@ -365,3 +365,54 @@ Le fond sombre posé sous l'eau passe de -0,035 à -0,3 : il transparaissait dan
 Capture : `docs/audit/mer-ciel-couvert.jpg` — vue joueur avant l'éclaircissement du trottoir, vue joueur finale, déferlantes sur la plage ouverte au banc d'essai, puis IMG_6198 pour comparaison.
 
 Limite relevée : au raccord avec l'Esplanade (z ≈ -93 à -99), la ligne d'eau recule de 50 m sur 6 m de longueur et forme un coin d'eau en biais sur la plage.
+
+## Personnages : marche, course, corps — 24 septembre 2026
+
+Défauts relevés en jeu et au banc d'essai, puis corrigés :
+
+| Défaut | Cause | Correction |
+| --- | --- | --- |
+| Un passant en mouvement sur trois glissait en se balançant | `varierLesCorps` lui donnait une silhouette sans squelette | Ceux qui marchent gardent toujours un corps articulé |
+| Pieds qui glissent au sol | Cadence de l'animation mal réglée ; joueur à 4 m/s avec une marche faite pour 1,4 m/s | Allure mesurée sur les clips (marche 1,42 m/s, course 3,8 m/s pour 1,74 m) ; la cadence suit la vitesse réelle, la course prend le relais par fondu au-delà d'un pas vif |
+| Le joueur « marchait » à 4 m/s | Vitesse de jeu | Marche à 2,3 m/s, **Maj** (ou joystick poussé à fond) pour courir à 4,4 m/s ; les courses des avatars sont chargées en arrière-plan |
+| Arrêt figé au milieu d'une enjambée | `timeScale = 0` à n'importe quel instant du cycle | À l'arrêt, les pieds se rejoignent sur l'instant neutre du cycle |
+| Passager du zémidjan debout à travers la moto | Corps debout simplement incliné | `poserAssis` : cuisses horizontales, tibias vers les repose-pieds, bras vers le conducteur, bassin sur la selle |
+| Figurants « défilé main sur la hanche », pan de jupe étiré | `marcheur.glb` sculpté mains sur les hanches | Les figurants portent la passante en sept pantalons (jean, noir, vert, bordeaux, kaki, blanc, pêche) ; `marcheur.glb` n'est plus qu'un secours |
+| Passante plate, sans ombre ni lumière | Texture branchée aussi en émission à pleine intensité | Émission retirée, matière mate |
+| Passante « torse nu », jambes nues | L'outil de teinture générique prenait le haut orangé et le pantalon pêche pour de la peau | Teinture dédiée au seul pantalon |
+| Longues « skis » plates sous les pieds, lame entre les sandales | Rigging automatique : sommets liés aux deux pieds à la fois, triangles reliant une sandale à l'autre (scan pris pieds joints) | Poids de pied séparés par côté, triangles à cheval sur les deux pieds supprimés, orteils solidaires du pied |
+| Conducteurs des zémidjans garés debout sur la selle | La foule remplaçait leur silhouette assise par un corps qui marche | Les conducteurs sont exclus de la foule |
+| Joggeuses figées sur la piste | Modèles sans squelette | Remplacées par deux joggeuses articulées qui font l'aller-retour à 3,4 m/s |
+| Le joueur traversait les guides | Pas d'obstacle | Chaque guide est un obstacle |
+
+Le test « la promenade bloque le joueur » échouait depuis le déplacement du départ à z = 132 : il se place désormais sur la promenade aménagée qu'il vérifie. Les 14 tests passent.
+
+Capture : `docs/audit/personnages-revue.jpg`.
+
+## Palais des Congrès, abords de l'Esplanade, sols et camions — 24 septembre 2026
+
+- **Palais des Congrès reconstruit en code.** Le modèle `palais-congres.glb`, issu d'un scan, sortait froissé ; il est écarté. Le bâtiment suit les photos du dossier (IMG_6238.MOV, IMG_6254, 6256–6258) et de la catégorie Wikimedia Commons [Palais des congrès de Cotonou](https://commons.wikimedia.org/wiki/Category:Palais_des_congr%C3%A8s_de_Cotonou) : trois tambours blancs évasés sur socle vitré à meneaux, frise de triangles des tata somba (texture `tata`), corniche en bandeau ouvert et toit percé d'un oculus doré, aile basse à claustras, colonnade, chapiteau blanc devant l'entrée. Capture : `docs/audit/congres-reconstruit.jpg`.
+- **Abords de l'Esplanade** (IMG_6237, 6239, 6240, 6249, 6255, 9367) : guérites blanches à toit débordant, écrans publicitaires sur mât (visuels inventés), chapiteaux d'événement, barrières mobiles, rangée de hauts mâts de drapeaux après la Présidence. Capture : `docs/audit/esplanade-abords.jpg`.
+- **Sols** : pavés gris foncé sur la Corniche aménagée (IMG_9331–9333, texture `pavesGris`), dalles claires en chevrons au droit de l'Esplanade (IMG_6241, 6246, texture `chevrons`).
+- **Camions porte-conteneurs** (IMG_9343, IMG_9346.MOV) dans la circulation, avec un espacement et une portée de gêne adaptés à leurs dix mètres.
+- **Course du zémidjan** : la ligne d'arrivée était à z = -430, hors du monde (-407) ; elle est à l'entrée sud du giratoire de l'Étoile Rouge (z = -338).
+
+## Nouveautés de jeu — 24 septembre 2026
+
+### Vues du ciel (touche V, bouton 🚁, L1 à la manette)
+
+Un drone survole chacun des sept sites en orbite lente, comme dans les vidéos TOUR.mp4 et Download-4 à 10 : plage ouverte, promenade et fresque, Esplanade de l'Amazone, Présidence et Cité ministérielle, Palais des Congrès, quartier des marchés, Étoile Rouge. Une fiche présente le lieu ; les flèches passent au site suivant, V ramène au sol. La circulation et les ombres suivent le site survolé. Capture : `docs/audit/vues-du-ciel.jpg`.
+
+### Chasse au trésor des Amazones (touche T, bouton 🗺 Trésors)
+
+Cinq trésors, un par lieu (`src/content/tresors.ts`) : cauri sur la plage ouverte, pagne au pied de la fresque, masque guèlèdè devant le Palais des Congrès, calebasse face à la halle de Ganhi, houe de bronze sur l'île de l'Étoile Rouge.
+
+1. Une énigme décrit ce que l'on voit réellement sur place. Un indice plus direct est proposé après une minute.
+2. Un détecteur (Froid, Tiède, Chaud, Brûlant) et un bip qui s'accélère guident le joueur ; le trésor flotte dans une colonne de lumière dorée.
+3. On le ramasse avec E, même depuis un zémidjan, puis on le rapporte au pied de la statue de l'Amazone, où une colonne bleue s'allume. L'Esplanade se parcourt désormais à pied, et le socle de la statue, les guérites et les barrières sont des obstacles.
+4. Une question sur le lieu valide la remise : 100 points et un bonus de rapidité pour une bonne réponse, 40 points sinon, puis une anecdote.
+5. Quand les cinq trésors sont réunis, la mission « Les trésors des Amazones » rapporte 1 000 FCFA et le titre « Gardien·ne du Danxomè ». Le record est sauvegardé.
+
+Les sons (bip, carillon, tam-tams, cuivres, souffle du drone) sont synthétisés dans `src/ui/Effets.ts`, sans fichier. Logique et tests : `ChasseTresor` (`src/core/Partie.ts`). Capture : `docs/audit/chasse-au-tresor.jpg`.
+
+Reste à faire : les deux giratoires plantés de palmiers de la Corniche (Download-5/6), qui demandent de faire tourner la circulation comme à l'Étoile Rouge.

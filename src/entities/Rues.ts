@@ -25,7 +25,7 @@ const commerces = [
   ['FRUITS DE SAISON','ANANAS · ORANGES · BANANES','#477d4d'],
 ];
 
-type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus';accident?:number;chuteDirection?:number;voieCible?:number;xBase?:number;
+type Passage={objet:T.Object3D;debut:number;fin:number;vitesse:number;sens:number;phase:number;personne?:Personnage;portee?:number;type?:'zemidjan'|'zem-nouveau'|'voiture'|'taxi'|'minibus'|'camion';accident?:number;chuteDirection?:number;voieCible?:number;xBase?:number;
   /** Trajet en cours autour du giratoire, parcouru à l'abscisse curviligne `s`. */
   anneau?:{courbe:T.CatmullRomCurve3;s:number;longueur:number};attente?:number};
 export class Rues {
@@ -586,6 +586,19 @@ export class Rues {
       const sens=i?1:-1;objet.position.set(voieDe(sens),0,-138-i*145);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
       this.mouvements.push({objet,debut:-421,fin:153,vitesse:5.5+i*.25,sens,phase:80+i,type:'minibus',portee:115});
     }
+    // Camions porte-conteneurs du port (IMG_9343, IMG_9346.MOV) : tracteur,
+    // semi-remorque et conteneur de vingt pieds aux couleurs d'armateurs fictifs.
+    for(const [i,[couleur,cabine]] of ([['#2f6f9c','#e8e6df'],['#b5412f','#2b3a57']] as const).entries()){
+      const objet=new T.Group();objet.name=`circulation-camion-${i+1}`;
+      this.b.boite(2.45,2.6,2.3,cabine,0,1.75,3.55,objet);
+      this.b.boite(2.3,.9,2.2,'#4a6068',0,2.35,4.2,objet).castShadow=false;
+      this.b.boite(2.2,.35,9.4,'#2b2d2c',0,.95,0,objet);
+      const conteneur=this.b.boite(2.45,2.6,6.1,this.b.tex('tole',6,3,couleur),0,2.45,-1.6,objet);conteneur.name='conteneur';
+      for(const z of [3.6,-3.2,-4.4])for(const x of [-1.05,1.05]){const roue=this.b.cyl(.5,.5,.35,12,'#232625',x,.5,z,objet);roue.rotation.z=Math.PI/2;}
+      this.b.boite(2.3,.16,.1,'#fff1ba',0,1.2,4.72,objet).castShadow=false;
+      const sens=i?1:-1;objet.position.set(voieDe(sens),0,-60-i*170);objet.rotation.y=sens>0?0:Math.PI;this.b.scene.add(objet);
+      this.mouvements.push({objet,debut:-421,fin:153,vitesse:5.2,sens,phase:90+i,type:'camion',portee:130});
+    }
   }
   /**
    * Gabarit normalisé du zémidjan détaillé : origine au centre de la moto, au
@@ -675,7 +688,7 @@ export class Rues {
   /** Volumes des véhicules visibles, utilisés comme obstacles par le joueur. */
   obstaclesVehicules(zJoueur:number){
     return this.mouvements.filter(p=>!p.personne&&Math.abs(p.objet.position.z-zJoueur)<55)
-      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'?2.2:1.9,d:p.type==='minibus'?4.8:3.4}));
+      .map(p=>({x:p.objet.position.x,z:p.objet.position.z,w:p.type==='minibus'||p.type==='camion'?2.4:1.9,d:p.type==='camion'?10:p.type==='minibus'?4.8:3.4}));
   }
   /** Cherche autour de la borne un emplacement qui laisse quatre mètres libres. */
   placeLibreSurVoie(z:number,voie=14){
@@ -702,7 +715,7 @@ export class Rues {
   /** Véhicules susceptibles de heurter un piéton près du joueur. */
   vehiculesPourCollisions(zJoueur:number){
     return this.mouvements.filter(p=>!p.personne&&p.accident===undefined&&Math.abs(p.objet.position.z-zJoueur)<60)
-      .map(p=>({objet:p.objet,type:p.type==='voiture'||p.type==='taxi'||p.type==='minibus'?'voiture':'zemidjan'} as const));
+      .map(p=>({objet:p.objet,type:p.type==='voiture'||p.type==='taxi'||p.type==='minibus'||p.type==='camion'?'voiture':'zemidjan'} as const));
   }
   /** Immobilise et anime le véhicule de circulation impliqué dans un accident. */
   accidenterVehicule(objet:T.Object3D){
@@ -748,7 +761,9 @@ export class Rues {
       if(q===p)return false;
       const dx=q.objet.position.x-position.x,dz=q.objet.position.z-position.z;
       const devant=dx*tangente.x+dz*tangente.z,cote=Math.abs(dx*tangente.z-dz*tangente.x);
-      return devant>.2&&devant<4.2&&cote<1.5;
+      // Un camion mesure dix mètres : on garde ses cinq mètres de remorque.
+      const portee=4.2+(q.type==='camion'?5:0)+(p.type==='camion'?5:0);
+      return devant>.2&&devant<portee&&cote<1.5;
     });
     // Au-delà de deux secondes et demie d'attente, on avance quand même :
     // deux véhicules qui se cèdent mutuellement le passage ne restent pas figés.
@@ -782,6 +797,13 @@ export class Rues {
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);
       this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.8+(i%7)*.09,sens:i%2?1:-1,phase:i,personne,xBase:x,voieCible:x});
     });
+    // Deux joggeuses font l'aller-retour sur la piste de mise en forme, à
+    // l'allure d'un footing (3,4 m/s) : la foule leur donne la course articulée.
+    for(const [i,[x,z,sens]] of ([[6.1,-6,-1],[6.9,-34,1]] as const).entries()){
+      const personne=new Personnage(i?'#9c4058':'#365f8c',x,z);
+      personne.objet.name=`joggeur-${i+1}`;this.b.scene.add(personne.objet);
+      this.mouvements.push({objet:personne.objet,debut:-46,fin:12,vitesse:3.4-i*.2,sens,phase:50+i,personne,xBase:x,voieCible:x});
+    }
   }
   actualiser(dt:number,paused:boolean,zJoueur:number){
     if(paused)return;this.temps+=dt;this.actualiserFeux();
@@ -806,7 +828,7 @@ export class Rues {
         if(p.accident!==undefined){
           p.accident-=dt;
           const ecoule=2.7-p.accident,releve=Math.min(1,Math.max(0,p.accident/.55));
-          const angle=(p.type==='voiture'||p.type==='taxi'||p.type==='minibus') ? 0.14 : 1.28;
+          const angle=p.type==='camion'?0.03:(p.type==='voiture'||p.type==='taxi'||p.type==='minibus') ? 0.14 : 1.28;
           p.objet.rotation.z=(p.chuteDirection??1)*angle*Math.min(1,ecoule/.24)*releve;
           if(p.accident<=0){p.accident=undefined;p.chuteDirection=undefined;p.objet.rotation.z=0;}
         }else if(p.anneau||this.entrerGiratoire(p,dt)){
@@ -817,7 +839,7 @@ export class Rues {
           // Dans une même voie, le véhicule suiveur attend qu'un espace de
           // sécurité se libère au lieu de traverser celui qui le précède.
           const occupe=vehicules.some(autre=>autre!==p&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.3
-            &&Math.abs(autre.objet.position.z-prochain)<3.3);
+            &&Math.abs(autre.objet.position.z-prochain)<(p.type==='camion'||autre.type==='camion'?7.5:3.3));
           const voieBase=voieDe(p.sens),voieDepassement=p.sens>0?DEPASSEMENT_CORNICHE:DEPASSEMENT_ETOILE;
           if(occupe){
             const libre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieDepassement)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
