@@ -18,6 +18,12 @@ export class Cinema {
   /** Bandes 2.35:1 (0→1) et fondu au noir (0→1), conduits par le monde. */
   bandes = 0;
   fondu = 1;
+  /**
+   * Nébulosité, de 0 à 1, conduite par le monde. Sous un ciel couvert, les
+   * vidéos du dossier espace sont neutres et un peu désaturées : l'étalonnage
+   * chaud y rendait les trottoirs gris bruns et l'océan olive.
+   */
+  couverture = 0;
 
   private readonly v: Record<string, {value: number}>;
 
@@ -84,6 +90,8 @@ export class Cinema {
     this.v.uBandes.value = this.bandes;
     this.v.uFondu.value = this.fondu;
     this.v.uVignette.value = .2 + this.bandes * .18;
+    this.v.uChaleur.value = .9 - this.couverture * .68;
+    this.v.uSaturer.value = 1.09 - this.couverture * .12;
     this.composer.render(dt);
   }
 

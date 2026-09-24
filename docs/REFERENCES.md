@@ -346,3 +346,22 @@ Relecture de l'ensemble du dossier, sans s'appuyer sur les passes précédentes 
 Non traité dans cette passe : le Palais de la Marina, qu'aucune photo du dossier ne montre de près ; les giratoires plantés de palmiers de la Corniche (Download-5/6).
 
 Captures : `docs/audit/revue-avant-apres.jpg` (avant en haut, après en bas) et `docs/audit/revue-marche-passants.jpg`.
+
+## Mer, ciel couvert et lumière — 23 septembre 2026
+
+C'était l'écart le plus visible entre le jeu et le dossier `espace`, sur tout le début du parcours.
+
+| Élément | Médias (IMG_6191, 6198, 6207–6219, 9334, IMG_6194.MOV, IMG_6195.MOV) | Jeu avant | Correction |
+| --- | --- | --- | --- |
+| Ciel | Blanc-gris uniforme sur la plupart des vidéos | Bleu vif, seuls états « Ciel clair » et « Pluie tropicale » | Nouvel état « Ciel couvert », état de départ et première phase du cycle dynamique (couvert, éclaircie, averse) ; ciel peint au canvas, redessiné selon la nébulosité ; choix ajouté dans les réglages |
+| Lumière | Douce, neutre, ombres pâles | Soleil fort et doré, étalonnage « golden hour » : trottoirs bruns, eau olive | Sous un ciel couvert, soleil affaibli et neutre, ombres à 40 %, voûte plus présente, étalonnage chaud réduit (`Cinema.couverture`), brume gris laiteux |
+| Océan | Atlantique gris-vert, chargé de sable près du bord | Turquoise | Palette gris-vert, plus bleue au soleil, kaki sur les dix derniers mètres |
+| Houle | Grosse houle qui se creuse près du rivage | Ondulation faible, plus forte au large | Houle qui grossit vers la côte et s'amortit contre l'enrochement ou sur le sable ; crêtes blanches avant le déferlement |
+| Déferlantes | Plusieurs lignes de rouleaux blancs continues jusqu'à la plage | Trois rubans d'écume fixes et discrets | Quatre déferlantes décalées d'un quart de période : chacune naît à 16 m, avance en s'élargissant, se déchire puis s'étale sur le sable, là où il y en a (premier tronçon, plage de l'Esplanade), jamais sur la promenade |
+| Trottoir du premier tronçon | Béton gris clair | Gris brun sombre | Teinte éclaircie |
+
+Le fond sombre posé sous l'eau passe de -0,035 à -0,3 : il transparaissait dans les creux de la nouvelle houle.
+
+Capture : `docs/audit/mer-ciel-couvert.jpg` — vue joueur avant l'éclaircissement du trottoir, vue joueur finale, déferlantes sur la plage ouverte au banc d'essai, puis IMG_6198 pour comparaison.
+
+Limite relevée : au raccord avec l'Esplanade (z ≈ -93 à -99), la ligne d'eau recule de 50 m sur 6 m de longueur et forme un coin d'eau en biais sur la plage.

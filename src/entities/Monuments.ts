@@ -144,7 +144,7 @@ export function corniche(b: Batisseur) {
  */
 function cornichePlageOuverte(b:Batisseur){
   const centre=90,longueur=116;
-  b.sol(14.5,longueur,b.tex('beton',5,42,'#aaa797'),2,centre,.055).name='promenade-grise-6194';
+  b.sol(14.5,longueur,b.tex('beton',5,42,'#dcdad3'),2,centre,.055).name='promenade-grise-6194';
   b.sol(14,longueur,b.tex('sable',7,42,'#bd8256'),-12.25,centre,.06).name='bande-sable-6194';
   b.sol(3.4,longueur,b.tex('paves',2,46,'#777b73'),-21.05,centre,.07).name='chemin-plage-6194';
   b.sol(6.4,longueur,b.tex('sable',4,42,'#d4b07a'),-25.95,centre,.045).name='plage-ouverte-6194';

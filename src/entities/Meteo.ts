@@ -1,9 +1,10 @@
 import * as T from 'three';
 
-export type ModeMeteo='auto'|'soleil'|'pluie';
+export type ModeMeteo='auto'|'soleil'|'couvert'|'pluie';
 
 /** Pluie tropicale, flaques, éclairs et tonnerre de synthèse, sans texture ni fichier distant. */
 export class Meteo {
+  private static readonly brumeCouverte=new T.Color('#cfd3d1');
   /** Deux sommets par goutte : des traits inclinés, jamais des flocons. */
   private readonly positions=new Float32Array(900*2*3);
   private readonly pluie:T.LineSegments;
@@ -11,6 +12,13 @@ export class Meteo {
   private temps=0;
   private mode:ModeMeteo='auto';
   private pleut=false;
+  /**
+   * Nébulosité lissée, de 0 (plein soleil) à 1 (ciel couvert). La plupart des
+   * vidéos du dossier espace sont prises sous un ciel blanc-gris uniforme, à la
+   * lumière douce et sans ombre marquée : c'est l'état de départ.
+   */
+  couverture=1;
+  private couvert=true;
   /** Éclairs : délai aléatoire, force du flash restant et lumière dédiée. */
   private delaiEclair=8;
   private flash=0;
@@ -33,12 +41,16 @@ export class Meteo {
   }
 
   regler(mode:ModeMeteo){this.mode=mode;}
-  get etat(){return this.pleut?'Pluie tropicale':'Ciel clair';}
+  get etat(){return this.pleut?'Pluie tropicale':this.couvert?'Ciel couvert':'Ciel clair';}
 
   actualiser(dt:number,joueur:T.Object3D,heure:number){
     this.temps+=dt;
-    const automatique=(this.temps%150)>105;
-    this.pleut=this.mode==='pluie'||(this.mode==='auto'&&automatique);
+    // Cycle dynamique de 150 s : couvert, éclaircie, puis averse.
+    const phase=this.temps%150;
+    this.pleut=this.mode==='pluie'||(this.mode==='auto'&&phase>105);
+    this.couvert=!this.pleut&&(this.mode==='couvert'||(this.mode==='auto'&&phase<60));
+    const cible=this.pleut||this.couvert?1:0;
+    this.couverture+=(cible-this.couverture)*(1-Math.exp(-dt*.35));
     this.pluie.visible=this.pleut;for(const f of this.flaques)f.visible=this.pleut;
     if(this.pleut){
       this.pluie.position.set(joueur.position.x,0,joueur.position.z-12);
@@ -70,6 +82,11 @@ export class Meteo {
       if(this.eclair)this.eclair.intensity=0;
     }
     const nuit=heure<6||heure>19.5,soir=heure>17||heure<7;
-    this.scene.fog?.color.set(this.pleut?'#849c9d':nuit?'#162d42':soir?'#bea879':'#d1dfd5');
+    const brume=this.scene.fog?.color;
+    if(brume){
+      brume.set(this.pleut?'#849c9d':nuit?'#162d42':soir?'#bea879':'#d1dfd5');
+      // Sous un ciel couvert, la brume de mer est d'un gris laiteux.
+      if(!this.pleut&&!nuit)brume.lerp(Meteo.brumeCouverte,this.couverture*.8);
+    }
   }
 }

@@ -49,6 +49,12 @@ export class Monde {
   private readonly mer: MerAnimee;
   private readonly vie: VieUrbaine;
   private readonly meteo:Meteo;
+  /** Ciel peint au canvas, redessiné quand la nébulosité change d'un vingtième. */
+  private readonly ciel=document.createElement('canvas');
+  private readonly textureCiel=new T.CanvasTexture(this.ciel);
+  private readonly meteoDepart=1;
+  private palierCiel=-1;
+  private readonly lumiereCouverte={soleil:new T.Color('#eeece6'),ciel:new T.Color('#e9ecea'),sol:new T.Color('#8d9087')};
   /** Petits jetons lumineux des missions : légers, mais repérables dans la ville. */
   private readonly souvenirsMission = new Map<string, T.Group>();
   private passagerMoto?: T.Group;
@@ -174,19 +180,41 @@ export class Monde {
     this.transitionTransport={type,sens:'descente',temps:0,duree:.8};
   }
 
-  constructor(host:HTMLElement){
-    const ciel=document.createElement('canvas');ciel.width=1024;ciel.height=512;
-    const pinceau=ciel.getContext('2d')!,degrade=pinceau.createLinearGradient(0,0,0,ciel.height);
-    degrade.addColorStop(0,'#82bac8');degrade.addColorStop(.62,'#c8e1df');degrade.addColorStop(1,'#e7dfc6');
-    pinceau.fillStyle=degrade;pinceau.fillRect(0,0,ciel.width,ciel.height);
-    pinceau.fillStyle='#fffdf3';pinceau.globalAlpha=.2;
-    for(const [x,y,s] of [[120,125,1],[410,82,.75],[735,145,1.15],[930,65,.68]] as const){
+  /**
+   * Ciel de fond : dégradé bleu et quelques nuages par beau temps ; sous un ciel
+   * couvert (0 → 1), une voûte blanc-gris uniforme aux masses nuageuses lentes,
+   * comme sur la plupart des vidéos du dossier espace.
+   */
+  private dessinerCiel(couverture:number){
+    const pinceau=this.ciel.getContext('2d')!,{width:l,height:h}=this.ciel;
+    const clair=pinceau.createLinearGradient(0,0,0,h);
+    clair.addColorStop(0,'#82bac8');clair.addColorStop(.62,'#c8e1df');clair.addColorStop(1,'#e7dfc6');
+    pinceau.globalAlpha=1;pinceau.fillStyle=clair;pinceau.fillRect(0,0,l,h);
+    const gris=pinceau.createLinearGradient(0,0,0,h);
+    gris.addColorStop(0,'#a3adb1');gris.addColorStop(.55,'#c9cecd');gris.addColorStop(1,'#dedbd1');
+    pinceau.globalAlpha=couverture;pinceau.fillStyle=gris;pinceau.fillRect(0,0,l,h);
+    // Nuages du beau temps, estompés à mesure que le ciel se couvre.
+    pinceau.fillStyle='#fffdf3';pinceau.globalAlpha=.2*(1-couverture*.7);
+    for(const [x,y,t] of [[120,125,1],[410,82,.75],[735,145,1.15],[930,65,.68]] as const){
       for(const [dx,dy,r] of [[-55,8,.72],[0,0,1],[58,10,.65]] as const){
-        pinceau.beginPath();pinceau.ellipse(x+dx*s,y+dy*s,68*r*s,18*r*s,0,0,Math.PI*2);pinceau.fill();
+        pinceau.beginPath();pinceau.ellipse(x+dx*t,y+dy*t,68*r*t,18*r*t,0,0,Math.PI*2);pinceau.fill();
       }
     }
+    // Masses couvertes : ventres gris sombres sous des sommets plus clairs.
+    for(let i=0;i<26;i++){
+      const x=(i*197)%l,y=40+((i*83)%260),rx=150+(i%5)*40,ry=26+(i%4)*9;
+      pinceau.globalAlpha=.16*couverture;pinceau.fillStyle='#8c969a';
+      pinceau.beginPath();pinceau.ellipse(x,y+ry*.45,rx,ry,0,0,Math.PI*2);pinceau.fill();
+      pinceau.globalAlpha=.2*couverture;pinceau.fillStyle='#eef0ee';
+      pinceau.beginPath();pinceau.ellipse(x+rx*.1,y,rx*.8,ry*.8,0,0,Math.PI*2);pinceau.fill();
+    }
     pinceau.globalAlpha=1;
-    const textureCiel=new T.CanvasTexture(ciel);textureCiel.colorSpace=T.SRGBColorSpace;
+    this.textureCiel.needsUpdate=true;
+  }
+
+  constructor(host:HTMLElement){
+    this.ciel.width=1024;this.ciel.height=512;this.dessinerCiel(this.meteoDepart);
+    const textureCiel=this.textureCiel;textureCiel.colorSpace=T.SRGBColorSpace;
     this.scene.background=textureCiel;this.scene.fog=new T.Fog('#d1dfd5',75,215);
     this.renderer=new T.WebGLRenderer({antialias:true});this.renderer.setSize(innerWidth,innerHeight);
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=T.SRGBColorSpace;
@@ -347,9 +375,18 @@ export class Monde {
         if(this.heureAutomatique)this.heure=(this.heure+dt*.055)%24;
         this.meteo.actualiser(dt,this.player,this.heure);
         const soleilJour=Math.max(.08,Math.sin((this.heure-5.5)/14*Math.PI));
-        this.soleil.intensity=(this.meteo.etat==='Pluie tropicale'?1.05:2.25)*soleilJour;
-        this.cielLumiere.intensity=.35+1.6*soleilJour;
-        this.soleil.color.set(this.heure>17||this.heure<7?'#ffb36c':'#ffe4b5');
+        const couverture=this.meteo.couverture,pluie=this.meteo.etat==='Pluie tropicale';
+        const palier=Math.round(couverture*20);
+        if(palier!==this.palierCiel){this.palierCiel=palier;this.dessinerCiel(palier/20);}
+        // Sous un ciel couvert, le soleil direct s'efface au profit de la voûte :
+        // lumière neutre, ombres pâles, trottoirs gris et non plus dorés.
+        this.soleil.intensity=T.MathUtils.lerp(2.25,pluie?.8:1.05,couverture)*soleilJour;
+        this.soleil.shadow.intensity=1-couverture*.62;
+        this.cielLumiere.intensity=(.35+1.6*soleilJour)*(1+couverture*.22);
+        this.soleil.color.set(this.heure>17||this.heure<7?'#ffb36c':'#ffe4b5').lerp(this.lumiereCouverte.soleil,couverture*.85);
+        this.cielLumiere.color.set('#fff5dd').lerp(this.lumiereCouverte.ciel,couverture);
+        this.cielLumiere.groundColor.set('#648979').lerp(this.lumiereCouverte.sol,couverture);
+        this.mer.reglerCouverture(couverture);if(this.cinema)this.cinema.couverture=couverture;
         this.foule.reagirAuJoueur(this.player.position,!!state.transport,mouvement.moving);
         this.foule.actualiser(dt);this.mer.actualiser(dt);this.vie.actualiser(dt,this.player,mouvement.moving,state.transport,state.running);this.poussiere.actualiser(dt);
       }
