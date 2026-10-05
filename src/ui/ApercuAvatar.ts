@@ -2,10 +2,10 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { teinterCorps } from '../entities/Teinte';
-import type { CorpsJoueur } from '../entities/Foule';
+import { AVATARS } from '../entities/Foule';
 
 /** Les deux avatars humains proposés au départ. */
-export const AVATARS: Record<'homme'|'femme', CorpsJoueur> = {homme: 'avatar-homme-meshy-opt.glb', femme: 'avatar-femme-meshy-opt.glb'};
+export { AVATARS };
 
 /**
  * Aperçu du créateur de personnage : les deux avatars humains du jeu, rendus en
@@ -100,8 +100,8 @@ export class ApercuAvatar {
   }
 
   /**
-   * Même balancement retenu qu’en ville — ces modèles n’ont pas de squelette —
-   * plus un lent quart de tour qui montre la tenue sous tous ses angles.
+   * L’avatar reste dans sa pose de repos, debout : un balancement retenu, plus
+   * un lent quart de tour qui montre la tenue sous tous ses angles.
    */
   private animer(dt: number) {
     this.temps += dt;

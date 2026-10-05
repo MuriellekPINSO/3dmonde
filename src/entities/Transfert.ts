@@ -33,7 +33,7 @@ const SEGMENTS: Record<string, string> = Object.fromEntries(['Left', 'Right'].fl
  */
 export function poserAssis(corps: T.Object3D) {
   const parNom = new Map<string, T.Bone>();
-  corps.traverse(n => { if ((n as T.Bone).isBone) parNom.set(nomOs(n.name), n as T.Bone); });
+  corps.traverse(n => { if ((n as T.Bone).isBone) parNom.set(TRIPO[n.name] ?? nomOs(n.name), n as T.Bone); });
   const repere = corps.getWorldQuaternion(new T.Quaternion());
   const cibles: [string, string, [number, number, number]][] = ['Left', 'Right'].flatMap(c => {
     const s = c === 'Left' ? 1 : -1;
@@ -59,6 +59,57 @@ export function poserAssis(corps: T.Object3D) {
   return parNom.get('Hips');
 }
 const nomOs = (nom: string) => { const court = nom.replace(/^mixamorig:?/, ''); return ALIAS[court] ?? court; };
+/**
+ * Os des personnages Tripo (avatar-homme-casual, avatar-femme-fitness) tels que
+ * Three les nomme — « thigh.L » perd son point et devient « thighL » —, ramenés
+ * aux noms Mixamo de la pose assise. Le transfert de marche n'en a pas besoin :
+ * ces deux squelettes portent les mêmes noms.
+ */
+const TRIPO: Record<string, string> = Object.fromEntries([['L', 'Left'], ['R', 'Right']].flatMap(([s, c]) => [
+  [`thigh${s}`, `${c}UpLeg`], [`shin${s}`, `${c}Leg`], [`foot${s}`, `${c}Foot`], [`toe${s}`, `${c}ToeBase`],
+  [`upper_arm${s}`, `${c}Arm`], [`forearm${s}`, `${c}ForeArm`], [`hand${s}`, `${c}Hand`],
+]).concat([['root', 'Hips']]));
+
+/**
+ * Les marches générées avec les personnages Tripo font deux petits pas en deux
+ * secondes : 25 cm/s, quand un passant de Cotonou en fait plus d'un mètre. Joué à
+ * la vitesse des trottoirs, le clip devenait un piétinement frénétique, ou les
+ * pieds glissaient. On resserre donc le cycle (`cadence`), puis on allonge la
+ * foulée en prolongeant, dans le même axe, l'écart de chaque os des membres à
+ * sa pose moyenne du cycle (`amplitude`). La pose de repos ne convient pas comme
+ * repère : la marche y ajoute un décalage constant, qui serait amplifié aussi.
+ */
+export function reglerFoulee(clip: T.AnimationClip, cadence: number, amplitude: number, hanche = amplitude) {
+  const resultat = clip.clone();
+  const q = new T.Quaternion(), ecart = new T.Quaternion();
+  for (const piste of resultat.tracks) {
+    piste.times = piste.times.map(t => t / cadence);
+    const [nom, propriete] = piste.name.split('.');
+    if (propriete !== 'quaternion' || !/^(thigh|shin|foot|upper_arm|forearm)[LR]$/.test(nom)) continue;
+    // La cuisse fait la longueur du pas ; le genou, poussé aussi loin, finirait
+    // par se plier à l'envers en passant la jambe tendue.
+    const facteur = nom.startsWith('thigh') ? hanche : amplitude;
+    const v = piste.values, base = new T.Quaternion(0, 0, 0, 0);
+    // Moyenne des orientations du cycle, chaque clé ramenée du côté de la première.
+    for (let i = 0; i < v.length; i += 4) {
+      const signe = v[i] * v[0] + v[i + 1] * v[1] + v[i + 2] * v[2] + v[i + 3] * v[3] < 0 ? -1 : 1;
+      base.set(base.x + signe * v[i], base.y + signe * v[i + 1], base.z + signe * v[i + 2], base.w + signe * v[i + 3]);
+    }
+    base.normalize();
+    const inverse = base.clone().invert();
+    for (let i = 0; i < v.length; i += 4) {
+      ecart.copy(inverse).multiply(q.fromArray(v, i));
+      if (ecart.w < 0) ecart.set(-ecart.x, -ecart.y, -ecart.z, -ecart.w);
+      const demi = Math.acos(Math.min(1, ecart.w)), sinus = Math.sin(demi);
+      if (sinus < 1e-6) continue;
+      const k = Math.sin(demi * facteur) / sinus;
+      ecart.set(ecart.x * k, ecart.y * k, ecart.z * k, Math.cos(demi * facteur));
+      q.copy(base).multiply(ecart).toArray(v, i);
+    }
+  }
+  resultat.duration = clip.duration / cadence;
+  return resultat;
+}
 
 function os(racine: T.Object3D) {
   const liste: T.Bone[] = [];
@@ -69,12 +120,23 @@ function reposer(racine: T.Object3D) {
   racine.traverse(n => { const m = n as T.SkinnedMesh; if (m.isSkinnedMesh) m.skeleton.pose(); });
   racine.updateMatrixWorld(true);
 }
+/**
+ * Position, orientation et échelle de chaque os, pour les rendre après le
+ * transfert. `skeleton.pose()` les recalcule depuis les matrices de liaison : sur
+ * un modèle quantifié, celles-ci portent aussi l'échelle de déquantification, et
+ * les os en ressortaient agrandis — le corps doublait de taille ensuite.
+ */
+function figer(racine: T.Object3D) {
+  const etat = os(racine).map(b => [b, b.position.clone(), b.quaternion.clone(), b.scale.clone()] as const);
+  return () => { for (const [b, p, q, s] of etat) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); } racine.updateMatrixWorld(true); };
+}
 
 export function transfererAnimation(cible: T.Object3D, source: T.Object3D, clip: T.AnimationClip, imagesParSeconde = 30) {
   const osSource = new Map(os(source).map(b => [nomOs(b.name), b]));
   const osCible = os(cible);                                   // parents avant enfants
   if (osCible.filter(b => osSource.has(b.name)).length < 12) return undefined;
 
+  const rendreSource = figer(source), rendreCible = figer(cible);
   reposer(source); reposer(cible);
   const reposSource = new Map([...osSource].map(([nom, b]) => [nom, b.getWorldQuaternion(new T.Quaternion()).invert()]));
   const reposCible = new Map(osCible.map(b => [b, b.getWorldQuaternion(new T.Quaternion())]));
@@ -113,7 +175,7 @@ export function transfererAnimation(cible: T.Object3D, source: T.Object3D, clip:
     }
   }
   mixeur.stopAllAction(); mixeur.uncacheRoot(source);
-  reposer(source); reposer(cible);
+  rendreSource(); rendreCible();
   const pistes = osCible.filter(b => osSource.has(b.name))
     .map(b => new T.QuaternionKeyframeTrack(`${b.name}.quaternion`, temps, valeurs.get(b)!));
   return new T.AnimationClip(`${clip.name}-transfere`, clip.duration, pistes);

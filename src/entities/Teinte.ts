@@ -29,19 +29,24 @@ export function depuisHsl(h: number, s: number, l: number) {
 /**
  * Os qui portent à coup sûr le tissu du vêtement. Les avatars scannés peignent
  * peau, cheveux et habits sur une seule texture : la couleur seule ne sait pas
- * distinguer le noir des cheveux d’un tissu sombre, le squelette si.
+ * distinguer le noir des cheveux d’un tissu sombre, le squelette si. Les noms
+ * Mixamo (Spine1, LeftArm) côtoient ceux des personnages Tripo, que Three
+ * débarrasse de leur point : spine, chest, upper_armL.
  */
-const OS_TISSU = /(Spine\d*|(Left|Right)(Shoulder|Arm))$/;
+const OS_TISSU = /((Spine\d*|(Left|Right)(Shoulder|Arm))|^(spine|chest|upper_arm[LR]))$/;
 /** Tête, mains et pieds : cheveux, visage et chaussures ne sont jamais du tissu.
- * Le cou en est absent : le col d’un vêtement s’y appuie. */
-const OS_HORS_TISSU = /(head\w*|hand\w*|foot|toe\w*)$/i;
+ * Le cou en est absent : le col d’un vêtement s’y appuie, et chez l’homme en
+ * polo, tout l’empiècement des épaules. */
+const OS_HORS_TISSU = /(head\w*|hand\w*|foot\w*|toe\w*)$/i;
 /** Pieds : la chaussure se teinte à part, comme une pièce à elle seule. */
-const OS_CHAUSSURE = /(foot|toe\w*)$/i;
+const OS_CHAUSSURE = /(foot\w*|toe\w*)$/i;
 /** Crâne : cheveux et visage, découpés du masque quoi qu’il arrive. */
 const OS_TETE = /head\w*$/i;
 
 /** Régions du masque : tissu sûr, tissu à confirmer à la couleur, et chaussure. */
 const TISSU_SUR = 255, TISSU_PROBABLE = 128, CHAUSSURE = 64;
+/** Classe finale d’un texel : intact, peau, vêtement, chaussure. */
+const RIEN = 0, PEAU = 1, HABIT = 2, SOULIER = 3;
 
 /**
  * Masque du tissu dans l’atlas d’un corps articulé : chaque triangle tenu par
@@ -57,11 +62,17 @@ const TISSU_SUR = 255, TISSU_PROBABLE = 128, CHAUSSURE = 64;
  * leurs objets Three sont distincts, mais les coordonnées de texture et les
  * noms d'os sont identiques — la signature suffit à réutiliser le masque.
  */
-const masquesPartages = new Map<string, Uint8Array>();
+const masquesPartages = new Map<string, Tissu>();
+/**
+ * Masque du tissu, triangle auquel appartient chaque texel (-1 hors de tout
+ * triangle), triangles de la zone habillable, et voisins de chaque triangle sur
+ * la surface : `debuts[t]` à `debuts[t + 1]` dans `voisins`.
+ */
+type Tissu = {masque: Uint8Array; triangles: Int32Array; nombre: number; habillables: Uint8Array; debuts: Uint32Array; voisins: Uint32Array};
 
 function masqueTissu(mesh: T.SkinnedMesh, taille: number) {
   const geometrie = mesh.geometry, cle = `masque-tissu-${taille}`;
-  if (cle in geometrie.userData) return geometrie.userData[cle] as Uint8Array | undefined;
+  if (cle in geometrie.userData) return geometrie.userData[cle] as Tissu | undefined;
   const uv = geometrie.getAttribute('uv'), os = geometrie.getAttribute('skinIndex'), poids = geometrie.getAttribute('skinWeight');
   if (!uv || !os || !poids) {geometrie.userData[cle] = undefined; return undefined;}
   const signature = [taille, uv.count, os.count, mesh.skeleton.bones.map(b => b.name).join('|')].join(':');
@@ -90,7 +101,7 @@ function masqueTissu(mesh: T.SkinnedMesh, taille: number) {
   // des centaines de milliers de segments suivi d'un getImageData — coûtait
   // plusieurs secondes par avatar et bloquait le créateur au premier choix.
   const classes = new Uint8Array(taille * taille), tetes = new Uint8Array(taille * taille);
-  const remplir = (a: number, b: number, c: number, valeur: Uint8Array, teinte: number) => {
+  const remplir = (a: number, b: number, c: number, valeur: Uint8Array | Int32Array, teinte: number) => {
     const x0 = uv.getX(a) * taille, y0 = uv.getY(a) * taille;
     const x1 = uv.getX(b) * taille, y1 = uv.getY(b) * taille;
     const x2 = uv.getX(c) * taille, y2 = uv.getY(c) * taille;
@@ -105,7 +116,7 @@ function masqueTissu(mesh: T.SkinnedMesh, taille: number) {
         const px = x + .5;
         const w0 = (px - x0) * (y2 - y0) - (py - y0) * (x2 - x0);
         const w1 = (px - x1) * (y0 - y1) - (py - y1) * (x0 - x1);
-        const w2 = (px - x2) * (y1 - y2) - (py - y2) * (x1 - y1);
+        const w2 = (px - x2) * (y1 - y2) - (py - y2) * (x1 - x2);
         const dedans = positif ? (w0 >= 0 && w1 >= 0 && w2 >= 0) : (w0 <= 0 && w1 <= 0 && w2 <= 0);
         if (dedans) valeur[y * taille + x] = teinte;
       }
@@ -126,27 +137,52 @@ function masqueTissu(mesh: T.SkinnedMesh, taille: number) {
   // Le crâne est retiré en dernier : ce liseré élargi ne doit jamais déteindre
   // sur les cheveux, qui étaient tout le problème.
   peindre(partTete, .5, tetes, 1);
-  const masque = new Uint8Array(taille * taille);
+  const sommet = (i: number) => indices ? indices.getX(i) : i;
+  const trianglesBruts = new Int32Array(taille * taille).fill(-1);
+  for (let i = 0; i < sommets; i += 3) remplir(sommet(i), sommet(i + 1), sommet(i + 2), trianglesBruts, i / 3);
+  const masque = new Uint8Array(taille * taille), triangles = new Int32Array(taille * taille);
   // Le trait du tracé d'origine élargissait le masque d'un texel : la dilatation
   // ci-dessous garde les coutures de l'atlas sans liseré resté à la couleur.
   for (let y = 0; y < taille; y++) {
     for (let x = 0; x < taille; x++) {
-      let teinte = 0, tete = false;
+      let teinte = 0, tete = false, triangle = trianglesBruts[y * taille + x];
       for (let dy = -1; dy <= 1 && !tete; dy++) {
         const yy = y + dy; if (yy < 0 || yy >= taille) continue;
         for (let dx = -1; dx <= 1; dx++) {
           const xx = x + dx; if (xx < 0 || xx >= taille) continue;
           const i = yy * taille + xx;
           if (classes[i] > teinte) teinte = classes[i];
+          if (triangle < 0) triangle = trianglesBruts[i];
           if (tetes[i]) {tete = true; break;}
         }
       }
       masque[y * taille + x] = tete ? 0 : teinte;
+      triangles[y * taille + x] = triangle;
     }
   }
-  geometrie.userData[cle] = masque;
-  masquesPartages.set(signature, masque);
-  return masque;
+  // Voisinage des triangles sur la surface. Les coutures de l'atlas dédoublent
+  // les sommets — celui de la sportive est morcelé en milliers d'éclats — : ils
+  // sont donc rapprochés par leur position, non par leur numéro.
+  const position = geometrie.getAttribute('position'), nombre = sommets / 3, rang = new Map<string, number>();
+  const soude = new Uint32Array(uv.count);
+  for (let v = 0; v < uv.count; v++) {
+    const cle = `${position.getX(v).toFixed(4)},${position.getY(v).toFixed(4)},${position.getZ(v).toFixed(4)}`;
+    if (!rang.has(cle)) rang.set(cle, rang.size);
+    soude[v] = rang.get(cle)!;
+  }
+  const parSommet = Array.from({length: rang.size}, () => [] as number[]);
+  for (let t = 0; t < nombre; t++) for (let k = 0; k < 3; k++) parSommet[soude[sommet(t * 3 + k)]].push(t);
+  const debuts = new Uint32Array(nombre + 1), liste: number[] = [], habillables = new Uint8Array(nombre);
+  for (let t = 0; t < nombre; t++) {
+    const proches = new Set<number>();
+    for (let k = 0; k < 3; k++) for (const u of parSommet[soude[sommet(t * 3 + k)]]) if (u !== t) proches.add(u);
+    liste.push(...proches); debuts[t + 1] = liste.length;
+    habillables[t] = [0, 1, 2].every(k => partLarge[sommet(t * 3 + k)] >= .5 && partTete[sommet(t * 3 + k)] < .5) ? 1 : 0;
+  }
+  const tissu = {masque, triangles, nombre, habillables, debuts, voisins: Uint32Array.from(liste)};
+  geometrie.userData[cle] = tissu;
+  masquesPartages.set(signature, tissu);
+  return tissu;
 }
 
 /** Écart entre deux teintes, en degrés, sur le cercle des couleurs. */
@@ -177,11 +213,12 @@ function tonDominant(d: Uint8ClampedArray, masque: Uint8Array) {
  * pixels de peau (bruns chauds) du tissu évite de teinter tout le personnage.
  * L’atlas d’origine reste intact — il est conservé dans `matiereTenueOrigine` —
  * pour que chaque nouveau choix reparte de la photo et non de la version déjà
- * colorée. Sans couleur de chaussures, celles du scan sont gardées.
+ * colorée. Sans couleur de chaussures, celles du scan sont gardées ; sans
+ * couleur de peau aussi — les figurants ne changent que de vêtements.
  */
 export function teinterCorps(corps: T.Object3D, peauHex: string, habitHex: string, chaussureHex = '') {
   const vise = (hex: string) => {const c = new T.Color(hex).convertLinearToSRGB(); return versHsl(c.r * 255, c.g * 255, c.b * 255);};
-  const peau = vise(peauHex), habit = vise(habitHex);
+  const peau = peauHex ? vise(peauHex) : undefined, habit = vise(habitHex);
   const chaussure = chaussureHex ? vise(chaussureHex) : undefined;
   corps.traverse(n => {
     const m = n as T.Mesh; if (!m.isMesh || !(m.material instanceof T.MeshStandardMaterial)) return;
@@ -192,47 +229,89 @@ export function teinterCorps(corps: T.Object3D, peauHex: string, habitHex: strin
     const taille = 1024;
     // Un corps articulé désigne son tissu par le squelette ; une silhouette sans
     // os s’en remet à la neutralité des pixels du vêtement.
-    const masque = (m as T.SkinnedMesh).isSkinnedMesh ? masqueTissu(m as T.SkinnedMesh, taille) : undefined;
+    const tissu = (m as T.SkinnedMesh).isSkinnedMesh ? masqueTissu(m as T.SkinnedMesh, taille) : undefined, masque = tissu?.masque;
     const toile = document.createElement('canvas'); toile.width = toile.height = taille;
     const ctx = toile.getContext('2d', {willReadFrequently: true})!; ctx.drawImage(source, 0, 0, taille, taille);
     const pixels = ctx.getImageData(0, 0, taille, taille), d = pixels.data;
     const ton = masque ? tonDominant(d, masque) : undefined;
-    // Région d’un texel. La peau passe avant tout : un bras nu reste un bras nu,
-    // quel que soit l’os qui le tient. Hors du masque et de la teinte du buste,
-    // le noir des cheveux garde sa couleur — aucun os habillé ne le tient.
-    const region = (p: number, h: number, s: number, l: number) => {
-      if (h >= 8 && h <= 48 && s >= .18 && l > .055 && l < .8) return peau;
-      if (!masque) return s < .18 && l > .065 && l < .75 ? habit : undefined;
-      if (masque[p] >= TISSU_SUR) return l > .035 ? habit : undefined;
+    // Les creux d’un tissu sombre — un polo marine — sont presque noirs.
+    const tissuSombre = !!ton && ton.l < .22;
+    // Un vêtement couleur chair ne se prolonge pas hors du buste : on ne saurait
+    // l’y distinguer de la peau. Le rigging automatique de la sportive attache son
+    // visage et sa coiffure au cou, et son t-shirt taupe les aurait gagnés.
+    const tonChair = !!ton && ton.h >= 8 && ton.h <= 48;
+    // Classe d’un texel pris seul. La peau passe avant tout : un bras nu reste
+    // un bras nu, quel que soit l’os qui le tient. Hors du masque et de la teinte
+    // du buste, le noir des cheveux garde sa couleur — aucun os habillé ne le tient.
+    const classe = (p: number, h: number, s: number, l: number) => {
+      // Sur le buste, un brun qui reprend le ton du vêtement est du vêtement : les
+      // ombres du t-shirt taupe de la sportive passaient pour de la peau.
+      const commeLeTissu = !!masque && masque[p] >= TISSU_SUR && !!ton && ecartTeinte(h, ton.h) < 25 && Math.abs(s - ton.s) < .15;
+      if (h >= 8 && h <= 48 && s >= .18 && l > .055 && l < .8 && !commeLeTissu) return PEAU;
+      if (!masque) return s < .18 && l > .065 && l < .75 ? HABIT : RIEN;
+      // Les creux les plus sombres d’un tissu foncé restent du tissu : écartés,
+      // ils laissaient des taches noires sur un polo marine reteint en jaune.
+      if (masque[p] >= TISSU_SUR) return HABIT;
       if (masque[p] >= TISSU_PROBABLE * .75) {
+        if (tonChair) return RIEN;
         // Ici le bas du vêtement côtoie le pantalon : seul ce qui reprend la
         // teinte du buste suit la couleur choisie. La clarté ne dit rien —
         // le dos d’un vêtement est bien plus sombre que sa face.
         // La teinte suffit à distinguer le vêtement du pantalon ; exiger en plus
         // une vive saturation laisserait le creux des plis à sa couleur d’origine.
-        return ton && ecartTeinte(h, ton.h) <= 32
-          && s >= Math.max(.06, ton.s * .15) && l > .05 && l < .92 ? habit : undefined;
+        // Trop sombre pour ce tissu, c’est une mèche de cheveux — sauf sous un
+        // vêtement foncé, dont les creux sont presque noirs.
+        return ton && ecartTeinte(h, ton.h) <= 32 && s >= Math.max(.06, ton.s * .15)
+          && l > (tissuSombre ? 0 : Math.max(.05, ton.l * .45)) && l < .92 ? HABIT : RIEN;
       }
-      return masque[p] && l > .035 ? chaussure : undefined;
+      return masque[p] ? SOULIER : RIEN;
     };
+    const classes = new Uint8Array(taille * taille), clartes = new Float32Array(taille * taille);
+    for (let p = 0; p < classes.length; p++) {
+      const {h, s, l} = versHsl(d[p * 4], d[p * 4 + 1], d[p * 4 + 2]);
+      classes[p] = classe(p, h, s, l); clartes[p] = l;
+    }
+    // Chaque triangle prend la classe de la majorité de ses texels. La couleur
+    // seule ne départage pas un t-shirt taupe d’une peau brune, ni un pantalon
+    // gris bleuté d’un polo marine, ni sur une peau foncée l’ombre de la lumière :
+    // texel par texel, la teinte mouchetait le tissu de peau, le pantalon de
+    // couleur, et le visage de taches restées sombres.
+    if (tissu) {
+      const votes = new Uint32Array(tissu.nombre * 4);
+      for (let p = 0; p < classes.length; p++) if (tissu.triangles[p] >= 0) votes[tissu.triangles[p] * 4 + classes[p]]++;
+      const majorite = new Uint8Array(tissu.nombre);
+      for (let i = 0; i < tissu.nombre; i++) {
+        let meilleure = RIEN;
+        for (let c = 1; c < 4; c++) if (votes[i * 4 + c] > votes[i * 4 + meilleure]) meilleure = c;
+        majorite[i] = meilleure;
+      }
+      // Puis, dans la zone habillable, un triangle entouré aux trois cinquièmes
+      // d’une autre classe la rejoint : les éclats de peau semés sur un t-shirt
+      // et les plaques de tissu sur un bras s’effacent, les grandes zones restent.
+      for (let passe = 0; passe < 4; passe++) {
+        const avant = majorite.slice();
+        for (let t = 0; t < tissu.nombre; t++) {
+          if (!tissu.habillables[t] || avant[t] === SOULIER) continue;
+          const compte = [0, 0, 0, 0], total = tissu.debuts[t + 1] - tissu.debuts[t];
+          for (let i = tissu.debuts[t]; i < tissu.debuts[t + 1]; i++) compte[avant[tissu.voisins[i]]]++;
+          for (const c of [RIEN, PEAU, HABIT]) if (c !== avant[t] && compte[c] >= total * .6) majorite[t] = c;
+        }
+      }
+      for (let p = 0; p < classes.length; p++) if (tissu.triangles[p] >= 0) classes[p] = majorite[tissu.triangles[p]];
+    }
+    const cibles = [undefined, peau, habit, chaussure];
     // Luminosité moyenne de chaque région : les plis du tissu et les ombres du
     // visage sont ainsi conservés, même sous une couleur très claire.
-    const sommes = new Map<object, {somme: number; compte: number}>();
-    for (let i = 0; i < d.length; i += 4) {
-      const {h, s, l} = versHsl(d[i], d[i + 1], d[i + 2]);
-      const cible = region(i / 4, h, s, l); if (!cible) continue;
-      const suivi = sommes.get(cible) ?? {somme: 0, compte: 0};
-      suivi.somme += l; suivi.compte++; sommes.set(cible, suivi);
-    }
-    for (let i = 0; i < d.length; i += 4) {
-      const {h, s, l} = versHsl(d[i], d[i + 1], d[i + 2]);
-      const cible = region(i / 4, h, s, l); if (!cible) continue;
-      const suivi = sommes.get(cible)!, moyenne = suivi.compte ? suivi.somme / suivi.compte : .3;
+    const sommes = [0, 0, 0, 0], comptes = [0, 0, 0, 0];
+    for (let p = 0; p < classes.length; p++) if (cibles[classes[p]]) {sommes[classes[p]] += clartes[p]; comptes[classes[p]]++;}
+    for (let p = 0; p < classes.length; p++) {
+      const cible = cibles[classes[p]]; if (!cible) continue;
+      const moyenne = comptes[classes[p]] ? sommes[classes[p]] / comptes[classes[p]] : .3;
       // La pente s’adoucit vers les couleurs extrêmes, où un écart entier
       // écraserait le détail contre le blanc ou le noir.
       const pente = .72 - Math.abs(cible.l - .5) * .6;
-      const lumiere = Math.max(.02, Math.min(.96, cible.l + (l - moyenne) * pente));
-      const [r, g, b] = depuisHsl(cible.h, cible.s, lumiere); d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      const lumiere = Math.max(.02, Math.min(.96, cible.l + (clartes[p] - moyenne) * pente));
+      const [r, g, b] = depuisHsl(cible.h, cible.s, lumiere); d[p * 4] = r; d[p * 4 + 1] = g; d[p * 4 + 2] = b;
     }
     ctx.putImageData(pixels, 0, 0);
     const carte = origine.map!.clone(); carte.source = new T.Source(toile); carte.needsUpdate = true;

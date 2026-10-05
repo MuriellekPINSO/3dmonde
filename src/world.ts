@@ -4,7 +4,7 @@ import { Joueur, type Obstacle } from './entities/Joueur';
 import { Batisseur } from './entities/Batisseur';
 import { boulevard, corniche, esplanadeAmazone, citeMinisterielle, palaisMarina, palaisCongres, quartierMarches, etoileRouge, figures, vehicule, patineBronze, obstaclesIleGiratoire } from './entities/Monuments';
 import { chargerModeles, type Pose } from './entities/Modeles';
-import { Foule } from './entities/Foule';
+import { Foule, AVATARS } from './entities/Foule';
 import type { CorpsJoueur } from './entities/Foule';
 import { MerAnimee } from './entities/MerAnimee';
 import { VieUrbaine } from './entities/VieUrbaine';
@@ -171,8 +171,8 @@ export class Monde {
       this.player.position.set(T.MathUtils.clamp(x,minimumX,23),.15,positionZ);
     }
   }
-  personnaliserJoueur(couleur:string,corps:CorpsJoueur='avatar-homme-meshy-opt.glb',peau='#79513b',chaussures=''){
-    this.joueur.personnaliser(couleur,peau,corps==='go2.glb'||corps==='avatar-femme-meshy-opt.glb');
+  personnaliserJoueur(couleur:string,corps:CorpsJoueur=AVATARS.homme,peau='#79513b',chaussures=''){
+    this.joueur.personnaliser(couleur,peau,corps===AVATARS.femme);
     this.foule.personnaliserJoueur(couleur,corps,peau,chaussures);
     this.player.userData.apparenceJoueur={couleur,corps,peau,chaussures};
     if(this.passagerMoto){this.foule.libererApparence(this.passagerMoto);this.passagerMoto.removeFromParent();this.passagerMoto=undefined;}
@@ -270,8 +270,10 @@ export class Monde {
     this.meteo.onTonnerre=puissance=>this.onTonnerre?.(puissance);
     // La scène construite s’affiche tout de suite ; les modèles la remplacent dès qu’ils arrivent.
     const poses:Pose[]=[...POSES,{
-      groupe:'kekenon-circulation',fichier:'kekenon.glb',x:13.6,z:18,
-      hauteur:2.05,base:.03,rotation:-Math.PI/2,ajout:true,
+      // Moto-taxi et son conducteur, tournés vers l'avant dans leur fichier :
+      // toute la circulation à deux roues, les bornes et la moto du joueur.
+      groupe:'moto-taxi-circulation',fichier:'moto-taxi.glb',x:13.6,z:18,
+      largeur:1.95,base:.03,rotation:0,ajout:true,
       apresPose:objet=>this.adopterZemidjanDetaille(objet),
     },{
       // SUV détaillé : circulation et voiture du joueur.
@@ -294,8 +296,8 @@ export class Monde {
       const habilles=this.foule.habiller();
       const passager=this.foule.creerPassagerMoto();
       if(passager){this.passagerMoto=passager;this.scene.add(passager);}
-      console.info(`personnages articulés : ${habilles} habillés, ${info.triangles} triangles le modèle`
-        +`${info.course?', marche et course':', marche seule'}, ${info.silhouettes} silhouettes debout`);
+      console.info(`personnages articulés : ${habilles} habillés, ${info.triangles} triangles les modèles`
+        +`${info.course?', marche et course':', marche seule'}, ${info.tenues} tenues`);
     }).catch(e=>console.warn('personnages articulés indisponibles : '+(e instanceof Error?e.message:e)));
     chargerModeles(batisseur,poses).then(journal=>{
       for(const entree of journal){
@@ -343,16 +345,18 @@ export class Monde {
   }
   restaurerSouvenirs(ids:readonly string[]){for(const [id,objet] of this.souvenirsMission)objet.visible=!ids.includes(id);}
   /**
-   * Fait passer tous les zémidjans au modèle détaillé : ceux de la circulation,
-   * ceux garés aux bornes, et celui que conduit le joueur.
+   * Fait passer tous les zémidjans à la moto-taxi détaillée : ceux de la
+   * circulation, ceux garés aux bornes, et celui que conduit le joueur ; puis en
+   * ajoute d'autres sur les deux voies. moto-taxi.glb regarde déjà vers l'avant :
+   * aucun demi-tour, contrairement à l'ancien kekenon.glb.
    */
   private adopterZemidjanDetaille(objet:T.Object3D){
-    const {gabarit,remplaces}=this.rues.remplacerZemidjans(objet);
-    // Le véhicule du joueur suit la même convention d’orientation que la circulation.
+    const {gabarit,remplaces}=this.rues.remplacerZemidjans(objet,0);
+    const ajoutes=this.rues.dupliquerZemidjans(gabarit,0);
     const monture=this.vehicules.zemidjan;
     monture.clear();
-    const copie=gabarit.clone();copie.rotation.y=Math.PI;monture.add(copie);
-    console.info(`zémidjans détaillés : ${remplaces} sur la voie et aux bornes, plus celui du joueur`);
+    monture.add(gabarit.clone());
+    console.info(`zémidjans détaillés : ${remplaces} sur la voie et aux bornes, ${ajoutes} ajoutés, plus celui du joueur`);
   }
   /** Fait passer les voitures de la circulation, et celle du joueur, au SUV détaillé. */
   private adopterVoitureDetaillee(objet:T.Object3D){

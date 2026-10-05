@@ -16,18 +16,18 @@ test('les couleurs restent indépendantes et les modèles sources sont préserv�
       });
       return {pixels:image!.getContext('2d')!.getImageData(0,0,1024,1024).data,origine};
     };
-    foule.personnaliserJoueur('#9c4058','personnage1.glb','#dfae88');const premiere=photo();
-    foule.personnaliserJoueur('#287b72','personnage1.glb','#462c23');const seconde=photo();
-    foule.personnaliserJoueur('#9c4058','personnage1.glb','#dfae88');const retour=photo();
-    foule.personnaliserJoueur('#287b72','personnage1.glb','#dfae88');const habit=photo();
-    foule.personnaliserJoueur('#9c4058','personnage1.glb','#462c23');const peau=photo();
+    foule.personnaliserJoueur('#9c4058','avatar-homme-casual.glb','#dfae88');const premiere=photo();
+    foule.personnaliserJoueur('#287b72','avatar-homme-casual.glb','#462c23');const seconde=photo();
+    foule.personnaliserJoueur('#9c4058','avatar-homme-casual.glb','#dfae88');const retour=photo();
+    foule.personnaliserJoueur('#287b72','avatar-homme-casual.glb','#dfae88');const habit=photo();
+    foule.personnaliserJoueur('#9c4058','avatar-homme-casual.glb','#462c23');const peau=photo();
     let changementsCommuns=0,changementsHabit=0,changementsPeau=0;
     for(let i=0;i<premiere.pixels.length;i+=4){
       const change=(p:Uint8ClampedArray)=>[0,1,2].some(k=>p[i+k]!==premiere.pixels[i+k]);
       const h=change(habit.pixels),s=change(peau.pixels);
       changementsHabit+=Number(h);changementsPeau+=Number(s);changementsCommuns+=Number(h&&s);
     }
-    foule.personnaliserJoueur('#9c4058','go2.glb','#dfae88');
+    foule.personnaliserJoueur('#9c4058','avatar-femme-fitness.glb','#dfae88');
     const feminin=joueur.objet.getObjectByName('corps-personnage').userData.avatar;
     const passager=foule.creerPassagerMoto();
     return {
@@ -43,7 +43,7 @@ test('les couleurs restent indépendantes et les modèles sources sont préserv�
   expect(resultat.changementsCommuns).toBe(0);
   expect(resultat.changementsHabit).toBeGreaterThan(1000);
   expect(resultat.changementsPeau).toBeGreaterThan(1000);
-  expect(resultat.feminin).toBe('go2.glb');
+  expect(resultat.feminin).toBe('avatar-femme-fitness.glb');
   expect(resultat.passager).toBe(true);
 });
 
@@ -55,7 +55,7 @@ test('sur un avatar scanné, la tenue change sans toucher aux cheveux, et le cor
     const T=await import('/node_modules/three/build/three.module.js');
     const scene=new T.Scene(),joueur=new Joueur();scene.add(joueur.objet);
     const foule=new Foule(scene);await foule.charger();foule.habiller();
-    const avatar='avatar-femme-meshy-opt.glb';
+    const avatar='avatar-femme-fitness.glb';
     foule.personnaliserJoueur('#287b72',avatar,'#79513b');
     const corps=joueur.objet.getObjectByName('corps-personnage')!;
     let maillage:any;corps.traverse((m:any)=>{if(m.isSkinnedMesh)maillage=m;});
@@ -95,10 +95,9 @@ test('sur un avatar scanné, la tenue change sans toucher aux cheveux, et le cor
       changes++;if(tete[q])changesTete++;
     }
     // La marche native doit remuer les os que le maillage suit vraiment.
-    const os=maillage.skeleton.bones[3];
-    const avant=os.quaternion.clone();
+    const os=maillage.skeleton.bones,avant=os.map((o:any)=>o.quaternion.clone());
     joueur.objet.position.z-=1;foule.actualiser(.2);foule.actualiser(.2);
-    return {osRattaches,changes,changesTete,anime:os.quaternion.angleTo(avant)>.005};
+    return {osRattaches,changes,changesTete,anime:os.some((o:any,i:number)=>o.quaternion.angleTo(avant[i])>.005)};
   });
   expect(resultat.osRattaches).toBe(true);
   expect(resultat.changes).toBeGreaterThan(20000);

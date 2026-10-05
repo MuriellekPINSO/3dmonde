@@ -76,6 +76,47 @@ Deux enseignements pour les prochaines livraisons :
   aux figurants immobiles, mais pas au personnage jouable, qui doit marcher : celui-ci reste
   construit en code avec ses jambes animées.
 
+## Personnages et moto-taxi Tripo reçus — 5 octobre 2026
+
+Trois fichiers de `3d/outputs/` remplacent les personnages et les zémidjans du jeu :
+
+| Source | Fichier du jeu | Triangles | Poids | Emploi |
+| --- | --- | --- | --- | --- |
+| `fitness_character_actions.glb` (27 Mo) | `avatar-femme-fitness.glb` | 19 491 | 1,1 Mo | avatar « Femme », joggeuses, moitié de la foule |
+| `casual_man_walk.glb` (13,7 Mo, 157 136 triangles) | `avatar-homme-casual.glb` | 25 141 | 0,5 Mo | avatar « Homme », moitié de la foule |
+| `motorcycle_rider_loop.glb` (82 Mo, 1 962 954 triangles) | `moto-taxi.glb` | 58 888 | 0,8 Mo | tous les zémidjans : circulation, bornes, moto du joueur, plus dix copies |
+
+Chaîne appliquée (gltf-transform 4.5) : `dedup`, `weld`, `simplify` (ratio 0,16 pour l'homme, 0,03
+pour la moto ; la sportive est gardée telle quelle), `resample`, `prune`, textures en WebP
+1 024 × 1 024, puis `reorder`, `quantize` et compression meshopt. Pour la moto, l'animation et la
+cible de morphing « Vibration du buste » sont retirées avant la simplification, qu'elles
+bloquaient ; une vibration du modèle entier les remplace dans `Rues.ts`. Seul le clip « Walk » de
+l'homme est gardé (« Walk.001 » le doublait).
+
+Ce qu'il faut savoir de ces modèles :
+
+- **Squelettes Tripo.** Os `root`, `spine`, `chest`, `thigh.L`… que Three renomme sans point
+  (`thighL`). Les deux personnages portent les mêmes noms : la course de la sportive est reportée
+  sur l'homme, qui n'a qu'une marche. `Transfert.ts` les ramène aux noms Mixamo pour la pose
+  assise du passager.
+- **Petits pas.** Les marches font deux pas de 25 cm en deux secondes. `reglerFoulee` double la
+  cadence et allonge la foulée en amplifiant l'écart des membres à leur pose moyenne ; allure
+  obtenue 0,58 m/s en marche, 1,13 m/s en course pour 1,74 m. Les passants flânent donc entre
+  0,6 et 0,95 m/s. Au-delà — le joueur marche à 2,3 m/s, sprinte à 4,4 —, les pieds glissent un
+  peu : une marche générée avec une foulée plus longue réglerait ce point.
+- **Geste « Wave » inutilisable.** Dès le fichier d'origine, la jambe suit le bras levé et le
+  maillage se déchire. Les clips « Jump » et « Wave » ne sont pas employés.
+- **Quantification et `skeleton.pose()`.** Les matrices de liaison quantifiées portent l'échelle
+  de déquantification : un `pose()` laisse des os agrandis. `transfererAnimation` restaure donc
+  les os après coup.
+- **Teinte.** Le visage et la coiffure de la sportive sont liés au cou, son t-shirt taupe a la
+  teinte d'une peau brune : `Teinte.ts` vote désormais par triangle, lisse les classes sur la
+  surface et ne prolonge pas un vêtement couleur chair hors du buste.
+
+Ne sont plus chargés : `passante-cotonou-walk.glb`, les avatars et courses `avatar-*-meshy*`,
+`kekenon.glb`, `personnage1.glb`, `perso2.glb` et `go2.glb`. Ils restent dans `public/modeles/`.
+`portrait_character_actions.glb` et `adult_male_walk.glb` n'ont pas été intégrés.
+
 ## Livraison commune
 
 - Un modèle par fichier GLB, textures intégrées si possible.

@@ -562,7 +562,7 @@ export class Rues {
     }
   }
   private circulation(){
-    // Une place reste disponible pour le modèle détaillé kekenon.glb.
+    // Une place reste disponible pour la moto-taxi détaillée, moto-taxi.glb.
     for(let i=1;i<20;i++){
       const type=i%5===0?'voiture':'zemidjan';const palettes=type==='voiture'?['#d4ad61','#2f6682','#a84f45','#d9ded7']:['#9e3b32','#2d6380','#c8922e','#356f55'];const objet=vehicule(this.b,type,palettes[i%palettes.length]);
       const sens=i%2?1:-1;objet.position.set(voieDe(sens),0,25-i*22);objet.rotation.y=sens>0?0:Math.PI;
@@ -704,22 +704,42 @@ export class Rues {
    * circulation comme aux bornes de transport. Un seul maillage par véhicule au
    * lieu d'une quinzaine : le rendu gagne en finesse et la scène perd des appels
    * de dessin. Renvoie le gabarit, pour le véhicule que conduit le joueur.
+   * `rotationModele` : demi-tour pour un modèle tourné vers l'arrière.
    */
-  remplacerZemidjans(objet:T.Object3D){
+  remplacerZemidjans(objet:T.Object3D,rotationModele=Math.PI){
     const gabarit=this.gabaritVehicule(objet);
     objet.removeFromParent();                                  // il ne sert que de gabarit
     let remplaces=0;
     for(const p of this.mouvements){
       if(p.type!=='zemidjan')continue;
-      this.poserModele(p.objet,gabarit);
+      this.poserModele(p.objet,gabarit,rotationModele);
       p.portee=90;remplaces++;
     }
     // Motos garées aux bornes, nommées à la construction.
     for(const gare of this.b.scene.children.filter(o=>o.name.startsWith('moto-borne'))){
-      this.poserModele(gare,gabarit);
+      this.poserModele(gare,gabarit,rotationModele);
       this.statiques.push({objet:gare,portee:90});remplaces++;
     }
     return {gabarit,remplaces};
+  }
+  /**
+   * Places libres de chaque voie, sens et position, relevées entre les véhicules
+   * déjà lancés. La Corniche au-delà de z = 25, vide au départ alors que le
+   * joueur y commence, en reçoit cinq.
+   */
+  private static readonly MOTOS_SUPPLEMENTAIRES:[number,number][]=[[1,120],[-1,140],[1,75],[-1,95],[-1,50],[1,-19],[-1,-38],[1,-63],[1,-195],[-1,-261]];
+  /**
+   * Lance d'autres copies du zémidjan détaillé : la moto-taxi est la silhouette
+   * la plus courante de Cotonou, et la circulation n'en comptait qu'une quinzaine.
+   */
+  dupliquerZemidjans(gabarit:T.Object3D,rotationModele=Math.PI){
+    for(const [i,[sens,z]] of Rues.MOTOS_SUPPLEMENTAIRES.entries()){
+      const groupe=new T.Group();groupe.name=`circulation-moto-${i+1}`;
+      groupe.position.set(voieDe(sens),0,z);groupe.rotation.y=sens>0?0:Math.PI;
+      this.poserModele(groupe,gabarit,rotationModele);this.b.scene.add(groupe);
+      this.mouvements.push({objet:groupe,debut:-421,fin:153,vitesse:7.6+(i%4)*.3,sens,phase:100+i,type:'zemidjan',portee:90});
+    }
+    return Rues.MOTOS_SUPPLEMENTAIRES.length;
   }
   /** Ajoute cinq exemplaires du second modèle de zémidjan sur les deux voies. */
   ajouterZemidjans(objet:T.Object3D,nombre=5){
@@ -734,8 +754,8 @@ export class Rues {
       groupe.name=`zem-supplementaire-${i+1}`;
       groupe.position.set(voieDe(sens),0,departs[i]??4-i*88);
       groupe.rotation.y=sens>0?0:Math.PI;
-      // zem.glb regarde déjà vers l'avant dans son fichier, contrairement au
-      // premier kekenon qui exige un demi-tour dans son gabarit.
+      // zem.glb regarde déjà vers l'avant dans son fichier, comme moto-taxi.glb :
+      // aucun demi-tour dans son gabarit.
       this.poserModele(groupe,gabarit,0);
       this.b.scene.add(groupe);
       this.mouvements.push({objet:groupe,debut:-421,fin:153,vitesse:7.4+i*.22,sens,phase:40+i,type:'zem-nouveau',portee:105});
@@ -852,7 +872,9 @@ export class Rues {
     horsAnneau.forEach(([x,debut,fin],i)=>{
       const personne=new Personnage(['#c5754a','#447e88','#698756','#995764'][i%4],x,(debut+fin)/2,{pagne:i%3===0});
       personne.objet.name=`passant-${i}`;this.b.scene.add(personne.objet);
-      this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.8+(i%7)*.09,sens:i%2?1:-1,phase:i,personne,xBase:x,voieCible:x});
+      // Allure de flânerie : les marches des personnages font de petits pas, qui
+      // glisseraient sur le trottoir au-delà d'un mètre par seconde.
+      this.mouvements.push({objet:personne.objet,debut,fin,vitesse:.62+(i%7)*.055,sens:i%2?1:-1,phase:i,personne,xBase:x,voieCible:x});
     });
     // Deux joggeuses font l'aller-retour sur la piste de mise en forme, à
     // l'allure d'un footing (3,4 m/s) : la foule leur donne la course articulée.
@@ -898,11 +920,14 @@ export class Rues {
           const occupe=vehicules.some(autre=>autre!==p&&Math.abs(autre.objet.position.x-p.objet.position.x)<1.3
             &&Math.abs(autre.objet.position.z-prochain)<(p.type==='camion'||autre.type==='camion'?7.5:3.3));
           const voieBase=voieDe(p.sens),voieDepassement=p.sens>0?DEPASSEMENT_CORNICHE:DEPASSEMENT_ETOILE;
+          // Un camion mesure dix mètres : sa remorque compte avant de se rabattre
+          // à côté de lui, sans quoi une moto finissait encastrée dans le conteneur.
+          const marge=(autre:Passage)=>5.5+(autre.type==='camion'||p.type==='camion'?5:0);
           if(occupe){
-            const libre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieDepassement)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
+            const libre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieDepassement)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>marge(autre));
             if(libre)p.voieCible=voieDepassement;
           }else if(Math.abs(p.objet.position.x-voieBase)>.35){
-            const retourLibre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieBase)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>5.5);
+            const retourLibre=vehicules.every(autre=>autre===p||Math.abs((autre.voieCible??autre.objet.position.x)-voieBase)>1.15||Math.abs(autre.objet.position.z-p.objet.position.z)>marge(autre));
             if(retourLibre)p.voieCible=voieBase;
           }else p.voieCible=voieBase;
           const xAvant=p.objet.position.x;
@@ -923,6 +948,10 @@ export class Rues {
             p.objet.rotation.y+=ecart*(1-Math.exp(-dt*8));
           }
         }
+        // Le moteur fait trembler la moto et son conducteur : c'était tout le clip
+        // de moto-taxi.glb, une vibration du buste retirée pour alléger le modèle.
+        const modele=p.type==='zemidjan'?p.objet.children[0]:undefined;
+        if(modele?.name==='vehicule-modele')modele.position.y=Math.sin(this.temps*31+p.phase*1.7)*.004;
       }
       // Les passages éloignés ne participent ni au rendu ni aux ombres.
       p.objet.visible=Math.abs(p.objet.position.z-zJoueur)<(p.portee??115);
