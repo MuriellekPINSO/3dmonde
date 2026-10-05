@@ -1,21 +1,40 @@
 import * as T from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { Forme } from '../content/tresors';
+
+/**
+ * Modèles Tripo des trésors, face tournée vers +Z dans leur fichier. `taille`
+ * est la plus grande dimension visée, en mètres. Le cauri n'a pas de modèle :
+ * il reste construit en code, comme chaque trésor tant que son fichier manque.
+ */
+const MODELES: Partial<Record<Forme, {fichier: string; taille: number}>> = {
+  portrait: {fichier: 'tresor-portrait-cubiste.glb', taille: .8},
+  masque: {fichier: 'tresor-masque-raphia.glb', taille: .85},
+  calebasse: {fichier: 'tresor-calebasse-rouge.glb', taille: .75},
+  statuette: {fichier: 'tresor-statuette-bronze.glb', taille: 1},
+};
 
 /**
  * Objets de la chasse au trésor : le trésor de l'étape en cours flotte au-dessus
  * d'un anneau doré, dans une colonne de lumière visible de loin ; l'autel de
- * l'Amazone s'allume quand le joueur porte un trésor. Les objets sont modelés
- * en code d'après des objets courants au Bénin : cauri, pagne tissé, masque
- * guèlèdè, calebasse gravée, houe de cultivateur.
+ * l'Amazone s'allume quand le joueur porte un trésor. Portrait cubiste, masque
+ * de raphia, calebasse rouge et statuette de bronze sont des modèles détaillés ;
+ * le cauri et les versions de secours sont modelés en code.
+ *
+ * Le dos du portrait et du masque n'est pas sculpté : au lieu de tourner sur
+ * eux-mêmes, les trésors font face à la caméra et se balancent doucement.
  */
 export class Tresors3D {
   private readonly tresor = new T.Group();
   private readonly objet = new T.Group();
   private readonly autel = new T.Group();
   private readonly objetPorte = new T.Group();
+  private readonly gabarits = new Map<Forme, T.Object3D>();
+  private affiche: {forme: Forme; x: number; z: number} | null = null;
   private temps = 0;
 
-  constructor(scene: T.Object3D, autel: {x: number; z: number}) {
+  constructor(scene: T.Object3D, autel: {x: number; z: number}, base = '/modeles/') {
     this.tresor.name = 'tresor-chasse'; this.tresor.visible = false;
     this.tresor.add(this.objet, Tresors3D.colonne('#ffd37a', .55), Tresors3D.anneau('#f3b94f', .75, 1.05));
     scene.add(this.tresor);
@@ -25,6 +44,33 @@ export class Tresors3D {
     this.autel.add(pierre, Tresors3D.colonne('#9fe3ff', .7), Tresors3D.anneau('#9fe3ff', 1.5, 1.9));
     scene.add(this.autel);
     this.objetPorte.name = 'tresor-porte'; this.objetPorte.visible = false; scene.add(this.objetPorte);
+    void this.charger(base);
+  }
+
+  /** Charge les modèles détaillés ; un fichier absent laisse l'objet construit en code. */
+  private async charger(base: string) {
+    const integres = (globalThis as {__modeles?: Record<string, string>}).__modeles;
+    const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    await Promise.all(Object.entries(MODELES).map(async ([forme, {fichier, taille}]) => {
+      try {
+        const gltf = await chargeur.loadAsync(integres?.[fichier] ?? base + fichier);
+        this.gabarits.set(forme as Forme, Tresors3D.normaliser(gltf.scene, taille));
+        // Le trésor de l'étape était peut-être déjà affiché dans sa version construite.
+        if (this.affiche?.forme === forme) { const porte = this.objetPorte.visible; this.montrer(this.affiche.forme, this.affiche.x, this.affiche.z); this.porter(porte); }
+      } catch (e) {
+        console.warn(`trésor ${fichier} indisponible : ${e instanceof Error ? e.message : e}`);
+      }
+    }));
+  }
+
+  /** Ramène le modèle à `taille` mètres de plus grande dimension, centré sur l'origine. */
+  private static normaliser(source: T.Object3D, taille: number) {
+    const boite = new T.Box3().setFromObject(source), dims = boite.getSize(new T.Vector3());
+    source.position.sub(boite.getCenter(new T.Vector3()));
+    source.traverse(n => { if ((n as T.Mesh).isMesh) n.castShadow = true; });
+    const pivot = new T.Group(); pivot.add(source);
+    pivot.scale.setScalar(taille / Math.max(dims.x, dims.y, dims.z));
+    return pivot;
   }
 
   /** Colonne de lumière additive, haute de trente mètres. */
@@ -41,6 +87,7 @@ export class Tresors3D {
     return m;
   }
 
+  /** Version construite en code : le cauri, et le secours des modèles absents. */
   private static modele(forme: Forme) {
     const g = new T.Group(), mat = (c: string, o: T.MeshStandardMaterialParameters = {}) => new T.MeshStandardMaterial({color: c, roughness: .6, emissive: c, emissiveIntensity: .12, ...o});
     const ajouter = (geo: T.BufferGeometry, m: T.Material, x = 0, y = 0, z = 0) => { const mesh = new T.Mesh(geo, m); mesh.position.set(x, y, z); mesh.castShadow = true; g.add(mesh); return mesh; };
@@ -48,7 +95,8 @@ export class Tresors3D {
       ajouter(new T.SphereGeometry(.34, 20, 14), mat('#f4ecd8', {roughness: .25})).scale.set(1, .6, .72);
       ajouter(new T.BoxGeometry(.5, .04, .06), mat('#6d5a3f'), 0, .19, 0);
       for (let i = -2; i <= 2; i++) ajouter(new T.BoxGeometry(.02, .04, .12), mat('#8a7658'), i * .08, .19, 0);
-    } else if (forme === 'pagne') {
+    } else if (forme === 'portrait') {
+      // Secours du portrait : un pagne plié aux couleurs des peintres.
       const toile = document.createElement('canvas'); toile.width = toile.height = 128; const c = toile.getContext('2d')!;
       // Motif de tissage à bandes, façon kente : or, vert, rouge et noir.
       const couleurs = ['#e0a32e', '#1f6b3a', '#b3272d', '#1d1b18', '#e0a32e', '#2c4f9e'];
@@ -81,17 +129,23 @@ export class Tresors3D {
   montrer(forme: Forme | null, x = 0, z = 0) {
     this.objet.clear();
     this.tresor.visible = !!forme;
+    this.affiche = forme ? {forme, x, z} : null;
     if (!forme) return;
-    this.objet.add(Tresors3D.modele(forme)); this.objet.scale.setScalar(1.35);
+    const creer = () => this.gabarits.get(forme)?.clone() ?? Tresors3D.modele(forme);
+    this.objet.add(creer()); this.objet.scale.setScalar(1.35);
     this.tresor.position.set(x, 0, z);
-    this.objetPorte.clear(); this.objetPorte.add(Tresors3D.modele(forme)); this.objetPorte.scale.setScalar(.7);
+    this.objetPorte.clear(); this.objetPorte.add(creer()); this.objetPorte.scale.setScalar(.7);
   }
   /** Le joueur porte le trésor : il flotte au-dessus de son épaule, l'autel s'allume. */
   porter(porte: boolean) { this.objetPorte.visible = porte; this.autel.visible = porte; if (porte) this.tresor.visible = false; }
-  actualiser(dt: number, joueur: T.Object3D) {
+  /** Fait face à la caméra, avec un balancement qui ne montre jamais le dos. */
+  private orienter(objet: T.Object3D, x: number, z: number, camera: T.Object3D) {
+    objet.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z) + Math.sin(this.temps * .9) * .55;
+  }
+  actualiser(dt: number, joueur: T.Object3D, camera: T.Object3D) {
     this.temps += dt;
     this.objet.position.y = 1.2 + Math.sin(this.temps * 2.2) * .12;
-    this.objet.rotation.y += dt * 1.4;
+    this.orienter(this.objet, this.tresor.position.x, this.tresor.position.z, camera);
     for (const g of [this.tresor, this.autel]) {
       const colonne = g.getObjectByName('colonne') as T.Mesh | undefined;
       if (colonne) (colonne.material as T.MeshBasicMaterial).opacity = .16 + .08 * Math.sin(this.temps * 2.6);
@@ -100,7 +154,7 @@ export class Tresors3D {
     }
     if (this.objetPorte.visible) {
       this.objetPorte.position.set(joueur.position.x + .45, 2.35 + Math.sin(this.temps * 3) * .06, joueur.position.z);
-      this.objetPorte.rotation.y += dt * 2;
+      this.orienter(this.objetPorte, this.objetPorte.position.x, this.objetPorte.position.z, camera);
     }
   }
 }

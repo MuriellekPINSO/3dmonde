@@ -5,8 +5,11 @@
  *
  * Les énigmes décrivent ce que l'on voit réellement sur place (photos et
  * vidéos du dossier espace) : le joueur apprend à regarder la ville.
+ *
+ * Les identifiants restent ceux de la première version (`pagne`, `houe`…) :
+ * ils sont enregistrés dans les sauvegardes. La forme désigne l'objet montré.
  */
-export type Forme = 'cauri' | 'pagne' | 'masque' | 'calebasse' | 'houe';
+export type Forme = 'cauri' | 'portrait' | 'masque' | 'calebasse' | 'statuette';
 
 export type Tresor = {
   id: string;
@@ -34,32 +37,32 @@ export const TRESORS: Tresor[] = [
     anecdote: "Le cauri, coquillage venu de l'océan Indien, a longtemps servi de monnaie dans le golfe du Bénin.",
   },
   {
-    id: 'pagne', nom: 'Pagne des peintres', forme: 'pagne', lieu: 'Fresque du port', x: 22.4, z: -70,
-    enigme: "Sur un long mur de la Corniche, des peintres ont raconté la ville en couleurs : un pêcheur au chapeau, des voiliers, des danseuses sous un grand soleil. Au pied de ce mur, un pagne est plié.",
+    id: 'pagne', nom: 'Portrait des peintres', forme: 'portrait', lieu: 'Fresque du port', x: 22.4, z: -70,
+    enigme: "Sur un long mur de la Corniche, des peintres ont raconté la ville en couleurs : un pêcheur au chapeau, des voiliers, des danseuses sous un grand soleil. Au pied de ce mur, un portrait aux mille couleurs attend.",
     indice: 'Traverse le boulevard après STELLA MARIS : cherche sur le trottoir, le long du mur peint.',
     question: 'Que cache le long mur peint de la Corniche ?',
     reponses: ['Le port de Cotonou', 'Le marché Dantokpa', "L'aéroport"],
     anecdote: "Derrière la fresque s'étend le port autonome de Cotonou, dont on aperçoit les grues au-dessus du mur.",
   },
   {
-    id: 'masque', nom: 'Masque guèlèdè', forme: 'masque', lieu: 'Palais des Congrès', x: -6.4, z: -249,
-    enigme: "Trois tambours blancs regardent le ciel par un œil doré, et leurs murs portent une frise de triangles sombres. Devant leur chapiteau blanc, au bord de la promenade, un masque veille.",
+    id: 'masque', nom: 'Masque de raphia', forme: 'masque', lieu: 'Palais des Congrès', x: -6.4, z: -249,
+    enigme: "Trois tambours blancs regardent le ciel par un œil doré, et leurs murs portent une frise de triangles sombres. Devant leur chapiteau blanc, au bord de la promenade, un masque cornu vêtu de raphia veille.",
     indice: 'Le masque attend sur la promenade, face au chapiteau du Palais des Congrès.',
     question: "De quelles maisons traditionnelles s'inspire l'architecture du Palais des Congrès ?",
     reponses: ['Des tata somba', 'Des cases obus', 'Des maisons sur pilotis de Ganvié'],
     anecdote: "Les tata somba sont les maisons-forteresses à tourelles des Batammariba, dans l'Atacora, au nord-ouest du Bénin.",
   },
   {
-    id: 'calebasse', nom: 'Calebasse de Ganhi', forme: 'calebasse', lieu: 'Quartier des marchés', x: -6.2, z: -297,
-    enigme: "Une halle de briques rouges à arcades, coiffée d'une toiture blanche en éventail ; plus loin, de grands hangars de tôle. C'est ici que les marchandes rangent leurs calebasses.",
+    id: 'calebasse', nom: 'Calebasse rouge de Ganhi', forme: 'calebasse', lieu: 'Quartier des marchés', x: -6.2, z: -297,
+    enigme: "Une halle de briques rouges à arcades, coiffée d'une toiture blanche en éventail ; plus loin, de grands hangars de tôle. C'est ici que les marchandes rangent leurs calebasses ; l'une d'elles, rouge et semée de cauris, s'est égarée.",
     indice: 'Sur la promenade, face à la halle de briques rouges du marché, entre le Congrès et l’Étoile Rouge.',
     question: "Comment s'appelle le grand marché de Cotonou, l'un des plus grands d'Afrique de l'Ouest ?",
     reponses: ['Dantokpa', 'Ganvié', 'Ouidah'],
     anecdote: 'Dantokpa, « Tokpa » pour les Cotonois, s’étend au bord de la lagune sur une vingtaine d’hectares.',
   },
   {
-    id: 'houe', nom: 'Houe de bronze', forme: 'houe', lieu: "Place de l'Étoile Rouge", x: 21.8, z: -360.5,
-    enigme: "Au milieu du grand rond-point, deux étoiles rouges entourent une flèche blanche. Tout en haut, un homme de bronze brandit l'outil du cultivateur. Son double t'attend sur l'île.",
+    id: 'houe', nom: 'Statuette de bronze', forme: 'statuette', lieu: "Place de l'Étoile Rouge", x: 21.8, z: -360.5,
+    enigme: "Au milieu du grand rond-point, deux étoiles rouges entourent une flèche blanche. Tout en haut, un homme de bronze brandit l'outil du cultivateur. Son petit frère de bronze t'attend sur l'île.",
     indice: "Traverse l'anneau de l'Étoile Rouge par un passage piéton et monte sur l'île, côté boulevard.",
     question: "Que brandit l'homme de bronze au sommet de l'Étoile Rouge ?",
     reponses: ['Une houe', 'Un sabre', 'Un tambour'],

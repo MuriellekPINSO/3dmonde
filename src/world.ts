@@ -448,7 +448,7 @@ export class Monde {
       }
       const foyerX=site?site.x:this.player.position.x;
       this.soleil.position.set(foyerX-25,45,foyerZ+22);this.soleil.target.position.set(foyerX,0,foyerZ);
-      if(!state.paused)this.tresors.actualiser(dt,this.player);
+      if(!state.paused)this.tresors.actualiser(dt,this.player,this.camera);
       target.copy(this.player.position);target.y+=1.3;
       // Grande intro : la caméra vole au-dessus du parcours, l'UI de jeu est
       // neutralisée (le joueur n'est pas encore « incarné »).

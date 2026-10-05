@@ -117,6 +117,34 @@ Ne sont plus chargés : `passante-cotonou-walk.glb`, les avatars et courses `ava
 `kekenon.glb`, `personnage1.glb`, `perso2.glb` et `go2.glb`. Ils restent dans `public/modeles/`.
 `portrait_character_actions.glb` et `adult_male_walk.glb` n'ont pas été intégrés.
 
+## Trésors de la chasse reçus — 5 octobre 2026
+
+Quatre modèles Tripo remplacent les objets construits en code de la chasse au trésor. Bruts dans
+`3d/tresors/` (hors dépôt), chacun en un seul maillage d'environ 1,9 million de triangles avec trois
+textures 4 096 × 4 096, sans squelette ni animation.
+
+| Source | Fichier du jeu | Triangles | Poids | Étape |
+| --- | --- | --- | --- | --- |
+| `red sphere 3d model.glb` (57 Mo) | `tresor-calebasse-rouge.glb` | 29 060 | 0,3 Mo | calebasse, quartier des marchés |
+| `colorful cubist portrait 3d model.glb` (62 Mo) | `tresor-portrait-cubiste.glb` | 29 178 | 0,4 Mo | fresque du port |
+| `straw horned creature 3d model.glb` (66 Mo) | `tresor-masque-raphia.glb` | 27 482 | 0,6 Mo | Palais des Congrès |
+| `tribal statue 3d model.glb` (66 Mo) | `tresor-statuette-bronze.glb` | 29 832 | 0,5 Mo | Étoile Rouge |
+
+Chaîne : `npx @gltf-transform/cli optimize source.glb cible.glb --texture-size 1024
+--texture-compress webp --simplify-ratio 0.015 --simplify-error 0.002`. Contrairement aux
+photogrammétries Meshy, ces maillages descendent sans difficulté à 1,5 % : rendus avant et après
+optimisation, ils sont indiscernables.
+
+- **Pas de dos.** Le portrait finit en coque bleue lisse, le masque en tranche plate. Les trésors
+  ne tournent donc plus sur eux-mêmes : ils font face à la caméra avec un balancement de ±30°
+  (`Tresors3D.orienter`).
+- **Face vers +Z** dans les quatre fichiers, origine au sol, environ un mètre de haut. `Tresors3D`
+  les centre et les ramène à leur taille de jeu (0,75 à 1 m, avant l'échelle d'affichage).
+- **Le cauri n'a pas de modèle.** Il reste construit en code, comme chaque trésor tant que son
+  fichier n'est pas chargé.
+- Les identifiants d'étape (`pagne`, `houe`…) sont ceux des sauvegardes et ne changent pas ; seuls
+  le nom, la forme et la fin des énigmes ont été adaptés aux nouveaux objets.
+
 ## Livraison commune
 
 - Un modèle par fichier GLB, textures intégrées si possible.

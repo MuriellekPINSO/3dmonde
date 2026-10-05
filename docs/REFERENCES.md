@@ -405,7 +405,7 @@ Un drone survole chacun des sept sites en orbite lente, comme dans les vidéos T
 
 ### Chasse au trésor des Amazones (touche T, bouton 🗺 Trésors)
 
-Cinq trésors, un par lieu (`src/content/tresors.ts`) : cauri sur la plage ouverte, pagne au pied de la fresque, masque guèlèdè devant le Palais des Congrès, calebasse face à la halle de Ganhi, houe de bronze sur l'île de l'Étoile Rouge.
+Cinq trésors, un par lieu (`src/content/tresors.ts`) : cauri sur la plage ouverte, portrait cubiste au pied de la fresque, masque de raphia à cornes devant le Palais des Congrès, calebasse rouge semée de cauris face à la halle de Ganhi, statuette de bronze sur l'île de l'Étoile Rouge. Les quatre derniers sont des modèles Tripo (voir [tripo.md](tripo.md)) ; le cauri reste modelé en code.
 
 1. Une énigme décrit ce que l'on voit réellement sur place. Un indice plus direct est proposé après une minute.
 2. Un détecteur (Froid, Tiède, Chaud, Brûlant) et un bip qui s'accélère guident le joueur ; le trésor flotte dans une colonne de lumière dorée.
