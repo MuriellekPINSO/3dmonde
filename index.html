@@ -1,1 +1,209 @@
-<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#173e37"><title>Balade à Cotonou — La Corniche</title></head><body><div id="app"></div><script type="module" src="/src/main.ts"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Cotonou in 3D from OpenStreetMap: monuments, Ganvié, Dantokpa, and the Zém Run game.">
+<title>Cotonou 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+</head>
+<body>
+<div id="app">
+  <div id="vueGoogle" hidden></div>
+  <canvas id="scene" tabindex="0" aria-label="3D model of Cotonou. Drag to move around, scroll or pinch to zoom."></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <div class="side">
+    <header class="brand panel">
+      <h1>Cotonou <span class="tag">3D</span></h1>
+      <p class="sub">Littoral, Benin · 6°22′ N, 2°25′ E</p>
+      <p class="stats" id="stats"></p>
+    </header>
+    <nav class="places panel" aria-label="Places">
+      <h2>Go to</h2>
+      <div class="chips" id="chips"></div>
+      <ul id="placeList"></ul>
+      <p class="help" id="help"><b>Drag</b> to move · <b>right-click</b> to rotate · <b>scroll</b> to zoom</p>
+    </nav>
+  </div>
+
+  <div class="hud panel">
+    <button class="compass" id="compass" type="button" title="Reset north to the top" aria-label="Reset north to the top">
+      <svg viewBox="0 0 30 30" id="needle" aria-hidden="true">
+        <path d="M15 3 L19.5 15 L15 13.4 L10.5 15 Z" fill="#d6452f"/>
+        <path d="M15 27 L10.5 15 L15 16.6 L19.5 15 Z" fill="currentColor" opacity=".35"/>
+        <text x="15" y="10.2" text-anchor="middle" font-size="5.5" font-weight="700" fill="#fff" font-family="system-ui">N</text>
+      </svg>
+    </button>
+    <div class="readout">
+      <div class="scale"><i id="scaleBar"></i><span id="scaleTxt">1 km</span></div>
+      <div class="coords" id="coords">6°22′00″ N · 2°24′54″ E</div>
+      <div class="clock" id="clock">Cotonou time —</div>
+    </div>
+  </div>
+
+  <section class="card panel" id="card" hidden aria-live="polite">
+    <button class="close" id="cardClose" type="button" aria-label="Close the info card">×</button>
+    <div class="eyebrow"><span class="dot" id="cardDot"></span><span id="cardKind"></span></div>
+    <h3 id="cardName"></h3>
+    <p id="cardText"></p>
+    <div class="meta"><code id="cardCoords"></code><span class="meta-btns"><button class="btn-reel" id="cardMarche" type="button" hidden>Craft market</button><button class="btn-reel" id="cardReel" type="button">See it for real</button><button class="btn-ghost" id="cardGo" type="button">Recentre</button></span></div>
+  </section>
+
+  <div class="dock panel" role="toolbar" aria-label="View settings">
+    <div class="seg" role="group" aria-label="Time of day">
+      <button type="button" data-mood="jour" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>Day</button>
+      <button type="button" data-mood="soir" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 16a5.5 5.5 0 0 1 11 0"/><path d="M2.5 19.5h19M12 5v2.5M4.6 9.6l1.7 1.5M19.4 9.6l-1.7 1.5"/></svg>Evening</button>
+      <button type="button" data-mood="nuit" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z"/></svg>Night</button>
+    </div>
+    <span class="sep"></span>
+    <button class="tog" type="button" id="togZem" aria-pressed="true" title="Show the zémidjans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M8.5 17h5l3-6h-4l-2-3H8M16.5 11l2 6"/></svg><span class="t-long">Zémidjans</span></button>
+    <button class="tog" type="button" id="togQ" aria-pressed="true" title="Show neighbourhood names"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span class="t-long">Neighbourhoods</span></button>
+    <button class="tog" type="button" id="btnRadio" aria-pressed="false" title="Listen to music"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="t-long">Radio</span></button>
+    <button class="tog" type="button" id="btnPres" title="Start the guided tour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span class="t-long">Tour</span></button>
+    <button class="tog" type="button" id="togGoogle" aria-pressed="false" title="Lay the model over the real city in 3D (Google)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span class="t-long">Real view</span></button>
+    <button class="tog" type="button" id="togMaquette" aria-pressed="false" hidden title="Model buildings and streets on top of the Google imagery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13"/></svg><span class="t-long">Model</span></button>
+    <button class="tog" type="button" id="togSat" aria-pressed="false" hidden title="Lay the city on real Google satellite imagery (Map Tiles API)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/></svg><span class="t-long">Satellite ground</span></button>
+    <button class="tog" type="button" id="btnConcert" title="Concert on the Esplanade de l’Amazone (entry 50 F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="t-long">Concert</span></button>
+    <button class="tog" type="button" id="togMeteo" aria-pressed="false" title="Change the weather: sun, clouds, rain, storm (M key)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.5 10 3.5 3.5 0 0 1 18 17Z"/><path d="M9 20l-1 2M13 20l-1 2M17 20l-1 2"/></svg><span class="t-long">Sunny</span></button>
+    <button class="tog" type="button" id="togTour" aria-pressed="false" title="Spin the camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/></svg><span class="t-long">Orbit</span></button>
+  </div>
+  <button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play Zém Run</button>
+
+  <p class="credits"><span class="credit-google">Real view © Google · </span>Buildings: <a href="https://sites.research.google/open-buildings/" target="_blank" rel="noopener">Google Open Buildings</a> and OpenStreetMap · façades from photos: Erevan <a href="https://commons.wikimedia.org/wiki/File:Centre_commercial_Erevan_de_Cotonou_08.jpg" target="_blank" rel="noopener">Alex Ahdn</a>, Cathedral <a href="https://commons.wikimedia.org/wiki/File:Cath%C3%A9drale_Notre-Dame-de-misericordes_%C3%A0_Cotonou.jpg" target="_blank" rel="noopener">Saliousoft</a> (CC BY-SA 4.0), Dantokpa <a href="https://commons.wikimedia.org/wiki/File:March%C3%A9_Dantokpa_(vue_arri%C3%A8re).jpg" target="_blank" rel="noopener">jbdodane</a> (CC BY 2.0), Porte du Non-Retour <a href="https://commons.wikimedia.org/wiki/File:Porte_du_non-retour_au_Benin.jpg" target="_blank" rel="noopener">Borisghost</a> (CC0), BCEAO, Palais de la Marina and Stadium <a href="https://commons.wikimedia.org/wiki/User:Adoscam" target="_blank" rel="noopener">Adoscam</a>, Sofitel <a href="https://commons.wikimedia.org/wiki/File:Sofitel_Cotonou_Marina_H%C3%B4tel_%26_Spa.jpg" target="_blank" rel="noopener">Freed Armel</a> (CC BY-SA 4.0) · 3D models generated (Tripo) from photos by Yendifa (CC BY), Saliousoft, houaito affo daniel, Zounmabejosue, Fawaz.tairou (CC BY-SA), Step may (CC0), jbdodane (CC BY 2.0), Adoscam, Freed Armel (CC BY-SA) · streets © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · monuments rebuilt from photos<br><span id="satCredit" hidden></span></p>
+
+  <p class="google-erreur" id="googleErreur" hidden></p>
+  <div class="manette-info" id="manetteInfo" role="status"></div>
+  <div class="reel" id="reel" hidden role="dialog" aria-modal="true" aria-labelledby="reelTitre">
+    <div class="reel-boite panel">
+      <div class="reel-tete">
+        <div><small>See it for real</small><h3 id="reelTitre"></h3></div>
+        <div class="reel-onglets" role="tablist"><button type="button" role="tab" data-onglet="place" aria-selected="false" hidden>On site</button><button type="button" role="tab" data-onglet="sv" aria-selected="true">360° photo</button><button type="button" role="tab" data-onglet="3d" aria-selected="false">3D satellite</button></div>
+        <button class="close" id="reelFermer" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="reel-vue"><div id="reelPlace" class="sur-place" hidden></div><div id="reelSv"></div><div id="reel3d" hidden></div></div>
+      <p class="reel-note" id="reelNote"></p>
+    </div>
+  </div>
+
+  <section id="jeu" hidden>
+    <div class="jeu-menu panel" id="jeuMenu">
+      <div class="jm-tete">
+        <span class="jm-eyebrow">Game mode</span>
+        <h2>Zém Run</h2>
+        <p>Learn the neighbourhoods riding a zémidjan or aboard a tokpa-tokpa, on the real streets of Cotonou and Calavi. Pull in at the stops, dodge the potholes, grab the coins.</p>
+      </div>
+      <div class="jm-lignes" id="jmLignes"></div>
+      <div class="jm-prog" id="jmProg"></div>
+      <div class="jm-duo"><b>Two players</b><button type="button" class="btn-ghost" id="mjCreer">Create a game</button><input id="mjCode" maxlength="4" placeholder="CODE" aria-label="Game code" autocomplete="off"><button type="button" class="btn-ghost" id="mjRejoindre">Join</button><span id="mjStatut">Play together: each of you sees the other’s zém in the city.</span></div>
+      <div class="jm-pied">
+        <label for="jmNumero">Number on your yellow shirt <input id="jmNumero" maxlength="5" inputmode="numeric" value="1234"></label>
+        <button type="button" class="btn-ghost" id="jmPub">Advertisers</button>
+        <button type="button" class="btn-ghost" id="jmRetour">Back to the map</button>
+      </div>
+      <p class="jm-aide"><b>↑</b> accelerate (the zém only moves while you hold it, and slows down as soon as you let go) · <b>↓</b> brake · <b>stop at red lights</b>, or the police will fine you · ask your passenger if they have a helmet · <b>← →</b> change lanes, <b>→ →</b> pull over onto the roadside; <b>at a junction, slow down then ← or →</b> to turn, <b>T</b> to go straight on where the GPS wanted to turn: you choose, and it recalculates the route · the <b>mini-map</b> and the place names on screen help you find your way · <b>E</b> interact with what's next to you (fuel, street vendor, MoMo, tyre repairer, shops, people, a customer waving you down) · <b>space</b> jump · <b>H</b> horn · <b>1 2 3</b> answer · <b>M</b> weather · <b>Esc</b> pause. Parked with no passenger? Wait: a passer-by will come and ask you for a ride.<br><b>Controller</b>: RT throttle · LT brake · stick or D-pad: lanes, up: straight on · A jump · B horn · X or Y interact · during a dialogue A, B, X answer · Start pause · Select weather.</p>
+      <label class="jm-option"><input type="checkbox" id="jmVoix"> Character voices (they speak out loud)</label>
+    </div>
+    <div class="jeu-hud" id="jeuHud" hidden>
+      <div class="jh-haut">
+        <div class="jh-ligne panel"><b id="jhNom"></b><span id="jhProchain"></span><div class="jh-barre"><i id="jhProg"></i><span id="jhArrets"></span></div></div>
+        <div class="jh-stats panel"><b id="jhArgent">0 F</b><span id="jhVies"></span><span id="jhVitesse">0 km/h</span><span id="jhPassagers"></span><span class="jh-essence" id="jhEssence" title="Fuel"><i></i></span></div>
+      </div>
+      <div class="jh-quartier" id="jhQuartier"></div>
+      <div class="jh-carrefour" id="jhCarrefour" hidden></div>
+      <div class="jh-feu" id="jhFeu" hidden></div>
+      <div class="jh-paiement panel" id="jhPaiement" hidden role="status"></div>
+      <div class="jh-rue" id="jhRue"><small>You’re riding on</small><b></b></div>
+      <div class="jh-repere" id="jhRepere"><div class="jh-photo" id="jhRepPhoto" hidden></div><small></small><b></b></div>
+      <canvas class="jh-mini" id="jhMini" width="360" height="360" aria-label="Route mini-map"></canvas>
+      <div class="jh-bulles" id="jhBulles" aria-live="polite"></div>
+      <div class="jh-apprenti" id="jhApprenti"></div>
+      <div class="jh-mission" id="jhMission"><b></b><small></small></div>
+      <div class="jh-toast" id="jhToast"></div>
+      <button type="button" class="jh-action" id="jhAction" hidden><kbd>E</kbd><span></span></button>
+      <div class="jh-dialogue panel" id="jhDialogue" hidden><small class="qui"></small><p class="dit"></p><div class="choix"></div><i class="minuteur"></i></div>
+      <div class="jh-carte panel" id="jhCarte" hidden><div class="jh-photo" id="jhArretPhoto" hidden></div><small>Stop reached</small><h3></h3><p></p></div>
+      <div class="jh-boutons">
+        <button type="button" id="jbG" aria-label="Left lane">◀</button>
+        <button type="button" id="jbF" aria-label="Brake">Brake</button>
+        <button type="button" id="jbA" aria-label="Accelerate">Gas</button>
+        <button type="button" id="jbE" aria-label="Interact">E</button>
+        <button type="button" id="jbS" aria-label="Jump">Jump</button>
+        <button type="button" id="jbK" aria-label="Horn">Horn</button>
+        <button type="button" id="jbD" aria-label="Right lane">▶</button>
+      </div>
+      <div class="jh-coin"><button type="button" id="jhSon" aria-pressed="true" title="Mute sounds">Sound</button><button type="button" id="jhPause">Pause</button></div>
+    </div>
+    <div class="jeu-fin panel" id="jeuFin" hidden>
+      <h2></h2><p class="jf-sous"></p>
+      <div class="jf-stats"></div>
+      <div class="jf-quiz"></div>
+      <div class="jf-actions"><button type="button" class="jouer" id="jfRejouer">Play again</button><button type="button" class="btn-ghost" id="jfMarche" hidden>Craft market</button><button type="button" class="btn-ghost" id="jfLignes">Another route</button><button type="button" class="btn-ghost" id="jfCarte">Back to the map</button></div>
+    </div>
+    <div class="jeu-pause panel" id="jeuPause" hidden><h2>Pause</h2><div class="jf-actions"><button type="button" class="jouer" id="jpReprendre">Resume</button><button type="button" class="btn-ghost" id="jpQuitter">Quit the ride</button></div></div>
+  </section>
+
+  <div class="boutique panel" id="boutique" hidden role="dialog" aria-labelledby="bqNom" tabindex="-1">
+    <button type="button" class="bq-x" id="bqFermer" aria-label="Close the shop">×</button>
+    <small id="bqLieu"></small><h3 id="bqNom"></h3>
+    <div class="bq-corps">
+      <div class="bq-gauche"><canvas class="bq-vue" id="bqVue" width="440" height="440" aria-hidden="true"></canvas><p class="bq-desc" id="bqDesc"></p></div>
+      <div class="bq-droite"><p class="bq-dit" id="bqDit"></p><div class="bq-choix" id="bqChoix"></div><div class="bq-objets" id="bqObjets"></div><p class="bq-bourse" id="bqBourse"></p></div>
+    </div>
+  </div>
+  <div class="offre-pub" id="offrePub" hidden role="dialog" aria-labelledby="opTitre">
+    <div class="op-boite panel">
+      <button type="button" class="op-x" aria-label="Close">×</button>
+      <small>For advertisers</small><h3 id="opTitre">Your brand in Cotonou 3D and Zém Run</h3>
+      <p>Players ride through the real streets of Cotonou and Ouidah: your billboards are right where your customers go by.</p>
+      <ul class="op-offres">
+        <li><b>4 × 3 billboard in town</b>On the main roads of the 3D city, seen while exploring and during rides.</li>
+        <li><b>Large billboard along the routes</b>Along the Zém Run routes, every 600 to 900 m, facing the players.</li>
+        <li><b>Kiosk and shop sign</b>MoMo and Moov Money kiosks, petrol stations, roadside shops.</li>
+        <li><b>In-game voice</b>A vendor or a customer talking about your product in the chat bubbles.</li>
+        <li><b>Sponsored mission</b>A mission in your name, with a bonus for players.</li>
+      </ul>
+      <small>Impressions counted on this device</small>
+      <ul class="op-stats"></ul>
+      <p class="op-contact"></p>
+    </div>
+  </div>
+  <div class="pres" id="pres" hidden><div class="bande haut"></div><div class="bande bas"></div><div class="pres-titre"><h2 id="presTitre"></h2><p id="presSous"></p></div><small class="pres-sortie">Click or press Esc to exit</small></div>
+
+  <div class="accueil" id="accueil" hidden>
+    <div class="ac-carte" role="dialog" aria-labelledby="acTitre">
+      <p class="ac-sur">Cotonou · Abomey-Calavi · Ganvié · Ouidah</p>
+      <h1 id="acTitre">Benin in 3D</h1>
+      <p class="ac-texte">A musical tour of the cities, set to “Agolo” by Angélique Kidjo. Then the city is yours: explore it, or hop on a zémidjan and ride its streets.</p>
+      <div class="ac-actions">
+        <button class="jouer ac-visite" type="button" id="acVisite"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Start the tour</button>
+        <button class="ac-passer" type="button" id="acPasser">Explore freely</button>
+      </div>
+      <p class="ac-son"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Best with the sound on</p>
+    </div>
+  </div>
+
+  <div class="evenement panel" id="evenement" hidden role="dialog" aria-labelledby="evTitre">
+    <small class="ev-sur">Esplanade de l’Amazone · tonight</small>
+    <h2 id="evTitre">The Esplanade Concert</h2>
+    <p>A stage facing the statue, a giant screen, lights and the whole city dancing. Entry is paid by MoMo from your in-game savings.</p>
+    <p class="ev-solde"></p>
+    <p class="ev-manque" hidden>You need 50 F in your savings: earn it by giving rides in Zém Run.</p>
+    <div class="ev-actions"><button type="button" class="jouer" id="evPayer">Pay 50 F and go in</button><button type="button" class="btn-ghost" id="evAnnuler">Not now</button></div>
+  </div>
+  <button type="button" class="ev-quitter" id="evQuitter" hidden>Leave the concert</button>
+
+  <div id="loader">
+    <div class="box">
+      <h2>Cotonou</h2>
+      <p id="loadTxt">Getting ready…</p>
+      <div class="bar"><i id="loadBar"></i></div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

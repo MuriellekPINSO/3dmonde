@@ -1,10 +1,18 @@
-node_modules/
-.DS_Store
+node_modules
 dist/
-.env*
-playwright-report/
-test-results/
-# Modèles Meshy bruts et animations sources : plus de 1 Go, hors dépôt.
-3d/
-# Photos et vidéos de repérage : conservées localement, jamais publiées avec le jeu.
-public/espace/
+osm/
+.DS_Store
+*.log
+.env.local
+.env*.local
+
+# Original 3D models (Tripo, 60 to 72 MB each): `npm run masques` derives the light
+# versions in public/modeles from them, and those are versioned.
+sources/masques/
+sources/art/
+sources/tripo/
+# Old single-file version: it embeds the radio music (rights not checked)
+artefact/cotonou-3d.html
+
+# Vercel project link (local)
+.vercel/
