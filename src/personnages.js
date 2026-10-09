@@ -1,0 +1,180 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as clonerSquelette } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { LITE, hash } from './base.js';
+import { camera } from './scene.js';
+
+// ---------- Realistic, animated Beninese characters ----------
+// scripts/personnages.mjs builds public/modeles/personnages/<id>.glb with Tripo: a textured
+// model (vendor in a wax-print pagne, young man in a jersey, elder in a boubou, police officer…), a human
+// skeleton and its animations (idle, marche, salut, parle, telephone, assis, rire). Here, each
+// character in the game is a copy that shares the mesh and textures, with its own skeleton and
+// AnimationMixer. Until the models are loaded (or if they are missing), the game keeps
+// its code-drawn characters (personne() in discussions.js).
+
+const P = { modeles: {}, pret: false, actifs: new Set(), accessoires: {}, index: {}, danses: null };
+// Roles: the police officer and the zém are never picked at random; they are used only when asked for.
+const ROLES = new Set(['policier', 'zem']);
+const TAILLE = { femme: [1.6, 1.7], homme: [1.68, 1.82], ancien: [1.64, 1.72], maman: [1.56, 1.64], 'eleve-garcon': [1.24, 1.38], 'eleve-fille': [1.22, 1.36] };
+const v = new THREE.Vector3(), v2 = new THREE.Vector3();
+
+/** Loads the characters (in the background: the game works without them). */
+export async function chargerPersonnages() {
+  let idx = {};
+  try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) idx = await r.json(); } catch { }
+  P.index = idx;
+  const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  await Promise.all(Object.entries(idx).map(async ([id, info]) => {
+    try {
+      const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}.glb?v=${info.octets}`);
+      P.modeles[id] = preparer(id, g, info);
+    } catch (e) { console.warn('personnage', id, e.message); }
+  }));
+  P.pret = Object.keys(P.modeles).length > 0;
+  if (P.pret) console.info(`personnages : ${Object.keys(P.modeles).join(', ')}`);
+  chargerAccessoires(chargeur);
+  return P.pret;
+}
+
+// Accessories (Tripo models without a skeleton): basins of fruit carried on the head…
+async function chargerAccessoires(chargeur) {
+  let liste = {};
+  try { const r = await fetch(import.meta.env.BASE_URL + 'modeles/personnages/accessoires/index.json'); if (r.ok && /json/.test(r.headers.get('content-type') || '')) liste = await r.json(); } catch { }
+  await Promise.all(Object.entries(liste).map(async ([id, info]) => {
+    try {
+      const s = (await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/accessoires/${id}.glb?v=${info.octets}`)).scene;
+      const b = new THREE.Box3().setFromObject(s), t = b.getSize(new THREE.Vector3()), ech = (info.largeur || .55) / Math.max(t.x, t.z);
+      s.scale.setScalar(ech); s.position.set(-(b.min.x + b.max.x) / 2 * ech, -b.min.y * ech, -(b.min.z + b.max.z) / 2 * ech);
+      s.traverse(o => { if (o.isMesh) o.castShadow = !LITE; });
+      const g = new THREE.Group(); g.add(s); P.accessoires[id] = g;
+    } catch (e) { console.warn('accessoire', id, e.message); }
+  }));
+}
+/** A copy of the accessory `prefixe` (e.g. "bassine"), variant `k`, or null if it isn't loaded. */
+export function accessoire(prefixe, k = 0) {
+  const ids = Object.keys(P.accessoires).filter(id => id.startsWith(prefixe)); if (!ids.length) return null;
+  return P.accessoires[ids[k % ids.length]].clone();
+}
+export const personnagesPrets = () => P.pret;
+/** The concert dances (danse1, danse2, acclame), in separate files: loaded the first time you enter the concert. */
+export function chargerDanses() {
+  if (P.danses) return P.danses;
+  const chargeur = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  P.danses = Promise.all(Object.entries(P.modeles).map(async ([id, M]) => {
+    const o = P.index[id]?.danses; if (!o) return;
+    try { const g = await chargeur.loadAsync(`${import.meta.env.BASE_URL}modeles/personnages/${id}-danses.glb?v=${o}`); for (const c of g.animations) M.clips[c.name] = c; }
+    catch (e) { console.warn('danses', id, e.message); }
+  }));
+  return P.danses;
+}
+
+// Measurements taken once per model: height in the idle pose, facing direction (from the feet
+// to the toes), height of the pelvis when seated.
+function preparer(id, g, info) {
+  const scene = g.scene, clips = Object.fromEntries(g.animations.map(c => [c.name, c]));
+  scene.traverse(o => { if (o.isMesh) { o.castShadow = !LITE; o.receiveShadow = false; o.frustumCulled = false; } });
+  const os = nom => scene.getObjectByName(nom);
+  const mixer = new THREE.AnimationMixer(scene), poser = (clip, t) => { mixer.stopAllAction(); const a = mixer.clipAction(clip); a.play(); a.time = t; mixer.update(0); scene.updateMatrixWorld(true); };
+  // Standing: height (top of the head) and ground level.
+  if (clips.idle) poser(clips.idle, 0);
+  const boite = new THREE.Box3();
+  scene.traverse(o => { if (o.isSkinnedMesh) { o.computeBoundingBox(); boite.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
+  const hauteur = boite.max.y - boite.min.y, sol = boite.min.y;
+  // From the top of the head bone to the top of the skull (headscarf or cap included): where the basin and the helmet sit.
+  const crane = os('Head') ? boite.max.y - os('Head').getWorldPosition(v).y : hauteur * .14;
+  // Facing direction: from heel to toes, on both feet.
+  const avant = new THREE.Vector3();
+  for (const c of ['L', 'R']) { const pied = os(`${c}_Foot`), orteil = os(`${c}_ToeBase`); if (pied && orteil) avant.add(orteil.getWorldPosition(v).sub(pied.getWorldPosition(v2))); }
+  const rot = avant.lengthSq() > 1e-8 ? -Math.atan2(avant.x, avant.z) : 0;
+  // Seated: the moment when the pelvis is lowest, and its height at that moment.
+  let assis = null;
+  if (clips.assis && os('Pelvis')) {
+    let tMin = 0, yMin = Infinity;
+    for (let k = 0; k <= 40; k++) { const t = clips.assis.duration * k / 40; poser(clips.assis, t); const y = os('Pelvis').getWorldPosition(v).y; if (y < yMin - 1e-4) { yMin = y; tMin = t; } }
+    poser(clips.assis, tMin); const b = os('Pelvis').getWorldPosition(new THREE.Vector3());
+    assis = { t: tMin, bassin: b };
+  }
+  mixer.stopAllAction(); mixer.uncacheRoot(scene);
+  return { id, scene, clips, hauteur, sol, rot, assis, crane, femme: !!info.femme, enfant: !!info.enfant };
+}
+
+function choisirId(i, femme, role, enfant = false) {
+  if (role) { if (P.modeles[role]) return role; if (ROLES.has(role)) return null; } // no fake police officer: we keep the one drawn in code
+  // Schoolchildren only appear when asked for (passers-by, concert): never as the zém's passengers.
+  const ids = Object.keys(P.modeles).filter(k => !ROLES.has(k) && P.modeles[k].enfant === enfant && (femme === null || femme === undefined || P.modeles[k].femme === femme));
+  return ids.length ? ids[Math.floor(hash(i, 91) * ids.length)] : null;
+}
+
+/**
+ * An animated character (facing +z, feet on the ground) or null if the models aren't there.
+ * Same contract as personne(): userData.tete (bubbles), userData.anim(t, parle, signe), userData.liberer().
+ * In addition: userData.main (objects passed from hand to hand), userData.coiffer(objet) (helmet on the head),
+ * userData.jouer(nom) (idle, marche, salut, parle, telephone, assis, rire).
+ */
+export function personnage3d(i, { assise = false, femme = null, role = null, enfant = false } = {}) {
+  if (!P.pret) return null;
+  const id = choisirId(i, femme, role, enfant); if (!id) return null;
+  const M = P.modeles[id], corps = clonerSquelette(M.scene);
+  const gamme = TAILLE[id] || TAILLE[M.femme ? 'femme' : 'homme'], taille = gamme[0] + hash(i, 92) * (gamme[1] - gamme[0]);
+  const ech = taille / M.hauteur;
+  corps.scale.setScalar(ech); corps.rotation.y = M.rot;
+  const g = new THREE.Group(); g.add(corps);
+  if (assise && M.assis) { // pelvis at the origin, like the seated characters drawn in code
+    const b = M.assis.bassin.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), M.rot).multiplyScalar(ech);
+    corps.position.set(-b.x, -b.y, -b.z);
+  } else corps.position.y = -M.sol * ech;
+  const mixer = new THREE.AnimationMixer(corps), actions = {};
+  for (const [nom, clip] of Object.entries(M.clips)) actions[nom] = mixer.clipAction(clip);
+  const os = nom => corps.getObjectByName(nom);
+  const E = { g, mixer, actions, courante: null, tete: new THREE.Object3D(), main: new THREE.Object3D(), osTete: os('Head'), osMain: os('R_Hand'), crane: M.crane * ech, orphelin: 0, ph: hash(i, 93) * 10 };
+  g.add(E.tete); E.main.position.set(0, 1.1, .25); g.add(E.main);
+  E.tete.position.set(0, taille + .08, 0);
+  const jouer = (nom, fondu = .35) => {
+    if (!actions[nom] && M.clips[nom]) actions[nom] = mixer.clipAction(M.clips[nom]); // dance loaded later on
+    if (!actions[nom]) nom = 'idle'; if (E.courante === nom || !actions[nom]) return;
+    const a = actions[nom]; a.reset(); a.enabled = true; a.setEffectiveWeight(1);
+    if (nom === 'assis') { a.time = M.assis?.t ?? a.getClip().duration; a.paused = true; } // hold the seated pose
+    else if (fondu === 0) a.time = (E.ph * 7.3) % a.getClip().duration; // each at their own pace, not all in sync
+    a.play();
+    const prec = E.courante && actions[E.courante]; if (prec && fondu > 0) a.crossFadeFrom(prec, fondu, false); else if (prec) prec.stop();
+    E.courante = nom;
+  };
+  // Not everyone does the same thing at the same time: staggered start, and some make phone calls while they wait.
+  const repos = !assise && hash(i, 94) < .22 && actions.telephone ? 'telephone' : 'idle';
+  jouer(assise ? 'assis' : repos, 0);
+  mixer.update(assise ? 0 : E.ph); suivre(E);
+  P.actifs.add(E);
+  g.userData = {
+    tete: E.tete, main: E.main, femme: M.femme, graine: i, modele: id, haut: 1.15, jouer,
+    anim: (t, parle, signe) => {
+      if (assise) return;
+      if (signe) jouer('salut');
+      else if (parle) jouer(Math.sin(t * .37 + E.ph) > .75 && actions.rire ? 'rire' : 'parle');
+      else if (E.courante !== 'marche') jouer(repos);
+    },
+    coiffer: objet => { E.tete.add(objet); objet.position.set(0, -.15, -.01); objet.scale.setScalar(1.08); },
+    liberer: () => { P.actifs.delete(E); mixer.stopAllAction(); mixer.uncacheRoot(corps); },
+  };
+  return g;
+}
+
+// The head and the hand follow the bones (for the bubbles, the helmet, the objects handed over).
+function suivre(E) {
+  if (E.osTete) { E.osTete.getWorldPosition(v); E.g.updateMatrixWorld(); E.g.worldToLocal(v); E.tete.position.set(v.x, v.y + E.crane + .03, v.z); } // just above the skull
+  if (E.osMain) { E.osMain.getWorldPosition(v); E.g.worldToLocal(v); E.main.position.copy(v); }
+}
+function dansScene(o) { while (o.parent) o = o.parent; return o.isScene; }
+
+/** Every frame: animates the characters that are present and close enough to the camera. */
+export function majPersonnages(dt) {
+  if (!P.actifs.size) return;
+  for (const E of P.actifs) {
+    if (!dansScene(E.g)) { if (++E.orphelin > 600) P.actifs.delete(E); continue; } // removed without liberer(): forget it after a while
+    E.orphelin = 0;
+    let vis = E.g.visible; for (let o = E.g.parent; vis && o; o = o.parent) vis = o.visible;
+    if (!vis) continue;
+    E.g.getWorldPosition(v); if (v.distanceToSquared(camera.position) > 160 * 160) continue;
+    E.mixer.update(dt); suivre(E);
+  }
+}

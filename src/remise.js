@@ -29,6 +29,7 @@ function objet(type) {
 const v = new THREE.Vector3();
 function main(cible, haut, out) {
   if (cible.isVector3) return out.copy(cible);
+  if (cible.userData?.main) return cible.userData.main.getWorldPosition(out); // animated character: its real hand
   cible.getWorldPosition(out); out.y += haut ?? (cible.userData?.haut ?? 1.15); return out;
 }
 

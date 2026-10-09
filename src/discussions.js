@@ -5,10 +5,11 @@ import { $, LITE, hash } from './base.js';
 import { camera } from './scene.js';
 import { son } from './audio.js';
 import { C3, matVeh } from './vehicules.js';
+import { personnage3d } from './personnages.js';
 import { mergeColored } from './ville.js';
 import { PLACES } from './donnees-lieux.js';
 import { BORD } from './bordure.js';
-import { JEU, LANE, fmtF, pose, toast, prendreRaccourci, avecClients } from './jeu.js';
+import { JEU, LANE, demiChaussee, fmtF, latTrottoir, pose, toast, prendreRaccourci, avecClients } from './jeu.js';
 import { progres } from './missions.js';
 import { parler, voixDe } from './voix.js';
 
@@ -52,7 +53,11 @@ function majBulles(dt) {
     tete(b.ancre, v); v.y += .35; const dist = v.distanceTo(camera.position); v.project(camera);
     const vu = v.z < 1 && Math.abs(v.x) < 1.15 && Math.abs(v.y) < 1.15 && dist < 140;
     b.el.style.opacity = vu ? Math.min(1, b.t / .3, (b.d - b.t) / .12) : 0;
-    b.el.style.transform = `translate(${((v.x * .5 + .5) * r.width).toFixed(1)}px, ${((-v.y * .5 + .5) * r.height).toFixed(1)}px) translate(-50%, -100%) scale(${THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05).toFixed(3)})`;
+    // The bubble stays fully on screen, even when the person is right at the edge.
+    const ech = THREE.MathUtils.clamp(26 / Math.max(dist, 1), .72, 1.05);
+    if (!b.w) { b.w = b.el.offsetWidth; b.h = b.el.offsetHeight; }
+    const dx = b.w * ech / 2 + 8, x = THREE.MathUtils.clamp((v.x * .5 + .5) * r.width, dx, Math.max(dx, r.width - dx)), y = THREE.MathUtils.clamp((-v.y * .5 + .5) * r.height, b.h * ech + 8, r.height - 8);
+    b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) scale(${ech.toFixed(3)})`;
   }
 }
 function viderBulles() { for (const b of BULLES) b.el.remove(); BULLES.length = 0; }
@@ -62,7 +67,9 @@ const PAGNES = ['#e2672a', '#2f6fb0', '#8e3c8f', '#2f8a4a', '#d9a521', '#c8382f'
 const PANTALONS = ['#2b2f3a', '#4a3b2a', '#1f3d5a', '#5e5e5e', '#3f4d2c'];
 const PEAUX = ['#4a2f22', '#5a3a28', '#3b261c', '#6b452f'];
 /** A person standing (facing +z) or seated; userData.tete for the bubbles, userData.anim(t, talking). */
-export function personne(i, { assise = false, gilet = null, femme: genre = null } = {}) {
+export function personne(i, { assise = false, gilet = null, femme: genre = null, role = null } = {}) {
+  // The realistic animated character (personnages.js) once it is loaded; otherwise the one drawn here.
+  const vrai = personnage3d(i, { assise, femme: genre, role }); if (vrai) return vrai;
   const femme = genre ?? hash(i, 71) < .5, c1 = PAGNES[Math.floor(hash(i, 72) * PAGNES.length)], c2 = PAGNES[Math.floor(hash(i, 73) * PAGNES.length)];
   const peau = PEAUX[Math.floor(hash(i, 74) * PEAUX.length)], bas = PANTALONS[Math.floor(hash(i, 75) * PANTALONS.length)];
   const P = [], add = (g, c) => P.push([g, c]);
@@ -163,7 +170,10 @@ export function nettoyerDiscussions(garderClient = false) {
 }
 function creerGroupe(gp, C) {
   const g = new THREE.Group(), membres = [];
-  const p = pose(C, gp.s, gp.side * (LANE * 1.5 + 4.6), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  // On the roadside (never inside a wall or on the roadway); on the other side if there is no room.
+  let lat = latTrottoir(C, gp.s, gp.side, 2); if (lat === null) lat = latTrottoir(C, gp.s, -gp.side, 2);
+  if (lat === null) return null;
+  const p = pose(C, gp.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   g.position.set(p.x, p.y, p.z); g.rotation.y = p.a;
   for (let k = 0; k < gp.nb; k++) {
     const m = personne(gp.graine + k), a = k / gp.nb * Math.PI * 2 + .4, r = gp.nb > 2 ? .62 : .5;
@@ -199,7 +209,8 @@ export function prendreSigne(h) {
 /** The player, stopped without a passenger, is waiting: a passer-by comes over to ask for a ride. */
 export function passantDemande(C) {
   const st = JEU.etat; if (!st || DISC.client || DISC.courant) return;
-  const side = st.lat < -.5 ? -1 : 1, p = pose(C, st.s + 2, side * (LANE * 2.4), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  let side = st.lat < -.5 ? -1 : 1, lat = latTrottoir(C, st.s + 2, side, .5); if (lat === null) { side = -side; lat = latTrottoir(C, st.s + 2, side, .5); } if (lat === null) return;
+  const p = pose(C, st.s + 2, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const m = personne(Math.floor(Math.random() * 1e5)); m.position.set(p.x, p.y, p.z); m.rotation.y = Math.atan2(side * p.dz, -side * p.dx); JEU.decor.add(m);
   const h = { s: st.s + 2, side, m, etat: 'propose', graine: 0 }; DISC.signes.push(h);
   const prochain = JEU.ligne.arretsJ[st.prochain], ou = prochain ? prochain.nom : 'the terminus';
@@ -244,7 +255,7 @@ export function nouveauClient(st, k, { arrete = false } = {}) {
   const accord = (tarif, dh, rep) => { const c = DISC.client; if (!c) return; c.tarif = tarif; c.accord = true; humeur(dh); dit(rep); if (tarif >= juste) progres('negos', 1); setTimeout(() => { if (DISC.client === c && JEU.veh === 'zem') demanderCasque(st, c); }, 1400); };
   const perdu = () => { dit('I’ll take another zém!', { ton: 'fort' }); son('choc'); toast('Passenger lost', 1.4, 'mal'); setTimeout(() => { if (DISC.client?.nom === nom) { DISC.client = null; st.passagers = 0; s.visible = false; } }, 1200); };
   dit(`Zém! ${a.nom}, how much?`, { duree: 3.2 });
-  dialogue(`${nom} · your passenger`, `“Zém! ${a.nom}, how much?”`, [
+  dialogue(`${nom} · ${femme ? 'your passenger' : 'your passenger'}`, `“Zém! ${a.nom}, how much?”`, [
     [`${juste + 150} F`, () => {
       if (Math.random() < .35) return accord(juste + 150, -.15, 'Okay… let’s go, but ride carefully eh!');
       dit(`Eh! That’s too much! ${juste} F?`, { ton: 'fort' });
@@ -262,7 +273,9 @@ const COUL_CASQUE = ['#1d2733', '#c8382f', '#f2f2ee', '#2f6fb0', '#e9b23a'];
 function mettreCasque(p) {
   if (!p || p.userData.casque) return;
   const t = p.userData.tete, c = new THREE.Mesh(new THREE.SphereGeometry(.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55), new THREE.MeshLambertMaterial({ color: choisir(COUL_CASQUE) }));
-  c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); p.userData.casque = c;
+  if (p.userData.coiffer) p.userData.coiffer(c); // animated character: the helmet follows the head
+  else { c.position.set(t.position.x, t.position.y - .22, t.position.z); p.add(c); }
+  p.userData.casque = c;
 }
 function demanderCasque(st, c) {
   const aLeSien = Math.random() < .45;
@@ -276,7 +289,7 @@ function demanderCasque(st, c) {
     ['I’ll lend you mine', () => { mettreCasque(c.siege); humeur(.12); dit('Thank you zém, you’re kind!'); }],
     ['Buy one from the vendor over there · 2,000 F', () => {
       st.service = Math.max(st.service, 3.4); toast('The passenger buys a helmet from the roadside vendor…', 2.2);
-      const p = pose(JEU.chemin, st.s + 3, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      const p = pose(JEU.chemin, st.s + 3, latTrottoir(JEU.chemin, st.s + 3, 1, .9) ?? demiChaussee(JEU.chemin, st.s + 3) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(JEU.chemin, st.s + 3, 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       const vend = personne(4500 + Math.floor(Math.random() * 400), { femme: false }); vend.position.set(p.x, p.y, p.z); vend.lookAt(q.x, p.y, q.z); JEU.decor.add(vend); bulle(vend, 'Helmet! New helmet!', { duree: 2.4 });
       remettre(c.siege, vend, 'billet', { hautDe: .55, garder: .3 });
       remettre(vend, c.siege, 'casque', { delai: .8, hautVers: .6, garder: .2, apres: () => { if (DISC.client === c) { mettreCasque(c.siege); humeur(-.04); dit('Well, at least it’s new!'); } setTimeout(() => vend.parent?.remove(vend), 4000); } });
@@ -312,7 +325,7 @@ function causerie(st) {
   const R = (txt, dh, rep, prime = 0) => [txt, () => { humeur(dh); dit(rep); if (prime) { st.argent += prime; toast(`+${prime} F`, 1, 'bien'); son('piece'); } }];
   if (sujet === 'presse') {
     const sup = Math.max(200, Math.round(c.juste * .5 / 50) * 50);
-    dit(`I’m in a hurry! ${sup} F extra if you take a shortcut.`, { duree: 3.2 });
+    dit(`${c.femme ? 'I’m in a hurry' : 'I’m in a hurry'}! ${sup} F extra if you take a shortcut.`, { duree: 3.2 });
     dialogue(c.nom, `“I’m late! I’ll give you ${sup} F extra if you take a shortcut.”`, [
       [`Okay, we’ll cut through the back streets (+${sup} F)`, () => { if (prendreRaccourci()) { c.supplement = sup; humeur(.1); dit('Thank you! Go on, quick!'); } else dit('Oh well, never mind, we’ll stay on the main road.'); }],
       ['No, I’m staying on the main road', () => { humeur(-.05); dit('Hmm… then at least ride fast!'); }],
@@ -358,8 +371,8 @@ function causerie(st) {
 export function placerCollecteur(L, C) {
   const n = L.arretsJ.length; if (JEU.veh !== 'zem' || n < 4) return;
   const k = 1 + Math.floor(Math.random() * (n - 3)), a = L.arretsJ[k];
-  const p = pose(C, a.s + 2, LANE * 2.6, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
-  const m = personne(4242, { gilet: '#f28c1b', femme: false }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
+  const p = pose(C, a.s + 2, latTrottoir(C, a.s + 2, 1, 1.2) ?? demiChaussee(C, a.s + 2) + .5, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const m = personne(4242, { gilet: '#f28c1b', femme: false, role: 'zem' }); m.position.set(p.x, p.y, p.z); m.rotation.y = p.a - Math.PI / 2; JEU.decor.add(m);
   DISC.collecteur = { k, m, fait: false };
 }
 export function collecte(st) {
@@ -402,7 +415,7 @@ function suivant() {
   const box = el.querySelector('.choix'); box.innerHTML = '';
   d.choix.forEach(([t], k) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<kbd>${k + 1}</kbd>${t}`; b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); repondre(k); }); box.append(b); });
   el.hidden = false; son('arret');
-  if (/^[«“"]/.test(d.texte.trim())) parler(d.texte, d.voix || voixQui(d.qui), 2); // spoken lines are the quoted ones (English “…”, or « … » left over)
+  if (/^[«“"]/.test(d.texte.trim())) parler(d.texte, d.voix || voixQui(d.qui), 2);
   if (d.bloquant && JEU.etat) JEU.etat.service = 99; // held stopped while you answer (refuelling, passenger climbing on)
 }
 // Who is speaking in the dialogue: the passenger, a known trade, otherwise whoever just spoke in their bubble.
@@ -463,7 +476,7 @@ export function majDiscussions(st, C, dt) {
   // Groups that appear ahead and disappear behind.
   while (DISC.ptr < DISC.groupes.length && DISC.groupes[DISC.ptr].s < st.s + 280) {
     const gp = DISC.groupes[DISC.ptr++]; if (gp.s < st.s - 20) continue;
-    DISC.vivants.push(creerGroupe(gp, C));
+    const v2 = creerGroupe(gp, C); if (v2) DISC.vivants.push(v2);
   }
   const t = st.temps;
   DISC.vivants = DISC.vivants.filter(g => {
@@ -482,7 +495,9 @@ export function majDiscussions(st, C, dt) {
   for (const h of DISC.signes) {
     const ds = h.s - st.s;
     if (!h.m && ds < 260 && ds > -20) {
-      const p = pose(C, h.s, h.side * (LANE * 1.5 + 1.6), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+      let lat = latTrottoir(C, h.s, h.side, .45); if (lat === null) { h.side = -h.side; lat = latTrottoir(C, h.s, h.side, .45); }
+      if (lat === null) { h.etat = 'fini'; continue; } // no roadside here: nobody waves
+      const p = pose(C, h.s, lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
       h.m = personne(h.graine); h.m.position.set(p.x, p.y, p.z); JEU.decor.add(h.m);
       h.m.rotation.y = Math.atan2(h.side * p.dz - .6 * p.dx, -h.side * p.dx - .6 * p.dz); // facing the road, turned towards the oncoming zém
     }
@@ -493,7 +508,7 @@ export function majDiscussions(st, C, dt) {
     if (h.etat === 'attend' && ds < 75 && ds > 25) {
       h.etat = 'propose';
       const prochain = JEU.ligne.arretsJ[st.prochain], ou = prochain ? prochain.nom : 'the terminus';
-      bulle(h.m, choisir(['Zém! Zém!', `Zém! Going to ${ou}?`, 'Eh zém! Wait!']), { duree: 2.6 });
+      bulle(h.m, choisir(['Zém! Zém!', `Zém! ${ou}?`, 'Eh zém! Wait!']), { duree: 2.6 });
       if (!DISC.client && !st.aideSigne) { st.aideSigne = true; toast(`Someone is waving at you on the ${h.side > 0 ? 'right' : 'left'}: stop alongside them, then press E`, 2.6); }
     }
     if (h.etat === 'propose' && ds < -6) { h.etat = 'ignore'; bulle(h.m, choisir(['Tchrrr…', 'Hmm, these zéms!', 'Okay, I’ll wait for the next one.'])); }
@@ -524,6 +539,6 @@ export function majDiscussions(st, C, dt) {
 /** Text for the HUD passenger box. */
 export function etiquetteClient() {
   const c = DISC.client; if (!c) return 'Empty';
-  const e = c.femme ? 'e' : '', h = c.humeur >= .75 ? 'delighted' : c.humeur >= .45 ? 'relaxed' : c.humeur >= .25 ? 'not happy' : 'angry';
+  const f = c.femme, h = c.humeur >= .75 ? (f ? 'delighted' : 'delighted') : c.humeur >= .45 ? 'relaxed' : c.humeur >= .25 ? (f ? 'not happy' : 'not happy') : (f ? 'angry' : 'angry'); // whole words: the English version translates them
   return `${c.nom.split(' ').slice(-1)[0]} · ${h}${c.accord ? ` · ${fmtF(c.tarif)}` : ''}`;
 }

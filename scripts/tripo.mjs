@@ -7,7 +7,6 @@
 //   npm run tripo -- alleger | lighten <id> [triangles]           only rebuilds the lightweight version
 //   npm run tripo -- reprendre | resume <id> <task_id> [triangles]   fetches a task already started (network dropout…)
 //   npm run tripo -- texte | text <id> "<description>" [triangles]   model from a text prompt (no photo)
-// Docs: https://developers.tripo3d.ai/fr/docs/quick-start
 import fs from 'fs';
 import path from 'path';
 import { NodeIO } from '@gltf-transform/core';
@@ -107,10 +106,10 @@ async function alleger(id, cible = 60000) {
 
 const [a, b, c] = process.argv.slice(2);
 try {
-  if (a === 'solde' || a === 'balance') console.log(await solde());
-  else if (a === 'alleger' || a === 'lighten') await alleger(b, +c || undefined);
-  else if (a === 'texte' || a === 'text') { const [id, prompt, tri] = process.argv.slice(3); console.log(await solde()); await genererTexte(id, prompt); await alleger(id, +tri || undefined); console.log(await solde()); }
-  else if (a === 'reprendre' || a === 'resume') { await generer(b, '', c); await alleger(b, +process.argv[5] || undefined); console.log(await solde()); }
+  if (a === 'solde') console.log(await solde());
+  else if (a === 'lighten') await alleger(b, +c || undefined);
+  else if (a === 'text') { const [id, prompt, tri] = process.argv.slice(3); console.log(await solde()); await genererTexte(id, prompt); await alleger(id, +tri || undefined); console.log(await solde()); }
+  else if (a === 'resume') { await generer(b, '', c); await alleger(b, +process.argv[5] || undefined); console.log(await solde()); }
   else if (a && b) { console.log(await solde()); await generer(a, b); await alleger(a, +c || undefined); console.log(await solde()); }
   else console.log('Usage: npm run tripo -- solde|balance | <id> <photo> [triangles] | alleger|lighten <id> [triangles] | reprendre|resume <id> <task_id> [triangles] | texte|text <id> "<description>" [triangles]');
 } catch (e) { console.error(e.message); process.exitCode = 1; }

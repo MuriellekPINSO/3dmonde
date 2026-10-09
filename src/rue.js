@@ -17,7 +17,7 @@ import { CAMPAGNES, campagne, matAffiche } from './publicites.js';
 
 const CARRE = 400;
 const TROTTOIR = { 0: 4, 1: 3.5, 2: 3, 3: 2.2, 4: 1.3, 5: .9 };
-const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, actif: true };
+const R = { carres: new Map(), file: [], B: null, grilleB: null, grilleR: null, zonesLibres: [], zonesJeu: [], routeJeu: null, actif: true, anneaux: [] };
 
 // ---------- Spatial indexes ----------
 const CB = 50, CR = 40;
@@ -48,7 +48,12 @@ function indexer(data) {
   const L = data.L;
   const zone = (x, z, r) => R.zonesLibres.push([x, z, r]);
   const c = r => r.reduce((s, p) => [s[0] + p[0] / r.length, s[1] + p[1] / r.length], [0, 0]);
-  if (L.etoile) { const [x, z] = c(L.etoile.ring); zone(x, z, 105); }
+  if (L.etoile) {
+    const [x, z] = c(L.etoile.ring); zone(x, z, 105);
+    // The roundabout's asphalt ring (drawn by lieux.js, outside the OSM streets): no passers-by on it.
+    const [sx, sz] = c(L.etoile.star), rMin = Math.min(...L.etoile.ring.map(p => Math.hypot(p[0] - x, p[1] - z)));
+    R.anneaux.push([sx, sz, rMin - 9.1, rMin + 8]);
+  }
   if (L.amazone) zone(L.amazone.pt[0], L.amazone.pt[1], 140);
   if (L.marina) { const [x, z] = c(L.marina); zone(x, z, 160); }
   if (L.congres) { const [x, z] = c(L.congres.outer.flat()); zone(x, z, 150); }
@@ -518,6 +523,36 @@ export function ajouterEmprises(T, zone) {
     const [a, b] = k.split(',').map(Number);
     if ((a + 1) * CARRE > zone[0] && a * CARRE < zone[2] && (b + 1) * CARRE > zone[1] && b * CARRE < zone[3]) { liberer(g); R.carres.delete(k); }
   }
+}
+/**
+ * Profile of the street under the game route at (x, z), direction (dx, dz): half-width of the roadway
+ * (hw) and distance to the plot walls (front, as genererCarre does for the route). Null off the streets.
+ */
+export function profilRoute(x, z, dx, dz) {
+  const l = R.grilleR?.get(cle(x, z, CR)); if (!l) return null;
+  let best = null, bd = 9;
+  for (const [li, ax, az, bx, bz, hw] of l) {
+    const L = roadLines[li], ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, ln = Math.sqrt(l2);
+    if (Math.abs((ux * dx + uz * dz) / ln) < .55) continue; // a street crossing the route: not that one
+    const t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2)), d = Math.hypot(ax + ux * t - x, az + uz * t - z);
+    if (d < bd) { bd = d; best = { hw, front: Math.max(hw + (TROTTOIR[L.cls] ?? 1), 9.8), cls: L.cls }; }
+  }
+  return best;
+}
+/**
+ * Can a pedestrian stand at (x, z): not inside a building, not on a roadway, not on a median.
+ * With a walking direction (dx, dz), the streets crossing it are allowed: they get walked across.
+ */
+export function pietonOk(x, z, dx = 0, dz = 0) {
+  if (!R.grilleR || dansBatiment(x, z) || dansTerrePlein(x, z, .3)) return false;
+  for (const [ax, az, r0, r1] of R.anneaux) { const d = Math.hypot(x - ax, z - az); if (d > r0 - .3 && d < r1 + .3) return false; }
+  const l = R.grilleR.get(cle(x, z, CR)); if (!l) return true;
+  for (const [, ax, az, bx, bz, hw] of l) {
+    const ux = bx - ax, uz = bz - az, l2 = ux * ux + uz * uz || 1, t = Math.max(0, Math.min(1, ((x - ax) * ux + (z - az) * uz) / l2));
+    if ((dx || dz) && Math.abs((ux * dx + uz * dz) / Math.sqrt(l2)) < .55) continue;
+    if (Math.hypot(ax + ux * t - x, az + uz * t - z) < hw + .25) return false;
+  }
+  return true;
 }
 /** True if (x, z) falls on a roadway or pavement (roads, streets, tracks and paths). */
 export function surChaussee(x, z, marge = .8) {

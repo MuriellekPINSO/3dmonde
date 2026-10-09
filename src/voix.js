@@ -45,7 +45,7 @@ function pourLaVoix(t) {
   return String(t).replace(/[«»"“”]/g, '').replace(/\([^)]*\)/g, '')
     .replace(/(\d)[\s  ,](?=\d{3}\b)/g, '$1').replace(/(\d+)\s*F\b/g, '$1 francs')
     .replace(/ɔ/g, 'o').replace(/Ɔ/g, 'O').replace(/ɛ/g, 'e').replace(/Ɛ/g, 'E')
-    .replace(/\bTchrr+\b/gi, 'Tchew').replace(/\b([Zz])ém/g, '$1em').replace(/\bMoMo\b/g, 'Momo')
+    .replace(/\bTchrr+\b/gi, 'Tchew').replace(/\b([Zz])ém/g, '$1em').replace(/\bMoMo\b/g, 'Momo').replace(/\s+/g, ' ')
     .replace(/\s+/g, ' ').trim();
 }
 

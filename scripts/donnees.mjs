@@ -317,7 +317,6 @@ for (const f of ['roads', 'roads2', 'ouidah_r']) for (const e of load(f)) if (!r
 // 1.5 to 2.5 m (Marina, Route des Pêches, Saint-Michel), or none at all (Steinmetz). So we bring the two
 // carriageways together until they match the real median width, then compute that median. Beyond a 10 m
 // gap, we keep the OSM geometry (a genuinely wide, planted median). Units: decimetres.
-// The keys below are real street names matched against OSM `name` tags: do not translate them.
 const BOULEVARDS = {
   'Boulevard de la Marina': { voies: 3, tp: 1.5 },        // 2 × 3 lanes, concrete divider (Google, port video)
   'Route des Pêches': { tp: 1.5 },                          // concrete divider with street lamps
@@ -493,7 +492,7 @@ for (const f of ['water', 'green', 'aero', 'videos', 'ouidah_e']) for (const e o
   console.log('coastline: chain from', (chain[0][0] / 10 / KX + LON0).toFixed(3), 'to', (chain[chain.length - 1][0] / 10 / KX + LON0).toFixed(3), '°E,', chains.length, 'pieces');
   const s = chain[0], e = chain[chain.length - 1];
   const ring = [[-700000, s[1]], ...chain, [700000, e[1]], [700000, 700000], [-700000, 700000]];
-  polys.unshift({ k: 0, rings: [ring], name: 'Océan Atlantique' });
+  polys.unshift({ k: 0, rings: [ring], name: 'Atlantic Ocean' });
   globalThis.COAST = chain;
 }
 const counts = {}; for (const p of polys) counts[p.k] = (counts[p.k] || 0) + p.rings.reduce((s, r) => s + r.length, 0);
@@ -735,7 +734,7 @@ const lignes = [];
   const DEF = [
     { id: 'centre', nom: 'The heart of Cotonou', veh: 'zem', etapes: [
       ["Étoile Rouge", 6.3702, 2.4100, "The big junction where five roads meet, around the Red Star monument."],
-      [null, 6.3620, 2.4223], // boulevard Saint-Michel
+      [null, 6.3620, 2.4223], // Boulevard Saint-Michel
       ["Dantokpa", 6.3705, 2.4343, "The largest open-air market in West Africa, on the edge of the lagoon."],
       ["Missèbo", 6.3650, 2.4346, "The fabric and second-hand clothes market, just south of Dantokpa."],
       ["Zongo", 6.3571, 2.4268, "The neighbourhood of the great mosque with its two white minarets."],
@@ -758,7 +757,7 @@ const lignes = [];
       ["UAC", 6.4136, 2.3420, "The University of Abomey-Calavi, the largest in the country, founded in 1970."],
       ["IITA", 6.4055, 2.3418, "The International Institute of Tropical Agriculture and its forest."],
       ["Échangeur de Godomey", 6.3902, 2.3545, "The western gateway to Cotonou. Since 2021, the tokpa-tokpa minibuses stop here."]] },
-    { id: 'plage', nom: 'From the beach to the stadium', veh: 'zem', etapes: [
+    { id: 'beach', nom: 'From the beach to the stadium', veh: 'zem', etapes: [
       ["Plage de Fidjrossè", 6.3487, 2.3655, "The western beach, along the Route des Pêches."],
       ["Fidjrossè", 6.3555, 2.3700, "The neighbourhood of drinks stalls and coconut palms, between the airport and the sea."],
       ["Agla", 6.3758, 2.3690, "A large residential neighbourhood in the north-west of the city."],

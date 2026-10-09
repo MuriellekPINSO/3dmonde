@@ -151,11 +151,31 @@ function gabaritDe(objet, { largeur, hauteur, passagere }) {
   return g;
 }
 /** Single geometry (transforms applied) for instancing in the traffic. */
+// The lightweight models have compressed coordinates (normalised 16-bit integers): we turn them back
+// into floats before transforming them, otherwise anything beyond 1 gets crushed.
+function enFlottants(geo) {
+  for (const [nom, a] of Object.entries(geo.attributes)) {
+    if (a.array instanceof Float32Array && !a.normalized) continue;
+    const f = new Float32Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) f[i * a.itemSize + k] = a.getComponent(i, k);
+    geo.setAttribute(nom, new THREE.BufferAttribute(f, a.itemSize));
+  }
+  return geo;
+}
 function geometrieDe(gabarit) {
   gabarit.updateMatrixWorld(true);
   let geo = null, mat = null;
-  gabarit.traverse(n => { if (n.isMesh && !geo) { geo = n.geometry.clone().applyMatrix4(n.matrixWorld); mat = n.material; } });
+  gabarit.traverse(n => { if (n.isMesh && !geo) { geo = enFlottants(n.geometry.clone()).applyMatrix4(n.matrixWorld); mat = n.material; } });
   return geo ? { geo, mat } : null;
+}
+// tokpa.glb (Tripo, from a description): the Toyota minibus of the tokpa-tokpa lines.
+export const TOKPA_3D = { geo: null, mat: null };
+export async function chargerTokpa(version = 0) {
+  try {
+    const g = (await chargeur.loadAsync(import.meta.env.BASE_URL + `modeles/batiments/tokpa.glb?v=${version}`)).scene;
+    const r = geometrieDe(gabaritDe(g, { largeur: 5 })); if (r) { TOKPA_3D.geo = r.geo; TOKPA_3D.mat = r.mat; }
+  } catch (e) { console.warn('modèle tokpa indisponible', e.message); }
+  return TOKPA_3D;
 }
 export async function chargerZems() {
   const url = f => import.meta.env.BASE_URL + 'modeles/' + f;

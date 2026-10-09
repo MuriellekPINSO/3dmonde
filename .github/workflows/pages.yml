@@ -1,10 +1,10 @@
-# Publie le site sur GitHub Pages à chaque envoi sur main :
+# Publishes the site to GitHub Pages on every push to main:
 # https://muriellekpinso.github.io/Benin3D/
-# À faire une fois dans les réglages du dépôt :
-#   Settings → Pages → Source : « GitHub Actions »
-#   Settings → Secrets and variables → Actions → New repository secret :
-#     VITE_GOOGLE_MAPS_KEY = la clé Google Maps (facultatif ; la restreindre à
-#     https://muriellekpinso.github.io/* dans la console Google Cloud)
+# To do once in the repository settings:
+#   Settings → Pages → Source: "GitHub Actions"
+#   Settings → Secrets and variables → Actions → New repository secret:
+#     VITE_GOOGLE_MAPS_KEY = the Google Maps key (optional; restrict it to
+#     https://muriellekpinso.github.io/* in the Google Cloud console)
 name: Publier le site
 on:
   push:

@@ -85,3 +85,8 @@ export function musiqueEvenement(on) {
   if (on) { M.force = true; demarrerMusique(); M.amb = AMB.concert; M.zone = 'concert'; M.pas = 0; }
   else { M.force = false; arreterMusique(); M.zone = 'ville'; M.amb = AMB.ville; }
 }
+/** Music played outside a ride (demo, presentation video): the `zone` mood, or null to stop it. */
+export function musiqueForcee(zone) {
+  if (zone) { M.force = true; demarrerMusique(); if (M.zone !== zone) { M.amb = AMB[zone] || AMB.ville; M.zone = zone; M.pas = 0; } }
+  else { M.force = false; arreterMusique(); M.zone = 'ville'; M.amb = AMB.ville; }
+}

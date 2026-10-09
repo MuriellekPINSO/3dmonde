@@ -17,7 +17,7 @@ const CATALOGUE = {
   quartiers: { txt: n => `Answer “Where are we now?” correctly ${n} times`, n: [2, 3, 5, 8], cumul: true, prime: 300 },
   lignes: { txt: n => `Finish ${n} line${n > 1 ? 's' : ''} without losing a life`, n: [1, 2, 3, 5], cumul: true, prime: 400 },
   cotisation: { txt: () => 'Pay your dues to the union collector', n: [1, 1, 1, 1], cumul: true, prime: 150 },
-  essence: { txt: n => `Fill up ${n} time${n > 1 ? 's' : ''} (petrol station or kpayo)`, n: [1, 2, 4, 6], cumul: true, prime: 200 },
+  essence: { txt: n => `Fill up ${n} (petrol station or kpayo)`, n: [1, 2, 4, 6], cumul: true, prime: 200 },
 };
 export const KLAXONS = {
   classique: { nom: 'Stock horn', prix: 0 },

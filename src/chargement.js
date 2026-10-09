@@ -6,7 +6,7 @@ export const frame = () => new Promise(r => requestAnimationFrame(() => r()));
 // City data: gzipped JSON produced by `npm run donnees`. Some hosts already
 // decompress it on the way; we only decompress if the gzip header is there.
 export async function decode() {
-  const res = await fetch(import.meta.env.BASE_URL + 'donnees/cotonou.json.gz');
+  const res = await fetch(import.meta.env.BASE_URL + 'donnees/cotonou.en.json.gz');
   if (!res.ok) throw new Error(`Data not found (${res.status}). Run “npm run donnees”.`);
   const buf = new Uint8Array(await res.arrayBuffer());
   if (buf[0] === 0x1f && buf[1] === 0x8b) {

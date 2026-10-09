@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { remettre } from './remise.js';
 import { $ } from './base.js';
 import { AUDIO, son } from './audio.js';
-import { JEU, LANE, fmtF, pose, toast } from './jeu.js';
+import { JEU, LANE, demiChaussee, fmtF, latTrottoir, pose, toast } from './jeu.js';
 import { DISC, bulle, dialogue, nouveauSigne, personne } from './discussions.js';
 import { FEUX } from './feux.js';
+import { traverser } from './pietons.js';
 
 // ---------- Highway code: traffic lights, police, crashes ----------
 // Schekina's specification, priorities 1 and 2:
@@ -13,6 +14,7 @@ import { FEUX } from './feux.js';
 // - a crash is no longer just a blink: the police come to write up a report,
 //   or the customer gets off to take another zém and the ride is lost.
 
+const NOM_FEU = { vert: 'Green light', orange: 'Amber light', rouge: 'Red light' }; // whole labels (translated in the English version)
 const CYCLE = { vert: 9, orange: 2.5, rouge: 7 }, TOUR = CYCLE.vert + CYCLE.orange + CYCLE.rouge;
 export const AMENDES = { feu: 2000, constat: 1500 };
 const R = { feux: [], police: null };
@@ -54,7 +56,7 @@ export function preparerFeux(C) {
     const s0 = c.s - 9; if (s0 < 60 || s0 - dernier < (c.reel ? 60 : 220) || s0 > C.L - 40) continue;
     dernier = s0;
     const f = { s: s0, dephase: Math.random() * TOUR, passe: false, etat: '', mats: matsFeu() };
-    const pied = pose(C, s0, LANE * 2.9, tmp()), haut = pose(C, s0, LANE * .4, tmp()), avant = pose(C, s0 - 25, LANE * .4, tmp());
+    const hw = demiChaussee(C, s0), pied = pose(C, s0, hw + .6, tmp()), haut = pose(C, s0, hw * .25, tmp()), avant = pose(C, s0 - 25, hw * .25, tmp()); // pole at the edge, lights above the roadway
     const g = new THREE.Group();
     const vPied = new THREE.Vector3(pied.x, pied.y, pied.z), vSommet = vPied.clone().setY(pied.y + 6), vTete = new THREE.Vector3(haut.x, haut.y + 6, haut.z);
     g.add(entre(vPied, vSommet, .18, gris), entre(vSommet, vTete, .12, gris));
@@ -65,7 +67,7 @@ export function preparerFeux(C) {
     g.add(tete, entre(vSommet, new THREE.Vector3(haut.x, haut.y + 5.8, haut.z), .05, gris));
     // White stop line across the roadway.
     const l0 = pose(C, s0, 0, tmp()), l1 = pose(C, s0 + 4, 0, tmp());
-    const ligne = new THREE.Mesh(new THREE.BoxGeometry(LANE * 5, .03, .45), blanc); ligne.position.set(l0.x, l0.y + .04, l0.z); ligne.lookAt(l1.x, l0.y + .04, l1.z);
+    const ligne = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, .03, .45), blanc); ligne.position.set(l0.x, l0.y + .04, l0.z); ligne.lookAt(l1.x, l0.y + .04, l1.z);
     g.add(ligne);
     JEU.decor.add(g); f.g = g; R.feux.push(f);
   }
@@ -76,6 +78,9 @@ export function majFeux(st) {
   for (const f of R.feux) {
     const e = etatFeu(f, st.temps);
     if (e !== f.etat) { f.etat = e; for (const k of Object.keys(f.mats)) f.mats[k].emissiveIntensity = k === e ? 2.2 : 0; }
+    // Red for motorbikes: pedestrians cross at the crossing (one wave per cycle, if the zém is approaching).
+    const vague = Math.floor((st.temps + f.dephase) / TOUR), d = f.s - st.s;
+    if (e === 'rouge' && f.vague !== vague && d < 140 && d > 10) { f.vague = vague; traverser(f.s, f); }
     if (!f.passe && st.s >= f.s) {
       f.passe = true;
       if (e === 'rouge' && st.v > 1.5) police(st, 'feu');
@@ -83,7 +88,7 @@ export function majFeux(st) {
     }
   }
   const f = R.feux.find(f => !f.passe && f.s - st.s < 90 && f.s - st.s > -2), el = $('#jhFeu');
-  if (el) { el.hidden = !f; if (f) { el.className = 'jh-feu ' + f.etat; el.innerHTML = `<i></i><b>${{ vert: 'Green', orange: 'Amber', rouge: 'Red' }[f.etat]} light</b><span>${Math.max(0, Math.round(f.s - st.s))} m</span>`; } }
+  if (el) { el.hidden = !f; if (f) { el.className = 'jh-feu ' + f.etat; el.innerHTML = `<i></i><b>${NOM_FEU[f.etat]} light</b><span>${Math.max(0, Math.round(f.s - st.s))} m</span>`; } }
 }
 
 // The officer's whistle (two high notes).
@@ -93,10 +98,10 @@ function sifflet() {
 }
 /** The police officer at the roadside, a little ahead of the zém. */
 function agent(st) {
-  const C = JEU.chemin, p = pose(C, st.s + 12, LANE * 2.7, tmp()), q = pose(C, st.s + 12, 0, tmp());
-  const m = personne(9000 + Math.floor(Math.random() * 999), { gilet: '#1f3a6e', femme: false });
+  const C = JEU.chemin, p = pose(C, st.s + 12, latTrottoir(C, st.s + 12, 1, .8) ?? demiChaussee(C, st.s + 12) + .5, tmp()), q = pose(C, st.s + 12, 0, tmp());
+  const m = personne(9000 + Math.floor(Math.random() * 999), { gilet: '#1f3a6e', femme: false, role: 'policier' });
   m.position.set(p.x, p.y, p.z); m.lookAt(q.x, p.y, q.z);
-  const kepi = new THREE.Mesh(new THREE.CylinderGeometry(.14, .15, .1, 12), new THREE.MeshLambertMaterial({ color: '#16264a' })); kepi.position.y = 1.72; m.add(kepi);
+  if (m.userData.modele !== 'policier') { const kepi = new THREE.Mesh(new THREE.CylinderGeometry(.14, .15, .1, 12), new THREE.MeshLambertMaterial({ color: '#16264a' })); kepi.position.y = 1.72; m.add(kepi); }
   m.userData.voix = { femme: false, graine: 'police' };
   JEU.decor.add(m); return m;
 }
@@ -134,7 +139,7 @@ export function accident(st) {
   const c = DISC.client;
   if (c && Math.random() < .5) {
     bulle(c.siege, choisir(['I’m getting off! I’ll take another zém.', 'Are you trying to kill me? I’m getting off here!', 'Stop! I’m never riding with you again.']), { ton: 'fort', duree: 3 });
-    toast(`${c.nom.split(' ').slice(-1)[0]} got off: ride lost`, 2.4, 'mal');
+    toast(`${c.nom.split(' ').slice(-1)[0]} ${c.femme ? 'got off' : 'got off'}: ride lost`, 2.4, 'mal');
     const s = c.siege; DISC.client = null; st.passagers = 0; setTimeout(() => { if (!DISC.client && s) s.visible = false; }, 1500);
     nouveauSigne(st.s + 160 + Math.random() * 120);
   } else setTimeout(() => { if (JEU.etat === st && JEU.actif) police(st, 'constat'); }, 900);

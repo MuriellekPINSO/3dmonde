@@ -17,6 +17,7 @@
 
   <div class="side">
     <header class="brand panel">
+      <a class="langue" id="btnLangue" href="https://tours-two-ashen.vercel.app/" hreflang="fr" title="Lire en français">FR</a>
       <h1>Cotonou <span class="tag">3D</span></h1>
       <p class="sub">Littoral, Benin · 6°22′ N, 2°25′ E</p>
       <p class="stats" id="stats"></p>
@@ -72,7 +73,10 @@
   </div>
   <button class="jouer jouer-flottant" type="button" id="btnJouer"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play Zém Run</button>
 
-  <p class="credits"><span class="credit-google">Real view © Google · </span>Buildings: <a href="https://sites.research.google/open-buildings/" target="_blank" rel="noopener">Google Open Buildings</a> and OpenStreetMap · façades from photos: Erevan <a href="https://commons.wikimedia.org/wiki/File:Centre_commercial_Erevan_de_Cotonou_08.jpg" target="_blank" rel="noopener">Alex Ahdn</a>, Cathedral <a href="https://commons.wikimedia.org/wiki/File:Cath%C3%A9drale_Notre-Dame-de-misericordes_%C3%A0_Cotonou.jpg" target="_blank" rel="noopener">Saliousoft</a> (CC BY-SA 4.0), Dantokpa <a href="https://commons.wikimedia.org/wiki/File:March%C3%A9_Dantokpa_(vue_arri%C3%A8re).jpg" target="_blank" rel="noopener">jbdodane</a> (CC BY 2.0), Porte du Non-Retour <a href="https://commons.wikimedia.org/wiki/File:Porte_du_non-retour_au_Benin.jpg" target="_blank" rel="noopener">Borisghost</a> (CC0), BCEAO, Palais de la Marina and Stadium <a href="https://commons.wikimedia.org/wiki/User:Adoscam" target="_blank" rel="noopener">Adoscam</a>, Sofitel <a href="https://commons.wikimedia.org/wiki/File:Sofitel_Cotonou_Marina_H%C3%B4tel_%26_Spa.jpg" target="_blank" rel="noopener">Freed Armel</a> (CC BY-SA 4.0) · 3D models generated (Tripo) from photos by Yendifa (CC BY), Saliousoft, houaito affo daniel, Zounmabejosue, Fawaz.tairou (CC BY-SA), Step may (CC0), jbdodane (CC BY 2.0), Adoscam, Freed Armel (CC BY-SA) · streets © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · monuments rebuilt from photos<br><span id="satCredit" hidden></span></p>
+  <div class="credits">
+    <p class="credits-court"><span class="credit-google">© Google · </span>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · Google Open Buildings · <button type="button" class="credits-btn" aria-expanded="false" aria-controls="creditsDetail">Credits</button><span id="satCredit" hidden></span></p>
+    <div class="credits-detail" id="creditsDetail" hidden><p>Buildings: <a href="https://sites.research.google/open-buildings/" target="_blank" rel="noopener">Google Open Buildings</a> and OpenStreetMap · façades from photos: Erevan <a href="https://commons.wikimedia.org/wiki/File:Centre_commercial_Erevan_de_Cotonou_08.jpg" target="_blank" rel="noopener">Alex Ahdn</a>, Cathedral <a href="https://commons.wikimedia.org/wiki/File:Cath%C3%A9drale_Notre-Dame-de-misericordes_%C3%A0_Cotonou.jpg" target="_blank" rel="noopener">Saliousoft</a> (CC BY-SA 4.0), Dantokpa <a href="https://commons.wikimedia.org/wiki/File:March%C3%A9_Dantokpa_(vue_arri%C3%A8re).jpg" target="_blank" rel="noopener">jbdodane</a> (CC BY 2.0), Porte du Non-Retour <a href="https://commons.wikimedia.org/wiki/File:Porte_du_non-retour_au_Benin.jpg" target="_blank" rel="noopener">Borisghost</a> (CC0), BCEAO, Palais de la Marina and Stadium <a href="https://commons.wikimedia.org/wiki/User:Adoscam" target="_blank" rel="noopener">Adoscam</a>, Sofitel <a href="https://commons.wikimedia.org/wiki/File:Sofitel_Cotonou_Marina_H%C3%B4tel_%26_Spa.jpg" target="_blank" rel="noopener">Freed Armel</a> (CC BY-SA 4.0) · 3D models generated (Tripo) from photos by Yendifa (CC BY), Saliousoft, houaito affo daniel, Zounmabejosue, Fawaz.tairou (CC BY-SA), Step may (CC0), jbdodane (CC BY 2.0), Adoscam, Freed Armel (CC BY-SA) · streets © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · monuments rebuilt from photos</p></div>
+  </div>
 
   <p class="google-erreur" id="googleErreur" hidden></p>
   <div class="manette-info" id="manetteInfo" role="status"></div>
@@ -97,13 +101,13 @@
       </div>
       <div class="jm-lignes" id="jmLignes"></div>
       <div class="jm-prog" id="jmProg"></div>
-      <div class="jm-duo"><b>Two players</b><button type="button" class="btn-ghost" id="mjCreer">Create a game</button><input id="mjCode" maxlength="4" placeholder="CODE" aria-label="Game code" autocomplete="off"><button type="button" class="btn-ghost" id="mjRejoindre">Join</button><span id="mjStatut">Play together: each of you sees the other’s zém in the city.</span></div>
+      <div class="jm-duo"><b>Two players</b><button type="button" class="btn-ghost" id="mjCreer">Create a game</button><button type="button" class="btn-ghost jm-inviter" id="mjInviter" hidden>Invite a friend</button><input id="mjCode" maxlength="4" placeholder="CODE" aria-label="Game code" autocomplete="off"><button type="button" class="btn-ghost" id="mjRejoindre">Join</button><span id="mjStatut">Play together on the same line: create a game and send the link to your friend.</span></div>
       <div class="jm-pied">
         <label for="jmNumero">Number on your yellow shirt <input id="jmNumero" maxlength="5" inputmode="numeric" value="1234"></label>
         <button type="button" class="btn-ghost" id="jmPub">Advertisers</button>
         <button type="button" class="btn-ghost" id="jmRetour">Back to the map</button>
       </div>
-      <p class="jm-aide"><b>↑</b> accelerate (the zém only moves while you hold it, and slows down as soon as you let go) · <b>↓</b> brake · <b>stop at red lights</b>, or the police will fine you · ask your passenger if they have a helmet · <b>← →</b> change lanes, <b>→ →</b> pull over onto the roadside; <b>at a junction, slow down then ← or →</b> to turn, <b>T</b> to go straight on where the GPS wanted to turn: you choose, and it recalculates the route · the <b>mini-map</b> and the place names on screen help you find your way · <b>E</b> interact with what's next to you (fuel, street vendor, MoMo, tyre repairer, shops, people, a customer waving you down) · <b>space</b> jump · <b>H</b> horn · <b>1 2 3</b> answer · <b>M</b> weather · <b>Esc</b> pause. Parked with no passenger? Wait: a passer-by will come and ask you for a ride.<br><b>Controller</b>: RT throttle · LT brake · stick or D-pad: lanes, up: straight on · A jump · B horn · X or Y interact · during a dialogue A, B, X answer · Start pause · Select weather.</p>
+      <p class="jm-aide"><b>↑</b> accelerate (the zém only moves while you hold it, and slows down as soon as you let go) · <b>↓</b> brake · <b>stop at red lights</b>, or the police will fine you · ask your passenger if they have a helmet · <b>← →</b> change lanes, <b>→ →</b> pull over onto the roadside; <b>at a junction, slow down then ← or →</b> to turn, <b>T</b> to go straight on where the GPS wanted to turn: you choose, and it recalculates the route · the <b>mini-map</b> and the place names on screen help you find your way · <b>E</b> interact with what's next to you (fuel, street vendor, MoMo, tyre repairer, shops, people, a customer waving you down) · <b>space</b> jump · <b>H</b> horn · <b>1 2 3</b> answer · <b>M</b> weather · <b>Esc</b> pause. Parked with no passenger? Wait: a passer-by will come and ask you for a ride.<br><b>Controller</b> : RT throttle · LT brake · stick or D-pad: lanes, up: straight on · A jump · B horn · X or Y interact · during a dialogue A, B, X answer · Start pause · Select weather.</p>
       <label class="jm-option"><input type="checkbox" id="jmVoix"> Character voices (they speak out loud)</label>
     </div>
     <div class="jeu-hud" id="jeuHud" hidden>
@@ -114,6 +118,7 @@
       <div class="jh-quartier" id="jhQuartier"></div>
       <div class="jh-carrefour" id="jhCarrefour" hidden></div>
       <div class="jh-feu" id="jhFeu" hidden></div>
+      <div class="jh-duo" id="jhDuo" hidden></div>
       <div class="jh-paiement panel" id="jhPaiement" hidden role="status"></div>
       <div class="jh-rue" id="jhRue"><small>You’re riding on</small><b></b></div>
       <div class="jh-repere" id="jhRepere"><div class="jh-photo" id="jhRepPhoto" hidden></div><small></small><b></b></div>

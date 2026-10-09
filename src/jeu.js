@@ -3,6 +3,8 @@ import { poserTripo, tripoDispo } from './batiments-tripo.js';
 import { AUDIO, audioCtx, moteur, moteurMaj, moteurStop, radio, son } from './audio.js';
 import { VOIX, taire, voixActives, voixDispo } from './voix.js';
 import { accident, majFeux, preparerFeux } from './regles.js';
+import { majPietons, marchandeReelle, preparerPietons, regarder, viderPietons } from './pietons.js';
+import { annoncerDepart, arriveeDuo } from './multijoueur.js';
 import { arreterMusique, demarrerMusique, musiqueQuartier } from './musique.js';
 import { $, LITE, hash, toXZ } from './base.js';
 import { QUARTIERS } from './donnees-lieux.js';
@@ -10,7 +12,7 @@ import { E } from './etat.js';
 import { startFlight } from './interface.js';
 import { VEGETATION, texteToile } from './lieux.js';
 import { camera, controls, scene } from './scene.js';
-import { ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
+import { TOKPA_3D, ZEMS_3D, B3, C3, matVeh, partsChevre, partsMarchande, partsTokpa, partsVoiture, partsZem } from './vehicules.js';
 import { TABLIERS, mergeColored } from './ville.js';
 import { chargerMasques, procession } from './egungun.js';
 import { satelliteVisible } from './satellite.js';
@@ -25,7 +27,7 @@ import { METEO } from './meteo.js';
 import { vibrer } from './manette.js';
 import { carrefoursDe, construireReseau, itineraire, itineraireCourt } from './carrefours.js';
 import { ouvrirOffre } from './publicites.js';
-import { rueRouteJeu } from './rue.js';
+import { pietonOk, profilRoute, rueRouteJeu } from './rue.js';
 
 // ---------- Zém Run: the game ----------
 /** Vehicles that carry one customer at a time, with haggling (zém and taxi). */
@@ -55,7 +57,40 @@ export function cheminDe(pts) {
   const cum = [0]; for (let i = 1; i < p.length; i++) cum.push(cum[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
   const L = cum[cum.length - 1], n = Math.floor(L) + 1, X = new Float32Array(n), Z = new Float32Array(n);
   let j = 0; for (let d = 0; d < n; d++) { while (j < p.length - 2 && cum[j + 1] < d) j++; const t = (d - cum[j]) / ((cum[j + 1] - cum[j]) || 1); X[d] = p[j][0] + (p[j + 1][0] - p[j][0]) * t; Z[d] = p[j][1] + (p[j + 1][1] - p[j][1]) * t; }
-  return { X, Z, n, L: n - 1 };
+  const C = { X, Z, n, L: n - 1 }; profiler(C); return C;
+}
+// The real street under the route, metre by metre: half-width of the roadway (hw) and line of the walls
+// (front). The game's lanes squeeze into it, pedestrians stay on the roadside, not inside the walls.
+function profiler(C) {
+  const { X, Z, n } = C, hw = new Float32Array(n), front = new Float32Array(n), pas = 2, ech = [];
+  for (let i = 0; i < n; i += pas) {
+    const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3), dx = X[b] - X[a], dz = Z[b] - Z[a], l = Math.hypot(dx, dz) || 1;
+    ech.push(profilRoute(X[i], Z[i], dx / l, dz / l));
+  }
+  // Rolling median over ~14 m: a junction or a wider neighbouring street doesn't cause a jump.
+  const med = (k, cle, def) => { const v = []; for (let q = Math.max(0, k - 3); q <= Math.min(ech.length - 1, k + 3); q++) if (ech[q]) v.push(ech[q][cle]); if (!v.length) return def; v.sort((u, w) => u - w); return v[v.length >> 1]; };
+  const h = ech.map((e, k) => med(k, 'hw', 3.5)), f = ech.map((e, k) => med(k, 'front', 9.8));
+  for (let i = 0; i < n; i++) { const k = Math.min(h.length - 1, Math.floor(i / pas)); hw[i] = h[k]; front[i] = Math.max(f[k], h[k] + 1); }
+  C.hw = hw; C.front = front;
+}
+const ixC = (C, s) => Math.max(0, Math.min(C.n - 1, Math.round(s)));
+/** Real half-width of the roadway at point s of the route. */
+export const demiChaussee = (C, s) => C.hw ? C.hw[ixC(C, s)] : LANE * 2.5;
+/** The game's 5 lanes squeezed into the real width of the street: factor for the lateral offsets. */
+export const kFiles = (C, s) => C.hw ? THREE.MathUtils.clamp((C.hw[ixC(C, s)] - .9) / (2 * LANE), .45, 1) : 1;
+const tmpT = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
+/**
+ * Lateral offset of a spot on the roadside, `recul` m from the edge of the roadway, on side `cote` (+1 right,
+ * −1 left); null if there is no room (building, median, other carriageway) even right at the edge.
+ */
+export function latTrottoir(C, s, cote, recul = 1.4) {
+  const i = ixC(C, s), hw = demiChaussee(C, s), front = C.front ? C.front[i] : 9.8, p = pose(C, s, 0, tmpT);
+  for (const r of [Math.min(recul, front - hw - .5), Math.min(recul, front - hw - .5) * .5, .55]) {
+    if (r < .3) continue;
+    const lat = cote * (hw + r);
+    if (pietonOk(p.x - p.dz * lat, p.z + p.dx * lat)) return lat;
+  }
+  return null;
 }
 export const tmpPose = { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 };
 export function pose(C, s, lat = 0, out = tmpPose) {
@@ -130,10 +165,10 @@ export function creerObjet(type, s, file) {
     const m3d = hash(JEU.objets.length + s, 1) < .5 ? ZEMS_3D.moto : ZEMS_3D.zem || ZEMS_3D.moto;
     mesh = m3d ? m3d.clone() : new THREE.Mesh(hash(JEU.objets.length + s, 1) < .5 ? GJ.zem : GJ.zemB, matVeh);
   }
-  else if (type === 'tokpa') mesh = new THREE.Mesh(GJ.tokpa, matVeh);
+  else if (type === 'tokpa') { mesh = TOKPA_3D.geo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(GJ.tokpa, matVeh); mesh.castShadow = !LITE; }
   else if (type === 'voiture') mesh = new THREE.Mesh(GJ.voit[Math.floor(hash(s, 2) * 5)], matVeh);
   else if (type === 'chevre') mesh = new THREE.Mesh(GJ.chevre, matVeh);
-  else if (type === 'marchande') mesh = new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
+  else if (type === 'marchande') mesh = marchandeReelle(Math.floor(hash(s, 3) * 1e5), true) || new THREE.Mesh(GJ.marchande[Math.floor(hash(s, 3) * 4)], matVeh);
   else if (type === 'trou') mesh = new THREE.Mesh(GJ.trou, GJ.matTrou);
   else if (type === 'travaux') mesh = new THREE.Mesh(GJ.travaux, matVeh);
   else if (type === 'egungun') mesh = procession(3, Math.floor(Math.random() * 4));
@@ -143,7 +178,7 @@ export function creerObjet(type, s, file) {
   if (T.traverse) { const cote = Math.random() < .5 ? -1 : 1; o.lat = cote * (type === 'egungun' ? 8 : 7.5); o.dirLat = -cote * T.traverse; }
   JEU.objets.push(o); return o;
 }
-export function retirerObjet(o) { JEU.decor.remove(o.mesh); }
+export function retirerObjet(o) { JEU.decor.remove(o.mesh); o.mesh.userData.liberer?.(); }
 
 export function construireDecorLigne(L, C, debut = 1) {
   // Stops: yellow zone in the right lane, sign with the neighbourhood name, passengers waiting.
@@ -151,13 +186,19 @@ export function construireDecorLigne(L, C, debut = 1) {
   for (let k = Math.max(1, debut); k < L.arrets.length; k++) {
     const a = L.arrets[k], s = a.s;
     const z = new THREE.Mesh(new THREE.PlaneGeometry(30, LANE * .9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#f2c21b', transparent: true, opacity: .55, depthWrite: false }));
-    const p = pose(C, s - 12, LANE); z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
-    const q = pose(C, s, LANE * 2.2); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
+    const kz = kFiles(C, s - 12), p = pose(C, s - 12, LANE * kz); z.scale.z = kz; z.position.set(p.x, p.y + .12, p.z); z.rotation.y = p.a; g.add(z);
+    const q = pose(C, s, demiChaussee(C, s) + .7); const post = new THREE.Group(); post.position.set(q.x, q.y, q.z); post.rotation.y = Math.atan2(q.dz * .6 - q.dx * .8, -q.dx * .6 - q.dz * .8);
     const mat = new THREE.Mesh(C3(.08, .08, 3.6, 6), new THREE.MeshStandardMaterial({ color: '#555' })); mat.position.set(0, 1.8, 0); post.add(mat);
     const t = texteToile(['ARRÊT', a.nom.toUpperCase()], 1024, 400, '#1d1a16', '#f2c21b', '800 110px "Bricolage Grotesque", system-ui, sans-serif');
     const pan = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ map: t })); pan.position.set(0, 3.9, 0); post.add(pan);
     const dos = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.25), new THREE.MeshBasicMaterial({ color: '#2b2f33' })); dos.position.set(0, 3.9, -.02); dos.rotation.y = Math.PI; post.add(dos); g.add(post);
-    for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) { const m = new THREE.Mesh(GJ.marchande[(k + i) % 4], matVeh); const r = pose(C, s - 4 - i * 1.5, LANE * 2.4 + (i % 2) * .6); m.position.set(r.x, r.y, r.z); m.rotation.y = r.a + Math.PI / 2; g.add(m); }
+    for (let i = 0; i < (JEU.veh === 'tokpa' ? 5 : 2); i++) {
+      const si = s - 4 - i * 1.5, lat = latTrottoir(C, si, 1, 1.1 + (i % 2) * .7); if (lat === null) continue; // no room: nobody
+      const r = pose(C, si, lat), vraie = marchandeReelle(k * 31 + i * 7 + 3);
+      const m = vraie || new THREE.Mesh(GJ.marchande[(k + i) % 4], matVeh); m.position.set(r.x, r.y, r.z);
+      if (vraie) regarder(m, r.dz, -r.dx); else m.rotation.y = r.a + Math.PI / 2; // facing the roadway
+      g.add(m);
+    }
   }
 }
 
@@ -204,7 +245,8 @@ export function lancerLigne(L, veh) {
   // Player's zém: detailed moto-taxi from 3D monde (rider in a yellow vest), otherwise the code-built model.
   const detaille = veh === 'zem' && ZEMS_3D.moto;
   const taxiTripo = veh === 'voiture' && tripoDispo('voiture');
-  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : partsTokpa()), matVeh); j.castShadow = !LITE;
+  const tokpaTripo = veh === 'tokpa' && TOKPA_3D.geo; // the real minibus (Tripo), otherwise the one drawn in code
+  const j = detaille ? ZEMS_3D.moto.clone() : taxiTripo ? new THREE.Group() : tokpaTripo ? new THREE.Mesh(TOKPA_3D.geo, TOKPA_3D.mat) : new THREE.Mesh(mergeColored(veh === 'zem' ? partsZem({ passager: false }) : veh === 'voiture' ? partsVoiture('#f2c21b') : partsTokpa()), matVeh); j.castShadow = !LITE;
   const grp = new THREE.Group(); grp.add(j);
   if (taxiTripo) poserTripo('voiture', j, { largeur: 4.3, rot: Math.PI / 2 }); // taxi generated by Tripo
   if (veh === 'zem') { // number on the back of the vest
@@ -242,14 +284,15 @@ function installerTrajet(L, C, debut, garderClient) {
   // The city's walls and gates make way for the game's container shops and petrol stations.
   const occupees = [];
   for (const it of BORD.items) {
-    if (it.type === 'station') { const p = pose(C, it.s, it.side * (it.off + 6), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
-    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.side * (it.off + 3.4), { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
+    if (it.type === 'station') { const p = pose(C, it.s, it.lat + it.side * 6, { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 10]); }
+    else if (it.type === 'enseigne' && /mode|coiffure|telephone|boutique|quincaillerie|garage/.test(it.t)) { const p = pose(C, it.s, it.lat + it.side * 3.4, { x: 0, z: 0, dx: 1, dz: 0, a: 0 }); occupees.push([p.x, p.z, 4.6]); }
   }
   rueRouteJeu(C, occupees);
   degagerVegetation(C);
   const bar = $('#jhArrets'); if (bar) bar.innerHTML = L.arretsJ.map((a, k) => k < debut && k ? '' : `<i style="left:${(a.s / C.L * 100).toFixed(2)}%" title="${a.nom}"></i>`).join('');
   try { construireReseau(); JEU.carrefours = carrefoursDe(C); } catch (e) { console.warn('junctions', e); JEU.carrefours = []; }
   preparerFeux(C); // traffic lights at junctions (specification, priority 1)
+  preparerPietons(C); // passers-by on the pavements and at pedestrian crossings
 }
 /** At a junction, ← or → (slowed down): take the street on that side and the GPS recalculates to the next stops.
  *  When the route turns and you want to go straight on (to cross the bridge, for example), the arrow opposite the
@@ -261,7 +304,7 @@ export function virage(dir) {
   let br = j && (dir === 0 ? j.droit : dir < 0 ? j.gauche : j.droite), droit = dir === 0;
   if (j && !br && j.droit && dir === -j.sens) { br = j.droit; droit = true; }
   if (!br || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const pts = itineraire(p.x, p.z, j.n, br.m, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('No road that way', 1.2, 'mal'); return false; }
   appliquerItineraire(pts);
@@ -286,7 +329,7 @@ function appliquerItineraire(pts) {
 /** Customer in a hurry (specification, priority 3): the GPS takes the shortest way, side streets included. */
 export function prendreRaccourci() {
   const st = JEU.etat, C = JEU.chemin, L = JEU.ligne; if (!st || st.prochain >= L.arretsJ.length) return false;
-  const p = pose(C, st.s, st.lat, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
+  const p = pose(C, st.s, st.lat * kFiles(C, st.s), { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 }), q = pose(C, Math.min(C.L - 1, st.s + 18), 0, { x: 0, y: 0, z: 0, dx: 1, dz: 0, a: 0 });
   const avant = Math.max(0, L.arretsJ[st.prochain].s - st.s);
   const pts = itineraireCourt(p.x, p.z, q.x, q.z, L.arretsXZ.slice(st.prochain));
   if (!pts || pts.length < 3) { toast('No shortcut around here', 1.4, 'mal'); return false; }
@@ -297,7 +340,7 @@ export function prendreRaccourci() {
 }
 export function quitterJeu() {
   JEU.actif = false; moteurStop(); taire(); arreterMusique(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); satelliteVisible(true); rueRouteJeu(null);
-  if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
+  viderPietons(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; }
   document.getElementById('app').classList.remove('mode-jeu');
   $('#jeu').hidden = true; controls.enabled = true; camera.near = 2; camera.fov = 45; camera.updateProjectionMatrix();
   const p = JEU.joueur ? JEU.joueur.position : controls.target; controls.target.set(p.x, 0, p.z);
@@ -353,9 +396,9 @@ export function majJeu(dt) {
   if (st.y > 0 || st.vy > 0) { st.vy -= 24 * dt; st.y = Math.max(0, st.y + st.vy * dt); if (st.y === 0) st.vy = 0; }
   if (st.invul > 0) st.invul -= dt;
   if (st.secousse > 0) st.secousse -= dt;
-  const p = pose(C, st.s, st.lat);
+  const kj = kFiles(C, st.s), p = pose(C, st.s, st.lat * kj); // lanes squeezed into the real width of the street
   const j = JEU.joueur; j.position.set(p.x, p.y + st.y, p.z); j.rotation.set(0, p.a, 0);
-  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) / Math.max(dt, .001) * .014)) : 0);
+  j.rotateX(JEU.veh === 'zem' ? Math.max(-.32, Math.min(.32, -(st.lat - latAv) * kj / Math.max(dt, .001) * .014)) : 0);
   if (C.H) { const i = Math.max(2, Math.min(C.n - 3, Math.floor(st.s))); j.rotateZ(Math.atan((C.H[i + 2] - C.H[i - 2]) / 4)); } // tilted on the bridge ramp
   j.visible = true; // a crash is no longer just a blink: see regles.js (police report or lost customer)
   controls.target.set(p.x, 0, p.z);
@@ -383,15 +426,16 @@ export function majJeu(dt) {
     if (o.dirLat) o.lat += o.dirLat * dt;
     const ds = o.s - st.s;
     if (ds < -25 || Math.abs(o.lat) > (o.type === 'egungun' ? 11 : 9)) { retirerObjet(o); continue; }
-    const q = pose(C, o.s, o.lat, tmpP2);
+    const q = pose(C, o.s, o.lat * kFiles(C, o.s), tmpP2);
     o.mesh.position.set(q.x, q.y + (o.type === 'trou' ? .1 : 0), q.z); o.mesh.rotation.y = o.dirLat ? q.a + Math.sign(o.dirLat) * Math.PI / 2 : q.a;
+    if (o.mesh.userData.modele) { const sg = Math.sign(o.dirLat); if (sg) regarder(o.mesh, -sg * q.dz, sg * q.dx); else { regarder(o.mesh, -q.dx, -q.dz); o.mesh.userData.jouer('idle'); } } // realistic character (facing +z)
     if (o.type === 'jeton') { o.mesh.position.y = q.y + 1.1 + Math.sin(st.temps * 4 + o.s) * .15; o.mesh.rotation.y = st.temps * 3 + o.s; }
     if (o.type === 'egungun') {
       o.mesh.userData.anim(st.temps); o.mesh.rotation.y = q.a + Math.PI / 2;
       if (!o.annonce && ds < 70) { o.annonce = true; toast('Egungun procession! Brake: nobody touches the ancestors.', 2.6); son('klaxon'); }
       if (!o.respect && ds > 4 && ds < 32 && Math.abs(o.lat) < 7 && st.v < 3) { o.respect = true; st.argent += 100; toast('Respect for the Egungun: +100 F', 1.6, 'bien'); son('piece'); evenement('egungun'); progres('egungun', 1); }
     }
-    const proche = Math.abs(ds) < (o.T.long + V.long) / 2 && Math.abs(o.lat - st.lat) < (o.T.larg + V.larg) / 2 * .85;
+    const proche = Math.abs(ds) < (o.T.long + V.long) / 2 && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 * .85;
     if (!o.touche && proche) {
       if (o.type === 'jeton') { st.argent += 25; st.pieces++; son('piece'); vibrer('piece'); retirerObjet(o); if (st.pieces % 5 === 0) progres('pieces', st.pieces); continue; }
       if (o.T.saut && st.y > .55) { /* jumped */ }
@@ -405,7 +449,7 @@ export function majJeu(dt) {
         accident(st);
       }
     }
-    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Close shave! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
+    if (!o.frole && !o.touche && ds < 0 && ds > -3 && o.T.v[1] && Math.abs(o.lat - st.lat) * kj < (o.T.larg + V.larg) / 2 + 1.1) { o.frole = true; st.frolements++; st.argent += 15; toast('Close shave! +15 F', .9, 'bien'); evenement('frole'); progres('frolements', st.frolements); }
     restants.push(o);
   }
   JEU.objets = restants;
@@ -443,6 +487,7 @@ export function majJeu(dt) {
   // Roadside, monuments, street signs, minimap.
   const rep = majBordure(st, C);
   majDiscussions(st, C, dt);
+  majPietons(st, dt);
   // Junction ahead: “← / → to turn” (slow down first).
   const cf = JEU.carrefours?.find(c => c.s - st.s > -4 && c.s - st.s < 70), elC = $('#jhCarrefour');
   if (elC) {
@@ -498,6 +543,7 @@ export function finJeu(arrive) {
   el.querySelector('h2').textContent = arrive ? 'End of the line!' : 'End of the ride';
   el.querySelector('.jf-sous').textContent = arrive ? `${L.nom}: ${L.arretsJ[0].nom} → ${L.arretsJ[L.arretsJ.length - 1].nom}` : 'Three crashes: that helmet earned its keep. Ride again whenever you like.';
   const stats = [['Takings', fmtF(st.argent)], ['Stops served', `${st.servis}/${L.arretsJ.length - 1}`], ['Near misses', st.frolements], ['Distance', `${(st.s / 1000).toFixed(1)} km`]];
+  const duo = arriveeDuo(arrive); if (duo) stats.push(['Two-player race', duo]); // who reached the terminus first
   el.querySelector('.jf-stats').innerHTML = stats.map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
   const qz = el.querySelector('.jf-quiz'), Q = QUIZ[L.id] || []; let i = 0, bonus = 0;
   const finir = () => {
@@ -530,7 +576,7 @@ export function remplirLignes() {
     const km = (L.arrets[L.arrets.length - 1].s / 1000).toFixed(1);
     const veh = L.veh === 'zem' && JEU.prog?.voiture && JEU.prog.vehicule === 'voiture' ? 'voiture' : L.veh;
     b.innerHTML = `<span class="jm-veh ${veh}">${veh === 'zem' ? 'Zém' : veh === 'voiture' ? 'Taxi' : 'Tokpa'}</span><b>${L.nom}</b><small>${L.arrets.map(a => a.nom).join(' → ')}</small><span class="jm-meta">${km} km · ${L.arrets.length - 1} stops${JEU.meilleur[L.id] ? ` · record ${fmtF(JEU.meilleur[L.id])}` : ''}</span>`;
-    b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); });
+    b.addEventListener('click', () => { JEU.numero = ($('#jmNumero').value || '1234').slice(0, 5); sauver(); JEU.fini = false; lancerLigne(L, veh); annoncerDepart(L.id, veh); }); // two-player: the other player sets off on the same line
     el.appendChild(b);
   }
 }
@@ -550,7 +596,7 @@ export function initJeu(data) {
   $('#jmRetour').addEventListener('click', () => { $('#jeu').hidden = true; document.getElementById('app').classList.remove('mode-jeu'); });
   $('#jmPub').addEventListener('click', ouvrirOffre);
   $('#jfRejouer').addEventListener('click', () => { JEU.fini = false; lancerLigne(JEU.ligne, JEU.veh); });
-  $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
+  $('#jfLignes').addEventListener('click', () => { JEU.actif = false; moteurStop(); nettoyerBordure(); nettoyerDiscussions(); viderPietons(); remettreVegetation(); if (JEU.decor) { scene.remove(JEU.decor); JEU.decor = null; } ouvrirJeu(); });
   $('#jfCarte').addEventListener('click', quitterJeu);
   $('#jpReprendre').addEventListener('click', () => { JEU.pause = false; $('#jeuPause').hidden = true; });
   $('#jpQuitter').addEventListener('click', quitterJeu);
